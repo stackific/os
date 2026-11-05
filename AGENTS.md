@@ -144,7 +144,7 @@ dev/reviews/         review records from /s-build, one per task
   - QEMU UEFI (OVMF, AAVMF) boot, session and unattended-install tests for every image, in both install modes, on blank and Windows-like disk images.
 - VMs get test access only from one-boot SMBIOS credentials with a token-gated vsock shell; no image ships sshd or test units.
 - Boot tests reach the VM only through the vsock shell from `systemd.extra-unit.*`/`systemd.unit-dropin.*` credentials and wait with `systemctl is-system-running --wait` over it; `vmm.notify_socket` over vsock drops messages, so it is not used (`tests/vm/`).
-- `tests/vm/boot.sh <iso> <out-dir> <checks>` runs the checks every image passes, then sources the image's `tests/vm/<base>-<arch>.sh`; a check that only one image passes goes there.
+- `tests/vm/boot.sh <iso> <out-dir> <checks>` runs the checks every image passes, then sources the image's check file: `tests/vm/<base>.sh` when every image of the base passes the same checks (Arch), `tests/vm/<base>-<arch>.sh` when an architecture needs its own; a check that only one image passes goes there.
 - The test shell is a `systemd-socket-activate` service (`tests/vm/stackific-test-shell.service`), not a socket unit, because Fedora's SELinux policy denies PID 1 a listening vsock socket labelled for a shell.
 - Over the test shell on Fedora, `systemctl --user -M <user>@` fails (`systemd-run -P` hands the shell's vsock socket to PID 1 and dbus-broker, which SELinux silently denies); checks run `systemctl --user` as the user through `runuser`.
 - Tests read and edit disk images only through `qemu-img`, `qemu-io` and `mtools` on image files: never root, loop devices, `qemu-nbd` or mounts.

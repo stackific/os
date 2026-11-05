@@ -1,6 +1,6 @@
 # 008: Fedora 45 x86_64 live ISO boots to MangoWM with Noctalia, with GNOME
 
-- [ ] Done
+- [x] Done
 
 Base: fedora
 
