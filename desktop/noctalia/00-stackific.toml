@@ -1,0 +1,4 @@
+# Stackific OS defaults for Noctalia, kept up to date by the stackific-desktop package. Your own *.toml files in this
+# folder sort after this one and win; settings you pick in Noctalia's UI win over both.
+[include]
+files = ["/usr/share/stackific/noctalia.toml"]

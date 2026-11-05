@@ -1,0 +1,116 @@
+# Credits for the shipped wallpapers in branding/wallpapers/, one [[wallpaper]] entry per image.
+# All ten are public-domain paintings; git and the stackific-artwork PKGBUILD pin their bytes.
+# Each comment names the museum file an image came from and anything done to it.
+# Rijksmuseum objects use the museum's persistent IDs instead of its long page URLs.
+
+[[wallpaper]]
+# https://images.metmuseum.org/CRDImages/ep/original/DP155336.jpg, 8 px edge cropped losslessly (jpegtran)
+file = "an-eruption-of-vesuvius-johan-christian-dahl.jpg"
+title = "An Eruption of Vesuvius"
+artist = "Johan Christian Dahl"
+year = "1824"
+institution = "The Metropolitan Museum of Art"
+object_id = "2019.167.1"
+object_url = "https://www.metmuseum.org/art/collection/search/438159"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# The museum's 3840 px rendition of https://iiif.micr.io/aqDHu (Rijksmuseum images of public-domain works are CC0)
+file = "festoon-of-fruits-johannes-borman.jpg"
+title = "Festoon of Fruits"
+artist = "Johannes Borman"
+year = "c. 1653–c. 1658"
+institution = "Rijksmuseum"
+object_id = "SK-A-754"
+object_url = "https://id.rijksmuseum.nl/200108279"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# https://image.dma.org/iiif/2/production__objects__4292604__71071414__pyramid.jp2/full/full/0/default.jpg, unchanged
+# DMA marks it public domain and its open-access images are free to use without restriction, under no named licence
+file = "fog-effect-camille-pissarro.jpg"
+title = "Place du Théâtre Français: Fog Effect"
+artist = "Camille Pissarro"
+year = "1897"
+institution = "Dallas Museum of Art"
+object_id = "1985.R.50"
+object_url = "https://dma.org/art/collection/object/4292604"
+licence = "LicenseRef-PublicDomain"
+
+[[wallpaper]]
+# https://images.metmuseum.org/CRDImages/rl/original/DP-34471-001.jpg, background and canvas edge cropped losslessly (jpegtran)
+file = "pines-along-the-shore-henri-edmond-cross.jpg"
+title = "Pines Along the Shore"
+artist = "Henri-Edmond Cross"
+year = "1896"
+institution = "The Metropolitan Museum of Art"
+object_id = "1975.1.164"
+object_url = "https://www.metmuseum.org/art/collection/search/459095"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# Cut from https://iiif.micr.io/UjEro and scaled to 3840 px wide (Rijksmuseum images of public-domain works are CC0)
+file = "still-life-with-a-gilt-cup-willem-claesz-heda.jpg"
+title = "Still Life with a Gilt Cup"
+artist = "Willem Claesz Heda"
+year = "1635"
+institution = "Rijksmuseum"
+object_id = "SK-A-4830"
+object_url = "https://id.rijksmuseum.nl/200109354"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# https://images.metmuseum.org/CRDImages/ep/original/DP-34962-001.jpg, background and canvas edge cropped losslessly (jpegtran)
+file = "sunset-after-a-storm-andreas-achenbach.jpg"
+title = "Sunset after a Storm on the Coast of Sicily"
+artist = "Andreas Achenbach"
+year = "1853"
+institution = "The Metropolitan Museum of Art"
+object_id = "87.15.23"
+object_url = "https://www.metmuseum.org/art/collection/search/437975"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# https://images.metmuseum.org/CRDImages/ep/original/DP-1740-001_cropped.jpg, canvas edge cropped losslessly (jpegtran)
+file = "the-north-cape-by-moonlight-peder-balke.jpg"
+title = "The North Cape by Moonlight"
+artist = "Peder Balke"
+year = "1848"
+institution = "The Metropolitan Museum of Art"
+object_id = "2019.167.4"
+object_url = "https://www.metmuseum.org/art/collection/search/441379"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# https://openaccess-cdn.clevelandart.org/1965.233/1965.233_full.tif, canvas edge cropped, scaled to 3840 px wide, JPEG quality 92
+file = "twilight-in-the-wilderness-frederic-edwin-church.jpg"
+title = "Twilight in the Wilderness"
+artist = "Frederic Edwin Church"
+year = "1860"
+institution = "The Cleveland Museum of Art"
+object_id = "1965.233"
+object_url = "https://clevelandart.org/art/1965.233"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# https://images.metmuseum.org/CRDImages/ad/original/DP-12550-001.jpg, unchanged
+# Title shortened to fit the 64-character display-string rule; the Met's full title adds "Northampton, Massachusetts,"
+file = "view-from-mount-holyoke-thomas-cole.jpg"
+title = "View from Mount Holyoke, after a Thunderstorm—The Oxbow"
+artist = "Thomas Cole"
+year = "1836"
+institution = "The Metropolitan Museum of Art"
+object_id = "08.228"
+object_url = "https://www.metmuseum.org/art/collection/search/10497"
+licence = "CC0-1.0"
+
+[[wallpaper]]
+# https://images.metmuseum.org/CRDImages/ep/original/DP-42549-001.jpg, scaled to 3840 px wide
+file = "wheat-field-with-cypresses-vincent-van-gogh.jpg"
+title = "Wheat Field with Cypresses"
+artist = "Vincent van Gogh"
+year = "1889"
+institution = "The Metropolitan Museum of Art"
+object_id = "1993.132"
+object_url = "https://www.metmuseum.org/art/collection/search/436535"
+licence = "CC0-1.0"

@@ -30,15 +30,38 @@ Our own Arch packages live in `arch/packages/<name>/PKGBUILD`. Their files are b
 
 The ISO build mounts that repo read-only at `/repo`, and `arch/iso/pacman.conf` reads it as `[stackific]`. It is unsigned (`SigLevel = Optional`) until release signing lands.
 
-`stackific-desktop` holds two files:
+### The branding file
+
+`branding/branding.env` is the one branding file: the product name, the ID, the four URLs and the accent colour, as shell `KEY="value"` lines. Every package file that names the product or uses its colour is rendered from it in the PKGBUILD's `build()`:
+
+- the PKGBUILD sources `branding.env` (`set -a`, so the keys are exported);
+- it runs `envsubst` on a base-neutral template (`*.in` in `branding/`) with an explicit list of keys, such as `envsubst '$ACCENT'`, so no other `$` in the template changes;
+- values derived from a key are computed there too: `ANSI_COLOR` is the accent as a 24-bit terminal colour (`38;2;R;G;B`), and the icon is `logo.svg` with `currentColor` replaced by the accent.
+
+A branding edit changes `branding.env`'s sha256, so update it, and bump `pkgrel`, in every PKGBUILD that sources it (`stackific-release`, `stackific-artwork`).
+
+### The packages
+
+`stackific-desktop` holds seven files and the greeter's asset folder:
 
 - `stackific-noctalia.service` (`desktop/systemd/user/`), a user unit that starts Noctalia, wanted by `mango-session.target` for every user. MangoWM starts that target itself once it has imported `WAYLAND_DISPLAY` into the user manager. That is how Noctalia starts while MangoWM's own config stays as packaged. Plasma never starts that target, so Noctalia stays out of Plasma.
 - `/etc/profile.d/stackific-wlroots.sh` (`desktop/profile.d/`), which exports `WLR_RENDERER_ALLOW_SOFTWARE=1`. With no working GPU driver (a VM without 3D, the boot test's included), Mesa renders in software, and wlroots refuses that without the variable. MangoWM's renderer is GLES-only, so MangoWM would exit. greetd sources `/etc/profile`, so the variable reaches every session it starts.
+- `/usr/share/stackific/noctalia.toml` (`desktop/noctalia/stackific-noctalia.toml`), our Noctalia defaults: no first-run setup wizard, the wallpaper picker browsing `/usr/share/backgrounds/stackific`, and Dahl's "An Eruption of Vesuvius" as the default wallpaper.
+- `/etc/skel/.config/noctalia/00-stackific.toml` (`desktop/noctalia/`), which only includes the defaults above. Noctalia reads config only from the user's `~/.config/noctalia/` (no `/etc` or `/usr/share` layer), so each user gets this one-line file from `/etc/skel`, and package updates to the defaults reach them. It sorts before the user's own files, which win, and the settings Noctalia's UI writes (`~/.local/state/noctalia/settings.toml`) win over both. Users created before the package was installed have no copy; `cp /etc/skel/.config/noctalia/00-stackific.toml ~/.config/noctalia/` adds it.
+- `/usr/share/stackific/greeter.toml`, rendered from `desktop/noctalia/stackific-greeter.toml.in` with the accent: noctalia-greeter's administrator config, with a dark palette in our emerald and the same painting as the desktop.
+- `/usr/lib/tmpfiles.d/stackific-greeter.conf` (`desktop/tmpfiles.d/`), which links `/var/lib/noctalia-greeter/greeter.toml`, the file the greeter reads, to the one above. Its `L` line creates the link only when that file is missing, so an administrator's own `greeter.toml` is never replaced.
+- `/etc/profile.d/stackific-greeter.sh` (`desktop/profile.d/`), which exports `NOCTALIA_GREETER_ASSETS_DIR=/usr/share/stackific/greeter-assets`, the greeter's documented override of its asset folder. The greeter has no key for another logo, but takes `noctalia.svg` and `fonts/` from that folder. Ours holds two links: `noctalia.svg` to `stackific-release`'s emerald icon, and `fonts` to `/usr/share/noctalia-greeter/assets/fonts`. greetd sources `/etc/profile` before the greeter, so our logo sits where Noctalia's was, with no package file changed.
+
+`stackific-artwork` holds the wallpapers and fastfetch's logo, and depends on `fastfetch`, so installing our branding installs fastfetch:
+
+- `/usr/share/backgrounds/stackific/*.jpg`: the ten public-domain paintings in `branding/wallpapers/`, credited in `branding/wallpapers.toml`, which the package installs as its licence file (`/usr/share/licenses/stackific-artwork/wallpapers.toml`);
+- `/usr/share/stackific/logo.txt`: the block-character text logo, `$1` marking where fastfetch puts the colour;
+- `/etc/xdg/fastfetch/config.jsonc`, rendered from `branding/fastfetch.jsonc.in`: the logo file in the accent, with fastfetch's default modules. fastfetch reads the first `fastfetch/config.jsonc` it finds in `~/.config/`, `$XDG_CONFIG_DIRS`, `/etc/xdg/` and `/etc/`, so a user's own config replaces ours.
 
 `stackific-release` makes the image identify as Stackific OS. It holds two files:
 
-- `/etc/os-release`: `branding/os-release` (the base-neutral fields: `ID=stackific`, `NAME` and `PRETTY_NAME` "Stackific OS", the site and GitHub issues URLs, `DEFAULT_HOSTNAME=stackific`, `LOGO=stackific` and the emerald `ANSI_COLOR`), followed by Arch's per-base lines `ID_LIKE=arch` and `BUILD_ID=rolling`. The base is rolling, so there is no `VERSION` or `VERSION_ID`, as os-release(5) allows.
-- `/usr/share/icons/hicolor/scalable/apps/stackific.svg`: `branding/logo-color.svg`, the icon that `LOGO=stackific` names. It is the committed emerald (`#007a55`) copy of `branding/logo.svg`, not a build-time recolour. `logo.svg` fills with `currentColor`, which icon renderers draw black, invisible on a dark panel.
+- `/etc/os-release`: `branding/os-release.in` rendered from the branding file (the base-neutral fields: `ID=stackific`, `NAME` and `PRETTY_NAME` "Stackific OS", the site and GitHub issues URLs, `DEFAULT_HOSTNAME=stackific`, `LOGO=stackific` and the emerald `ANSI_COLOR`), followed by Arch's per-base lines `ID_LIKE=arch` and `BUILD_ID=rolling`. The base is rolling, so there is no `VERSION` or `VERSION_ID`, as os-release(5) allows. The template has no comment lines, because some os-release readers split every line on `=`.
+- `/usr/share/icons/hicolor/scalable/apps/stackific.svg`, the icon that `LOGO=stackific` names: `branding/logo.svg` with its `currentColor` fill replaced by the accent at build time. `currentColor` alone renders black, invisible on a dark panel.
 
 Arch's `filesystem` package owns `/usr/lib/os-release` and `/etc/arch-release`, and both stay as shipped. os-release(5) readers use `/etc/os-release` when it exists and never merge it with `/usr/lib/os-release`, so owning the `/etc` file is enough, with no hook, patch or fork. No Arch package owns `/etc/os-release`: systemd's tmpfiles line `L /etc/os-release` only makes it a symlink when it is missing, and runs after the transaction, so pacman's conflict check never sees it. That holds because mkarchiso installs every package in one pacstrap call. Installing the package later onto a system that already has the symlink needs `pacman --overwrite /etc/os-release`. It is not in `backup=()`: it is vendor data, like Arch's own `/usr/lib/os-release`, so an upgrade replaces it.
 
@@ -48,7 +71,7 @@ To change a file in `desktop/` or `branding/`, update its `sha256sums` entry in 
 
 ## Live session
 
-The ISO boots to a desktop. greetd (`arch/iso/airootfs/etc/greetd/config.toml`) logs the user `live` into MangoWM with no prompt, and MangoWM starts Noctalia, which opens its first-run welcome dialog. In MangoWM's stock config, `Alt+Return` opens foot and `Alt+space` opens rofi.
+The ISO boots to a desktop. greetd (`arch/iso/airootfs/etc/greetd/config.toml`) logs the user `live` into MangoWM with no prompt, and MangoWM starts Noctalia, which shows Dahl's "An Eruption of Vesuvius" and no setup wizard (our defaults, above). `fastfetch` in a terminal prints our logo in emerald. In MangoWM's stock config, `Alt+Return` opens foot and `Alt+space` opens rofi.
 
 After a logout, greetd shows noctalia-greeter. There, KDE Plasma is the other session. `live` has an empty password and is in `wheel`, so polkit treats it as an admin (with its empty password). root also has an empty password, on the other consoles. These accounts exist only in the live image: `arch/iso/airootfs/etc/{passwd,group,shadow,gshadow}` and `etc/sysusers.d/stackific-live.conf`. mkarchiso creates `/home/live` from `/etc/skel`.
 
@@ -74,7 +97,9 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 
 - `/etc/os-release` reads `ID=stackific`, `ID_LIKE=arch`, `BUILD_ID=rolling`, `PRETTY_NAME="Stackific OS"`, `LOGO=stackific` and mkarchiso's `IMAGE_ID=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; pacman says `stackific-release` owns `/etc/os-release` and `filesystem` owns `/etc/arch-release` and `/usr/lib/os-release`; `/usr/lib/os-release` has no `IMAGE_` lines; the `stackific` icon is filled `#007a55`;
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
-- the MangoWM and Plasma session files are present.
+- the MangoWM and Plasma session files are present;
+- the ten wallpapers are installed, `live`'s `00-stackific.toml` matches `/etc/skel`'s, and `noctalia config export merged` (as `live`) shows the wizard off, the wallpaper folder and the default wallpaper;
+- `fastfetch --pipe false` (as `live`) prints the logo's last line in the accent colour.
 
 It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`.
 
@@ -93,7 +118,7 @@ systemd's `vmm.notify_socket` is not used. Over vsock it opens one connection pe
 
 ## aarch64
 
-The aarch64 image is built and tested on aarch64 Linux: the `arch-aarch64` jobs of the `images` workflow (after each merge to `main`) and of the `release` workflow run it on the Mac's runner VM, and upload it like the x86_64 images (`docs/releases.md`). Like the x86_64 one before task 002, it boots to a console: the desktop follows in a later task. It shares the profile in `arch/iso/` with x86_64 and has its own package list, `packages.aarch64`. Until the desktop arrives, the x86_64 desktop's airootfs files (the greetd config, the `live` and `greeter` accounts, the `display-manager.service` alias) sit unused in it.
+The aarch64 image is built and tested on aarch64 Linux: the `arch-aarch64` jobs of the `images` workflow (after each merge to `main`) and of the `release` workflow run it on the Mac's runner VM, and upload it like the x86_64 images (`docs/releases.md`). Like the x86_64 one before task 002, it boots to a console: the desktop follows in a later task. It shares the profile in `arch/iso/` with x86_64 and has its own package list, `packages.aarch64`. It installs our branding as x86_64 does (`stackific-release`, and `stackific-artwork` with fastfetch), and its boot test (`tests/vm/arch-aarch64.sh`) checks the identity, the wallpapers and fastfetch's logo; the desktop packages wait for the desktop task. Until the desktop arrives, the x86_64 desktop's airootfs files (the greetd config, the `live` and `greeter` accounts, the `display-manager.service` alias) sit unused in it.
 
 Where its parts come from:
 

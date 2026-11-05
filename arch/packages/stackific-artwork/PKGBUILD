@@ -1,0 +1,62 @@
+# Stackific OS artwork for Arch: the wallpapers with their credits, and fastfetch with our logo (so installing the
+# branding installs fastfetch). The sources are base-neutral files from branding/, which `just arch packages` stages
+# next to this file by name. The paintings are public domain (nine CC0, one without a named licence); wallpapers.toml
+# credits each one and serves as their licence file.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-artwork
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS artwork: the wallpapers, and fastfetch with the Stackific OS logo'
+arch=('any')
+url='https://os.stackific.com'
+license=('Apache-2.0' 'CC0-1.0' 'LicenseRef-PublicDomain')
+makedepends=('gettext')
+depends=('fastfetch')
+options=('!debug' '!strip')
+backup=('etc/xdg/fastfetch/config.jsonc')
+_wallpapers=(
+  'an-eruption-of-vesuvius-johan-christian-dahl.jpg'
+  'festoon-of-fruits-johannes-borman.jpg'
+  'fog-effect-camille-pissarro.jpg'
+  'pines-along-the-shore-henri-edmond-cross.jpg'
+  'still-life-with-a-gilt-cup-willem-claesz-heda.jpg'
+  'sunset-after-a-storm-andreas-achenbach.jpg'
+  'the-north-cape-by-moonlight-peder-balke.jpg'
+  'twilight-in-the-wilderness-frederic-edwin-church.jpg'
+  'view-from-mount-holyoke-thomas-cole.jpg'
+  'wheat-field-with-cypresses-vincent-van-gogh.jpg'
+)
+source=('branding.env' 'fastfetch.jsonc.in' 'logo.txt' 'wallpapers.toml' "${_wallpapers[@]}")
+sha256sums=('985affad12bfb221a563ef41d9a31b9b0b7fe0c103f4ce6be7ddd68c3a849759'
+            'e69c6a6837c82d6ff362d2b8f224c9eff6154acc04db0c38a69bb62446131c1b'
+            'd10a6fe45d48f754ec535750564c759133f916af16aae435cc5b28918b741d5f'
+            '0af37796e25aea7b4ccf9bba41b8c898c2751801de625006cfdb38903e2c8c89'
+            'da2450709d123ea009945144037c4d22bce474acece8ff0b082d26d86ba31b06'
+            'e60ee595654d0cc53a19968c7a357d4974a5462e0b9cb367eaaad345c4793927'
+            '0249997196ea3d212f6f166f6d5bd83c589491efa393cb0865c431dedead2293'
+            '523cb31b3bafd9eba83247ec43efdaee456b9be2bf711dd254c2c61b98003405'
+            '0e1849ce6d12d8347383070f8bb10375ef035274e8c671dc52039e756a13cd5d'
+            '522beca69964bc62da559e8f5f7d7e25b00a39b2696dd48efde439026ecc095e'
+            'c992c6b7b65f9be9a4b65745eb37b2ad9e993919ebf075201f1ed9945de22365'
+            '8c54e04280e08cecfbdad90ea6a5afa10e554781184488028b21a7c5e9349d9b'
+            '40c454b6cf712c6ef70cca067fbe551c069d4b9130d06716db05452d16d515c4'
+            '6212f93c9549bbc2858a137f8db4d76073ef703fda7ac329157135f0a03fdfca')
+
+# Render fastfetch's config with the accent from branding.env
+build() {
+  set -a
+  # shellcheck source=/dev/null # staged next to this file at build time
+  . ./branding.env
+  set +a
+  # shellcheck disable=SC2016 # envsubst takes the variable name literally
+  envsubst '$ACCENT' <fastfetch.jsonc.in >fastfetch.jsonc
+}
+
+# Install the wallpapers and their credits, the text logo, and fastfetch's system-wide config
+package() {
+  install -Dm644 -t "$pkgdir/usr/share/backgrounds/stackific" "${_wallpapers[@]}"
+  install -Dm644 -t "$pkgdir/usr/share/licenses/$pkgname" wallpapers.toml
+  install -Dm644 -t "$pkgdir/usr/share/stackific" logo.txt
+  install -Dm644 fastfetch.jsonc "$pkgdir/etc/xdg/fastfetch/config.jsonc"
+}
