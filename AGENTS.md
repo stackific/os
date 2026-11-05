@@ -166,7 +166,7 @@ dev/reviews/         review records from /s-build, one per task
   - the prompt-trail entry with the task's number, in its base's folder;
   - the review cycle: `/ponytail-review` on the change, each round recorded in `dev/reviews/<NNN>-<slug>.md` (one file per task, updated in place), every finding fixed, tests rerun, until a review finds nothing. If findings remain after two fix rounds, it stops and tells the operator the cycle is not making progress. The review does not replace tests or security-guidance.
 - One task = one PR = one prompt-trail entry; one step = one commit. Chores have no task, are their own commits, and get no entry.
-- The operator ticks Done and does every git operation. Skills may read history but never commit, push, rebase or open PRs.
+- The operator does every git operation; skills may read history but never commit, push, rebase or open PRs. A task's Done box is ticked once its PR merges: an agent that finds a merged PR (`gh pr list --state merged`) whose task is unticked ticks it in a chore commit.
 
 ## Git: hard rules
 - Never commit unless the operator explicitly says so in the current request; earlier approval does not carry over.

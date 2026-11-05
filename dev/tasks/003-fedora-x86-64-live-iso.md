@@ -1,6 +1,6 @@
 # 003: Fedora 45 x86_64 console live ISO with a QEMU boot test
 
-- [ ] Done
+- [x] Done
 
 Base: fedora
 
