@@ -58,8 +58,8 @@ iso version="0.0.0-dev": packages
   [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
 
-# Boot-test stackific-<version>-arch-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with
-# tests/vm/arch-<arch>.sh); leaves serial.log and the screenshots the check file takes
+# Boot-test stackific-<version>-arch-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with tests/vm/arch.sh,
+# the checks both Arch images pass); leaves serial.log, screen.png and greeter.png
 # podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs. SELinux also keeps
 # containers off /dev/vhost-vsock unless labelling is off (see packages).
 [positional-arguments]
@@ -67,7 +67,7 @@ test version="0.0.0-dev": builder
   podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
     --security-opt label=disable \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
-    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-{{ arch() }}.iso" /out /tests/arch-{{ arch() }}.sh
+    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-{{ arch() }}.iso" /out /tests/arch.sh
 
 # Check the host prerequisites image builds need: rootless podman, and read-write /dev/kvm and /dev/vhost-vsock
 check:

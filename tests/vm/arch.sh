@@ -1,5 +1,6 @@
 # shellcheck shell=bash
-# Arch x86_64 checks: boot.sh sources this file after the checks every image passes (`just arch test`).
+# Arch checks, for both architectures (x86_64 and Arch Linux ARM aarch64): boot.sh sources this file after the checks
+# every image passes (`just arch test`).
 
 # Identity: stackific-release owns /etc/os-release, Arch's files stay as shipped
 # shellcheck disable=SC2016 # $ID and friends belong to the guest shell
