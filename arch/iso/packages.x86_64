@@ -1,0 +1,10 @@
+base
+linux
+linux-firmware
+amd-ucode
+intel-ucode
+mkinitcpio
+mkinitcpio-archiso
+networkmanager
+btrfs-progs
+dosfstools

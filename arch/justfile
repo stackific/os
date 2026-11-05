@@ -1,0 +1,51 @@
+# Arch module: builds the Arch x86_64 live ISO in the pinned builder container and boot-tests it under QEMU with OVMF.
+# Pins live in vars.just; outputs go to .build/arch/x86_64/. Image builds need Linux with rootless podman.
+
+import 'vars.just'
+
+# Build the pinned builder image (podman's layer cache makes a rebuild with unchanged pins a no-op)
+builder:
+  @podman build --quiet --build-arg BASE={{ builder_base }} --build-arg ALA_DATE={{ replace(ala_date, '-', '/') }} \
+    --tag {{ builder }} --file "{{ justfile_directory() }}/arch/Containerfile" "{{ justfile_directory() }}/arch" >/dev/null
+
+# Build .build/arch/x86_64/stackific-<version>-arch-x86_64.iso and its package manifest, then print the ISO size
+[positional-arguments]
+iso version="0.0.0-dev": builder
+  #!/usr/bin/env bash
+  set -euo pipefail
+  # The version reaches file names and the container only as data ($1, env), and must be semver like a release
+  [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must be semver, got '$1'" >&2; exit 1; }
+  name="stackific-$1-arch-x86_64"
+  mkdir -p "{{ out }}"
+  rm -f "{{ out }}/$name.iso" "{{ out }}/$name.packages.txt"
+  # mkarchiso runs as `build` with its work dir inside the container, so --rm discards it and every build starts fresh.
+  # Container root (the host user) then moves the outputs to /out, so the host user owns them.
+  podman run --rm --privileged \
+    --volume "{{ justfile_directory() }}/arch/iso:/profile:ro" --volume "{{ out }}:/out" \
+    --env STACKIFIC_VERSION="$1" --env NAME="$name" \
+    --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
+    {{ builder }} bash -c 'runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /profile \
+      && install -m644 "/home/build/out/$NAME.iso" /out/ \
+      && install -m644 /home/build/work/iso/arch/pkglist.x86_64.txt "/out/$NAME.packages.txt"'
+  mib=$(( $(stat -c %s "{{ out }}/$name.iso") / 1048576 ))
+  [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
+  echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
+
+# Boot-test stackific-<version>-arch-x86_64.iso under QEMU with OVMF (tests/vm/boot.sh); leaves screen.png and serial.log
+# podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs
+[positional-arguments]
+test version="0.0.0-dev": builder
+  podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
+    --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
+    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-x86_64.iso" /out
+
+# Check the host prerequisites image builds need: rootless podman, and read-write /dev/kvm and /dev/vhost-vsock
+check:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  if [ "{{ os() }}" = macos ]; then echo "arch: skipped (image builds need Linux)"; exit 0; fi
+  v=$(podman --version 2>/dev/null) || { echo "arch: podman missing (README.md, host prerequisites)"; exit 1; }
+  for d in /dev/kvm /dev/vhost-vsock; do
+    [ -r "$d" ] && [ -w "$d" ] || { echo "arch: $d is not read-write for $USER (README.md, host prerequisites)"; exit 1; }
+  done
+  echo "arch: ok (podman ${v##* }, /dev/kvm and /dev/vhost-vsock read-write)"

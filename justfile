@@ -17,6 +17,9 @@ mod actionlint 'just/actionlint/mod.just'
 # Task files, review records and their prompt-trail entries (recipes in dev/justfile)
 mod dev
 
+# Arch base: live ISO build and boot test in the pinned builder container (recipes in arch/justfile)
+mod arch
+
 # Website: marketing pages at / and Starlight docs at /docs (recipes in site/justfile)
 mod site
 
@@ -33,5 +36,5 @@ doctor:
   #!/usr/bin/env bash
   set -uo pipefail
   rc=0
-  for m in uv rtk go serena claude graphify lefthook; do "{{ just_executable() }}" --quiet "$m::check" || rc=1; done
+  for m in uv rtk go serena claude graphify lefthook arch; do "{{ just_executable() }}" --quiet "$m::check" || rc=1; done
   exit "$rc"

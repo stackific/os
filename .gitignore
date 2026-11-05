@@ -1,6 +1,9 @@
 # This file ignores only build output, setup output, IDE files and optional user files.
 # Personal patterns go in .git/info/exclude.
 
+## Build output (images)
+/.build/
+
 ## Setup output (`just setup`)
 /.tools/
 /.claude/skills/graphify/
