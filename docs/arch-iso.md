@@ -93,7 +93,7 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 - NetworkManager is running;
 - a wrong token gets no shell.
 
-`boot.sh` then sources the image's own checks, `tests/vm/arch-<arch>.sh`, which `just arch test` passes as its third argument. The x86_64 file, `tests/vm/arch-x86_64.sh`, checks:
+`boot.sh` then sources the Arch checks, `tests/vm/arch.sh`, which `just arch test` passes as its third argument on both architectures:
 
 - `/etc/os-release` reads `ID=stackific`, `ID_LIKE=arch`, `BUILD_ID=rolling`, `PRETTY_NAME="Stackific OS"`, `LOGO=stackific` and mkarchiso's `IMAGE_ID=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; pacman says `stackific-release` owns `/etc/os-release` and `filesystem` owns `/etc/arch-release` and `/usr/lib/os-release`; `/usr/lib/os-release` has no `IMAGE_` lines; the `stackific` icon is filled `#007a55`;
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
@@ -101,24 +101,20 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 - the ten wallpapers are installed, `live`'s `00-stackific.toml` matches `/etc/skel`'s, and `noctalia config export merged` (as `live`) shows the wizard off, the wallpaper folder and the default wallpaper;
 - `fastfetch --pipe false` (as `live`) prints the logo's last line in the accent colour.
 
-It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`.
-
-The aarch64 file, `tests/vm/arch-aarch64.sh`, checks a console: `uname -m` prints `aarch64`, `getty@tty1.service` is active, and tty1's text (`/dev/vcs1`) shows the `stackific login:` prompt. It saves `screen.png` of that prompt.
-
-Both save `serial.log` to `.build/arch/<arch>/`, then power the VM off. On failure the test prints the end of the serial log.
+It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`. It also saves `serial.log` to `.build/arch/<arch>/`, then powers the VM off. On failure it prints the end of the serial log.
 
 Logging in to Plasma from the greeter is not automated yet. To check it by hand:
 
 1. Boot the ISO in a VM with a display, UEFI firmware and enough RAM (see `-m` in `tests/vm/boot.sh`).
 2. Press `Alt+Return` and run `loginctl terminate-user live`.
-3. Pick `live` and the Plasma session, and log in with an empty password.
+3. Pick `live` and the Plasma session, type any character as the password, and log in. `live` has no password, but noctalia-greeter refuses an empty field (`site/src/content/docs/user/live-session.md`).
 4. In Konsole, `systemctl --user is-active stackific-noctalia.service` prints `inactive`.
 
 systemd's `vmm.notify_socket` is not used. Over vsock it opens one connection per message and drops some of them, READY=1 included.
 
 ## aarch64
 
-The aarch64 image is built and tested on aarch64 Linux: the `arch-aarch64` jobs of the `images` workflow (after each merge to `main`) and of the `release` workflow run it on the Mac's runner VM, and upload it like the x86_64 images (`docs/releases.md`). Like the x86_64 one before task 002, it boots to a console: the desktop follows in a later task. It shares the profile in `arch/iso/` with x86_64 and has its own package list, `packages.aarch64`. It installs our branding as x86_64 does (`stackific-release`, and `stackific-artwork` with fastfetch), and its boot test (`tests/vm/arch-aarch64.sh`) checks the identity, the wallpapers and fastfetch's logo; the desktop packages wait for the desktop task. Until the desktop arrives, the x86_64 desktop's airootfs files (the greetd config, the `live` and `greeter` accounts, the `display-manager.service` alias) sit unused in it.
+The aarch64 image is built and tested on aarch64 Linux: the `arch-aarch64` jobs of the `images` workflow (after each merge to `main`) and of the `release` workflow run it on the Mac's runner VM, and upload it like the x86_64 images (`docs/releases.md`). It is the same desktop live ISO as x86_64, with the same branding, defaults, greeter and wallpapers. It shares the profile in `arch/iso/` and the checks in `tests/vm/arch.sh` with x86_64. Its package list, `packages.aarch64`, mirrors `packages.x86_64`: the same lines in the same order, except `linux-aarch64` for `linux`, no `amd-ucode` or `intel-ucode`, and `archlinuxarm-keyring` after `linux-firmware`. A change to one list makes the same change to the other. Arch Linux ARM's rofi is older than Arch's (1.7.5 against 2.0.0 on 2026-11-05); MangoWM's `Alt+space` binding, `rofi -show drun`, works with both.
 
 Where its parts come from:
 
