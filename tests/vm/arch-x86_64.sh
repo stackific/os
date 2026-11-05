@@ -31,6 +31,8 @@ vm_until 'readlink -f /usr/share/stackific/greeter-assets/noctalia.svg' '^/usr/s
 # The logo's last line, in the accent (fastfetch drops colours when piped unless told otherwise)
 vm_until "runuser -u live -- fastfetch --pipe false | grep -F '▄▄▄▄▄█████████████████████████████████' | grep -c '38;2;0;122;85'" \
   '^1$' 0
+# Our config lists fastfetch's default modules: a config without a modules list prints only the logo
+vm_until "runuser -u live -- fastfetch --pipe true | grep -c 'OS: Stackific OS'" '^1$' 0
 sleep 10 # Noctalia draws a few seconds after its unit is active, on the VM's software renderer
 screenshot screen
 

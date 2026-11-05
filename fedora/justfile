@@ -1,5 +1,6 @@
-# Fedora module: builds the Fedora 45 x86_64 live ISO with kiwi in the pinned builder container and boot-tests it under
-# QEMU with OVMF. Pins live in vars.just; outputs go to .build/fedora/x86_64/. Image builds need Linux with rootless podman.
+# Fedora module: builds our RPMs with mock into a local repo, builds the Fedora 45 x86_64 live ISO with kiwi in the pinned
+# builder container and boot-tests it under QEMU with OVMF. Pins live in vars.just; outputs go to .build/fedora/.
+# Image and package builds need Linux with rootless podman.
 
 import 'vars.just'
 
@@ -7,6 +8,33 @@ import 'vars.just'
 builder:
   @podman build --quiet --build-arg BASE={{ builder_base }} \
     --tag {{ builder }} --file "{{ justfile_directory() }}/fedora/Containerfile" "{{ justfile_directory() }}/fedora" >/dev/null
+
+# Build our RPMs (fedora/packages/<name>/<name>.spec) with mock into the local repo .build/fedora/repo/
+packages: builder
+  #!/usr/bin/env bash
+  set -euo pipefail
+  rm -rf "{{ repo }}"
+  mkdir -p "{{ repo }}"
+  # mock runs as container root in a fresh container, so every build starts clean. --isolation=simple: the container
+  # has no systemd-nspawn; --no-bootstrap-image: pulling mock's bootstrap image would need podman inside the container.
+  # Each spec's Source files are base-neutral files from desktop/ and branding/, found by name as `just arch packages` does.
+  podman run --rm --privileged \
+    --volume "{{ justfile_directory() }}/fedora/packages:/packages:ro" \
+    --volume "{{ justfile_directory() }}/desktop:/desktop:ro" --volume "{{ justfile_directory() }}/branding:/branding:ro" \
+    --volume "{{ repo }}:/repo" \
+    {{ builder }} bash -c 'set -euo pipefail
+      mock=(mock -r fedora-45-{{ arch() }} --isolation=simple --no-bootstrap-image)
+      for s in /packages/*/*.spec; do
+        b=/build/$(basename "$s" .spec)
+        mkdir -p "$b/sources"
+        for f in $(sed -n "s/^Source[0-9]*:[[:space:]]*//p" "$s"); do
+          find /desktop /branding -type f -name "$f" -exec cp -t "$b/sources" {} +
+        done
+        "${mock[@]}" --buildsrpm --spec "$s" --sources "$b/sources" --resultdir "$b/srpm"
+        "${mock[@]}" --rebuild "$b"/srpm/*.src.rpm --resultdir "$b/rpm"
+        cp "$b"/rpm/*.noarch.rpm /repo/
+      done
+      createrepo_c --quiet /repo'
 
 # Build .build/fedora/x86_64/stackific-<version>-fedora-x86_64.iso and its package manifest, then print the ISO size
 [positional-arguments]

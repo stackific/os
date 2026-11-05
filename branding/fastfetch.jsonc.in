@@ -1,9 +1,15 @@
 // Stackific OS defaults for fastfetch (/etc/xdg/fastfetch/config.jsonc): our text logo in the accent colour.
-// Everything else stays fastfetch's default. A user's own ~/.config/fastfetch/config.jsonc replaces this file.
+// A user's own ~/.config/fastfetch/config.jsonc replaces this file. A config file prints only its own "modules", so the
+// list below is fastfetch's default (DEFAULT_STRUCTURE in its CMakeLists.txt, the same in 2.68.1 and 2.70.0).
 {
   "logo": {
     "type": "file",
     "source": "/usr/share/stackific/logo.txt",
     "color": { "1": "${ACCENT}" }
-  }
+  },
+  "modules": [
+    "title", "separator", "os", "host", "kernel", "uptime", "packages", "shell", "display", "de", "wm", "wmtheme",
+    "theme", "icons", "font", "cursor", "terminal", "terminalfont", "cpu", "gpu", "memory", "swap", "disk", "localip",
+    "battery", "poweradapter", "locale", "break", "colors"
+  ]
 }
