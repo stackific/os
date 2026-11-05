@@ -1,0 +1,25 @@
+# Stackific OS desktop defaults for Arch. The sources are base-neutral files from desktop/, which `just arch packages`
+# stages next to this file by name. Text files only, so no debug package and nothing to strip.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-desktop
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS desktop defaults: Noctalia starts in MangoWM sessions, which also start on software rendering'
+arch=('any')
+url='https://os.stackific.com'
+license=('Apache-2.0')
+depends=('mangowm' 'noctalia' 'systemd')
+options=('!debug' '!strip')
+backup=('etc/profile.d/stackific-wlroots.sh')
+source=('stackific-noctalia.service' 'stackific-wlroots.sh')
+sha256sums=('d3bdf2b78fb86bdb7b57c3928640d72275165055c66b5da7d8f1b02bb83af0a5'
+            'a4f8c72e11c79d753efe80780d5efbc9778be340bd51b3b81fecf0b4c0c71171')
+
+# Install the unit, wanted by mango-session.target for every user, and the profile.d script
+package() {
+  install -Dm644 -t "$pkgdir/usr/lib/systemd/user" stackific-noctalia.service
+  install -d "$pkgdir/usr/lib/systemd/user/mango-session.target.wants"
+  ln -s ../stackific-noctalia.service "$pkgdir/usr/lib/systemd/user/mango-session.target.wants/stackific-noctalia.service"
+  install -Dm644 -t "$pkgdir/etc/profile.d" stackific-wlroots.sh
+}

@@ -8,9 +8,32 @@ builder:
   @podman build --quiet --build-arg BASE={{ builder_base }} --build-arg ALA_DATE={{ replace(ala_date, '-', '/') }} \
     --tag {{ builder }} --file "{{ justfile_directory() }}/arch/Containerfile" "{{ justfile_directory() }}/arch" >/dev/null
 
+# Build our packages (arch/packages/*/PKGBUILD) with makepkg in a fresh builder container into the local repo
+# .build/arch/repo/ (unsigned until release signing). Local sources come from desktop/, staged by file name.
+packages: builder
+  #!/usr/bin/env bash
+  set -euo pipefail
+  rm -rf "{{ repo }}"
+  mkdir -p "{{ repo }}"
+  podman run --rm \
+    --volume "{{ justfile_directory() }}/arch/packages:/packages:ro" \
+    --volume "{{ justfile_directory() }}/desktop:/desktop:ro" --volume "{{ repo }}:/repo" \
+    --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
+    {{ builder }} bash -c 'set -euo pipefail
+      for p in /packages/*/PKGBUILD; do
+        b=/home/build/pkg/$(basename "$(dirname "$p")")
+        mkdir -p "$b"
+        cp "$p" "$b/"
+        for f in $(source "$p"; echo "${source[@]}"); do find /desktop -type f -name "$f" -exec cp -t "$b" {} +; done
+        chown -R build "$b"
+        (cd "$b" && runuser -u build -- makepkg --nodeps)
+        cp "$b"/*.pkg.tar.zst /repo/
+      done
+      repo-add -q /repo/stackific.db.tar.zst /repo/*.pkg.tar.zst'
+
 # Build .build/arch/x86_64/stackific-<version>-arch-x86_64.iso and its package manifest, then print the ISO size
 [positional-arguments]
-iso version="0.0.0-dev": builder
+iso version="0.0.0-dev": packages
   #!/usr/bin/env bash
   set -euo pipefail
   # The version reaches file names and the container only as data ($1, env), and must be semver like a release
@@ -21,7 +44,7 @@ iso version="0.0.0-dev": builder
   # mkarchiso runs as `build` with its work dir inside the container, so --rm discards it and every build starts fresh.
   # Container root (the host user) then moves the outputs to /out, so the host user owns them.
   podman run --rm --privileged \
-    --volume "{{ justfile_directory() }}/arch/iso:/profile:ro" --volume "{{ out }}:/out" \
+    --volume "{{ justfile_directory() }}/arch/iso:/profile:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
     --env STACKIFIC_VERSION="$1" --env NAME="$name" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
     {{ builder }} bash -c 'runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /profile \
@@ -31,7 +54,8 @@ iso version="0.0.0-dev": builder
   [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
 
-# Boot-test stackific-<version>-arch-x86_64.iso under QEMU with OVMF (tests/vm/boot.sh); leaves screen.png and serial.log
+# Boot-test stackific-<version>-arch-x86_64.iso under QEMU with OVMF (tests/vm/boot.sh); leaves screen.png, greeter.png
+# and serial.log
 # podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs
 [positional-arguments]
 test version="0.0.0-dev": builder

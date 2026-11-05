@@ -12,3 +12,6 @@ builder := "localhost/stackific-arch-builder:" + ala_date
 
 # Build output for Arch x86_64 images
 out := justfile_directory() / ".build" / "arch" / "x86_64"
+
+# Local repo of our packages (`just arch packages`), read by the ISO build as [stackific]
+repo := justfile_directory() / ".build" / "arch" / "repo"

@@ -1,4 +1,5 @@
-# Arch builder: archiso to build the live ISO, and QEMU with OVMF and socat to boot-test it.
+# Arch builder: archiso to build the live ISO, fakeroot for makepkg (our packages), and QEMU with OVMF and socat to
+# boot-test the ISO.
 # mkarchiso runs as the user `build`, archiso's supported unprivileged mode: rootless podman cannot mount devtmpfs,
 # so pacstrap must bind-mount /dev in its own user namespace, mapped onto build's sub-IDs (1001-65535 here).
 # The base image ships newuidmap and newgidmap without their file capabilities, so they are setuid (container root).
@@ -7,7 +8,7 @@ ARG BASE
 FROM ${BASE}
 ARG ALA_DATE
 RUN echo "Server = https://archive.archlinux.org/repos/${ALA_DATE}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist \
-  && pacman -Syu --noconfirm archiso edk2-ovmf qemu-system-x86 socat \
+  && pacman -Syu --noconfirm archiso edk2-ovmf fakeroot qemu-system-x86 socat \
   && pacman -Scc --noconfirm \
   && useradd --uid 1000 --create-home build \
   && echo build:1001:64535 | tee /etc/subuid > /etc/subgid \
