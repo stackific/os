@@ -1,7 +1,4 @@
----
-title: Arch ISO
-description: Build the Arch x86_64 live ISO, boot-test it under QEMU, and move its package snapshot forward.
----
+# Arch ISO
 
 The Arch x86_64 live ISO is built with [archiso](https://gitlab.archlinux.org/archlinux/archiso) inside a pinned builder container, then boot-tested in the same container under QEMU with OVMF. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `arch:` line.
 

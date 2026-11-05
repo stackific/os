@@ -52,8 +52,8 @@ export default defineConfig({
         // Top-level entry, shown above every group.
         { label: 'Welcome to Stackific OS', slug: 'docs' },
         {
-          label: 'Developer Guide',
-          items: [{ autogenerate: { directory: 'developer' } }],
+          label: 'User Guide',
+          items: [{ autogenerate: { directory: 'user' } }],
         },
         {
           // Entries for tasks on both bases sit at the top; arch/ and fedora/ hold single-base ones.

@@ -1,7 +1,4 @@
----
-title: Checks
-description: What the git hooks and the check workflow run, and how to run them by hand.
----
+# Checks
 
 Every check is a `just` recipe. Git hooks run them through [lefthook](https://lefthook.dev), mapped in `lefthook.yml`, and the `check` workflow runs the same list on every pull request and every push to `main`.
 

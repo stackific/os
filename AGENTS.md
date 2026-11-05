@@ -34,7 +34,8 @@ installer/           the installer: disk step, live-image copy, per-base steps
 branding/            the branding file, logo and wallpapers (committed, credited in wallpapers.toml)
 hardware/            PCI ID lists, chwd profiles and the Fedora detection step
 tests/               container and VM tests
-site/                docs and the prompt trail
+site/                user docs and the prompt trail
+docs/                developer notes: how to build, test and check (Markdown, not published)
 dev/                 `just dev check` (dev/justfile) over tasks, reviews and prompt-trail entries
 dev/tasks/           task files from /s-task
 dev/reviews/         review records from /s-build, one per task
@@ -91,12 +92,12 @@ dev/reviews/         review records from /s-build, one per task
 - `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components. Recipes in `site/justfile`.
   - It publishes `llms.txt` (`starlight-llms-txt`) and a `.md` twin of every docs page (`src/pages/[...slug].md.ts`).
   - Fonts and colours come from the branding file.
-  - Sidebar groups: Developer Guide (`developer/`) and Prompt Trail (`prompt-trail/`); add a group to `astro.config.mjs` with its first page.
+  - Sidebar groups: User Guide (`user/`) and Prompt Trail (`prompt-trail/`); add a group to `astro.config.mjs` with its first page. The site carries no developer guide.
 - Prompt trail: one entry per task PR, written from `.claude/skills/s-build/entry-template.md`. A task on both bases goes to `site/src/content/docs/prompt-trail/<NNN>-<slug>.md`; a single-base task goes under `prompt-trail/arch/` or `prompt-trail/fedora/`, labelled Arch and Fedora by `src/routeData.ts`. Frontmatter `pr:` and `task:` draw the links under the title.
 - Screenshots: `site/src/assets/prompt-trail/<NNN>/<name>.webp`, shown only by their own entry and made with `just site screenshot <raw.png> <out.webp>` (WebP, longest side 1600 px or less, 300 KB or less, metadata stripped).
   - `just site screenshots-check` (pre-commit) enforces it.
   - Site pages are never screenshotted.
-- Docs entry: every task adds or updates the docs pages its change needs, user docs for what users see and developer docs for how to build and test it.
+- Docs entry: every task adds or updates the docs its change needs: user docs in `site/src/content/docs/user/` for what users see, developer notes in `docs/` for how to build and test it.
 
 ## Builds
 - Arch x86_64 builds pin one Arch Linux Archive date, moved forward only through a test gate; Arch builds and tests run in a pinned container. Outputs go to `.build/` (gitignored).
