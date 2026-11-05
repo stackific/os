@@ -1,0 +1,26 @@
+# Stackific OS release files for Arch: os-release and the logo icon. The sources are base-neutral files from branding/,
+# which `just arch packages` stages next to this file by name; the per-base fields are appended here.
+# It owns /etc/os-release, which os-release(5) readers use instead of /usr/lib/os-release, so Arch's filesystem package
+# (which owns /usr/lib/os-release and /etc/arch-release) stays as shipped. systemd's tmpfiles line for /etc/os-release
+# is `L`, which leaves an existing file alone. The icon is branding/logo-color.svg, the mark filled emerald, because
+# logo.svg's currentColor renders black, which is invisible on a dark panel.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-release
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS release files: os-release and the logo icon'
+arch=('any')
+url='https://os.stackific.com'
+license=('Apache-2.0')
+options=('!debug' '!strip')
+source=('os-release' 'logo-color.svg')
+sha256sums=('d2c7db7827eeb4e17c99b29cd3dc5617034f3cee9d3f74f81a8bb813feeb8ceb'
+            '1644ae7c18a55a86489b80b79ae301b8645f333b25da7684c0b93d21f9ff4dde')
+
+# Install os-release with Arch's per-base fields, and the icon as hicolor's scalable `stackific`
+package() {
+  install -Dm644 os-release "$pkgdir/etc/os-release"
+  printf 'ID_LIKE=arch\nBUILD_ID=rolling\n' >>"$pkgdir/etc/os-release"
+  install -Dm644 logo-color.svg "$pkgdir/usr/share/icons/hicolor/scalable/apps/stackific.svg"
+}

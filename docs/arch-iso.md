@@ -26,7 +26,7 @@ The last line prints the ISO size against the 2048 MiB target. Above the target,
 just arch packages            # also the first step of just arch iso
 ```
 
-Our own Arch packages live in `arch/packages/<name>/PKGBUILD`. Their files are base-neutral and live in `desktop/`, so Fedora's packages can ship the same files later. The recipe runs a fresh builder container. For each PKGBUILD, it copies the PKGBUILD and the `desktop/` files its `source=()` names (matched by file name) into a new directory. It runs `makepkg` there as `build`, then `repo-add` puts every package into the local repo `.build/arch/repo/`.
+Our own Arch packages live in `arch/packages/<name>/PKGBUILD`. Their files are base-neutral and live in `desktop/` and `branding/`, so Fedora's packages can ship the same files later. The recipe runs a fresh builder container. For each PKGBUILD, it copies the PKGBUILD and the `desktop/` and `branding/` files its `source=()` names (matched by file name) into a new directory. It runs `makepkg` there as `build`, then `repo-add` puts every package into the local repo `.build/arch/repo/`.
 
 The ISO build mounts that repo read-only at `/repo`, and `arch/iso/pacman.conf` reads it as `[stackific]`. It is unsigned (`SigLevel = Optional`) until release signing lands.
 
@@ -35,7 +35,16 @@ The ISO build mounts that repo read-only at `/repo`, and `arch/iso/pacman.conf` 
 - `stackific-noctalia.service` (`desktop/systemd/user/`), a user unit that starts Noctalia, wanted by `mango-session.target` for every user. MangoWM starts that target itself once it has imported `WAYLAND_DISPLAY` into the user manager. That is how Noctalia starts while MangoWM's own config stays as packaged. Plasma never starts that target, so Noctalia stays out of Plasma.
 - `/etc/profile.d/stackific-wlroots.sh` (`desktop/profile.d/`), which exports `WLR_RENDERER_ALLOW_SOFTWARE=1`. With no working GPU driver (a VM without 3D, the boot test's included), Mesa renders in software, and wlroots refuses that without the variable. MangoWM's renderer is GLES-only, so MangoWM would exit. greetd sources `/etc/profile`, so the variable reaches every session it starts.
 
-To change a file in `desktop/`, update its `sha256sums` entry in the PKGBUILD and bump `pkgrel` (or `pkgver`).
+`stackific-release` makes the image identify as Stackific OS. It holds two files:
+
+- `/etc/os-release`: `branding/os-release` (the base-neutral fields: `ID=stackific`, `NAME` and `PRETTY_NAME` "Stackific OS", the site and GitHub issues URLs, `DEFAULT_HOSTNAME=stackific`, `LOGO=stackific` and the emerald `ANSI_COLOR`), followed by Arch's per-base lines `ID_LIKE=arch` and `BUILD_ID=rolling`. The base is rolling, so there is no `VERSION` or `VERSION_ID`, as os-release(5) allows.
+- `/usr/share/icons/hicolor/scalable/apps/stackific.svg`: `branding/logo-color.svg`, the icon that `LOGO=stackific` names. It is the committed emerald (`#007a55`) copy of `branding/logo.svg`, not a build-time recolour. `logo.svg` fills with `currentColor`, which icon renderers draw black, invisible on a dark panel.
+
+Arch's `filesystem` package owns `/usr/lib/os-release` and `/etc/arch-release`, and both stay as shipped. os-release(5) readers use `/etc/os-release` when it exists and never merge it with `/usr/lib/os-release`, so owning the `/etc` file is enough, with no hook, patch or fork. No Arch package owns `/etc/os-release`: systemd's tmpfiles line `L /etc/os-release` only makes it a symlink when it is missing, and runs after the transaction, so pacman's conflict check never sees it. That holds because mkarchiso installs every package in one pacstrap call. Installing the package later onto a system that already has the symlink needs `pacman --overwrite /etc/os-release`. It is not in `backup=()`: it is vendor data, like Arch's own `/usr/lib/os-release`, so an upgrade replaces it.
+
+mkarchiso appends `IMAGE_ID=stackific` and `IMAGE_VERSION=<version>-arch` to the file `/etc/os-release` resolves to, which is now ours. That is how the ISO's semver version reaches the live image.
+
+To change a file in `desktop/` or `branding/`, update its `sha256sums` entry in the PKGBUILD and bump `pkgrel` (or `pkgver`).
 
 ## Live session
 
@@ -63,6 +72,7 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 
 `boot.sh` then sources the Arch checks, `tests/vm/arch-x86_64.sh` (`just arch test` passes it as the third argument):
 
+- `/etc/os-release` reads `ID=stackific`, `ID_LIKE=arch`, `BUILD_ID=rolling`, `PRETTY_NAME="Stackific OS"`, `LOGO=stackific` and mkarchiso's `IMAGE_ID=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; pacman says `stackific-release` owns `/etc/os-release` and `filesystem` owns `/etc/arch-release` and `/usr/lib/os-release`; `/usr/lib/os-release` has no `IMAGE_` lines; the `stackific` icon is filled `#007a55`;
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
 - the MangoWM and Plasma session files are present.
 

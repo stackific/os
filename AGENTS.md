@@ -10,6 +10,7 @@ This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.st
   - MangoWM starts Noctalia through `stackific-noctalia.service` (package `stackific-desktop`), wanted by `mango-session.target`, which MangoWM starts itself; MangoWM's config stays stock.
   - `stackific-desktop` exports `WLR_RENDERER_ALLOW_SOFTWARE=1` (`/etc/profile.d/`), so MangoWM starts on software rendering too (VMs without 3D, GPUs without a working driver).
   - Live images autologin the user `live` (empty password, group `wheel`) into MangoWM through greetd's `initial_session`; noctalia-greeter is the login screen.
+- `stackific-release` owns `/etc/os-release` (`ID=stackific`, `ID_LIKE` and `BUILD_ID` set per base, `LOGO=stackific`, the icon being `branding/logo-color.svg`, the mark filled emerald `#007a55`); it takes precedence over the base's `/usr/lib/os-release`, so base packages and `/etc/arch-release` stay as shipped.
 - Boot and disk, the same on both bases: Limine from our own 4 GiB FAT32 ESP (never another OS's), one btrfs subvolume layout, installed alongside another OS or on a whole drive; Secure Boot off.
 - Hardware: every AMD and Intel CPU and GPU the base supports; NVIDIA Turing and newer on NVIDIA's open modules, prebuilt in the image or built on first boot; older NVIDIA on nouveau; the drivers and firmware regular hardware needs.
   - Left out: server and datacenter NICs, and hardware that needs a vendor kernel (Microsoft Surface, Apple T2 Macs, Apple Silicon, Raspberry Pi).
@@ -106,7 +107,7 @@ dev/reviews/         review records from /s-build, one per task
 - The Fedora builder is `fedora/Containerfile` (kiwi, QEMU, OVMF, socat), its base pinned by digest in `fedora/vars.just`; kiwi runs as container root in rootless `--privileged` podman, with its work dir on a container tmpfs, because SELinux labels cannot be set on podman's overlay.
 - Fedora images never ship `fedora-release*`, `fedora-logos` or `fedora-release-notes` (Fedora's trademark guidelines); `generic-release` stands in until our Fedora `stackific-release`.
 - Our packages: makepkg in a fresh pinned container on Arch, mock on Fedora. They hold configuration, artwork, release files and third-party tools we package (Shelly on Arch).
-  - Arch: `arch/packages/<name>/PKGBUILD`, base-neutral sources in `desktop/`; `just arch packages` builds them into the local repo `.build/arch/repo/`, which the ISO build reads as `[stackific]` (unsigned until release signing).
+  - Arch: `arch/packages/<name>/PKGBUILD`, base-neutral sources in `desktop/` and `branding/`; `just arch packages` builds them into the local repo `.build/arch/repo/`, which the ISO build reads as `[stackific]` (unsigned until release signing).
 - The ArtCraft apps come from upstream's own release packages (`.pkg.tar.zst`, `.rpm`), checked against its `SHA256SUMS.txt` and pinned by version.
 - Fedora takes MangoWM, scenefx and Limine from Terra. Terra's repo file is limited with `includepkgs`, and its signing key is checked at build time. NVIDIA and Broadcom wl come from RPM Fusion; Bazaar from Flathub.
 - Signing: packages, repo databases, `SHA256SUMS` and images use a subkey of an offline project key; the subkey lives only in the `release` environment.
