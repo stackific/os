@@ -117,7 +117,7 @@ dev/reviews/         review records from /s-build, one per task
 - GitHub Actions in `.github/workflows/`; every step after checkout and just's setup calls a just recipe. `check` (pull requests, pushes to `main`) runs `just lefthook all` and `just gitleaks history`.
 - GitHub-hosted Linux runners run checks and container tests.
 - The operator's Linux PC runs the self-hosted runner for x86_64 images and their VM tests (labels `self-hosted`, `Linux`, `X64`); `just runner setup` makes a machine a runner, never `just setup`.
-- The operator's Mac runs the self-hosted runner for aarch64 images (an arm64 Linux VM from `just runner vm`, labels `self-hosted`, `Linux`, `ARM64`).
+- The operator's Mac runs the self-hosted runner for aarch64 images in an arm64 Linux VM (labels `self-hosted`, `Linux`, `ARM64`); `just runner setup` on the Mac creates the VM (`just runner vm`) and runs itself inside it.
 - `images` runs only on push to `main` (never by hand) and publishes each merged pull request's images as the test release `v0.0.0-pr.<n>` (a prerelease, replaced on a rerun; not a release).
 - Self-hosted runners take only `push` to `main` and `workflow_dispatch`, never `pull_request`; `just runner register` makes every outside contributor's run wait for approval.
 - `release` runs only by hand (`workflow_dispatch`, input `version`):

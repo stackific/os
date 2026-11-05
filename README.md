@@ -50,15 +50,12 @@ The service starts at boot. To take the PC out of CI, run `just runner remove`.
 
 ### Mac (aarch64 images)
 
-The runner runs in an arm64 Linux VM, because image builds need Linux. The VM's nested virtualization needs Apple M3 or later and macOS 15 or later.
+The runner runs in an arm64 Linux VM, because image builds need Linux. The VM's nested virtualization, which gives it `/dev/kvm`, needs Apple M3 or later and macOS 15 or later.
 
 1. Install Lima: `brew install lima`.
-2. Run `just runner vm` in this repo on the Mac. It creates and starts the Fedora VM `stackific-runner` (6 CPUs, 12 GiB memory, 100 GiB disk), which mounts nothing from the Mac.
-3. Open a shell in it: `limactl shell stackific-runner`. Then, inside the VM:
-   1. Install what the runner needs: `sudo dnf install -y git just podman`.
-   2. Clone the repo: `git clone https://github.com/stackific/os.git && cd os`.
-   3. Log gh in: `just gh login`.
-   4. Run `just runner setup`. It registers the VM with the labels `self-hosted`, `Linux` and `ARM64`.
-4. Check that it is online: `just runner status`.
+2. Run `just runner setup` in this repo on the Mac.
+   - It creates and starts the Fedora VM `stackific-runner` (6 CPUs, 12 GiB memory, 100 GiB disk), which mounts nothing from the Mac, installs what the runner needs in it (git, just, podman, libicu) and clones the repo to `~/os` in it.
+   - It then runs `just runner setup` inside the VM. gh asks you to log in as a repo admin, and the VM registers with the labels `self-hosted`, `Linux` and `ARM64` and runs the runner as a service.
+3. Check that it is online: `just runner status` prints `<hostname> online busy=false self-hosted,Linux,ARM64`.
 
 After the Mac restarts, run `just runner vm` again; the runner service starts with the VM.

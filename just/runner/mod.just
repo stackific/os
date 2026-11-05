@@ -10,13 +10,20 @@ import '../gh/vars.just'
 mod gh '../gh/mod.just'
 
 # Make this machine a runner: install, register with GitHub, then run as a service (asks for sudo once)
+[linux]
 setup: install register service
+
+# Inside the VM, gh asks you to log in.
+# On a Mac: create or start the runner VM (vm), then run this recipe inside it to make the VM a runner
+[macos]
+setup: vm
+  limactl shell --workdir / "{{ runner_vm }}" sh -c 'cd ~/os && just runner setup'
 
 # Install the pinned runner into .tools/actions-runner (no-op when present)
 install:
   #!/usr/bin/env bash
   set -euo pipefail
-  [ "{{ os() }}" = linux ] || { echo "runner: needs Linux; on a Mac, run it in the VM from 'just runner vm'" >&2; exit 1; }
+  [ "{{ os() }}" = linux ] || { echo "runner: needs Linux; on a Mac, 'just runner setup' runs it in the Lima VM" >&2; exit 1; }
   [ "$(cat "{{ runner_dir }}/.pin" 2>/dev/null)" != "{{ runner_sha256 }}" ] || exit 0
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
@@ -45,9 +52,12 @@ service:
   set -euo pipefail
   cd "{{ runner_dir }}"
   [ -f .runner ] || { echo "runner: not registered (just runner register)" >&2; exit 1; }
-  # Rootless podman keeps its runtime directory without a login session
-  loginctl enable-linger "$USER"
+  # Rootless podman keeps its runtime directory without a login session. Through sudo: polkit lets a user enable their
+  # own linger only from an active local session, which an SSH shell (as in the Mac's VM) is not.
+  sudo loginctl enable-linger "$USER"
   [ -f .service ] || sudo ./svc.sh install "$USER"
+  # SELinux (Fedora, as in the Mac's VM) lets systemd run a script from a home directory only once it is labelled bin_t
+  if command -v selinuxenabled >/dev/null && selinuxenabled; then chcon -t bin_t runsvc.sh; fi
   sudo ./svc.sh start
 
 # List the repo's runners: name, status (online or offline), busy, labels
@@ -64,7 +74,8 @@ remove: gh::login
   ./config.sh remove --token "$token"
 
 # Lima with nested virtualization needs Apple M3 or later and macOS 15 or later. The VM mounts nothing from the Mac,
-# so jobs cannot see its files.
+# so jobs cannot see its files. It gets what the runner needs (git, just, podman, and libicu for the runner's .NET)
+# and the repo cloned to ~/os, where `just runner setup` runs; both are no-ops once done.
 # On a Mac: create or start the arm64 Fedora VM that hosts the runner
 vm:
   #!/usr/bin/env bash
@@ -76,4 +87,7 @@ vm:
     limactl start --tty=false --name="{{ runner_vm }}" --vm-type=vz --nested-virt --mount-none \
       --cpus=6 --memory=12 --disk=100 template:fedora
   fi
-  echo "runner: VM up; open a shell in it with: limactl shell {{ runner_vm }}"
+  limactl shell --workdir / "{{ runner_vm }}" sudo dnf install -y --quiet git just podman libicu
+  limactl shell --workdir / "{{ runner_vm }}" sh -c \
+    '[ -d ~/os ] || git clone --quiet https://github.com/{{ runner_repo }}.git ~/os'
+  echo "runner: VM up; open a shell in its clone with: limactl shell {{ runner_vm }}, then cd ~/os"
