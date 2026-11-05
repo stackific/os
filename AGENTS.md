@@ -35,6 +35,7 @@ installer/           the installer: disk step, live-image copy, per-base steps
 branding/            the branding file, logo and wallpapers (committed, credited in wallpapers.toml)
 hardware/            PCI ID lists, chwd profiles and the Fedora detection step
 tests/               container and VM tests
+release/             GitHub Releases for the images (recipes the release and images workflows call)
 site/                user docs and the prompt trail
 docs/                developer notes: how to build, test and check (Markdown, not published)
 dev/                 `just dev check` (dev/justfile) over tasks, reviews and prompt-trail entries
@@ -117,11 +118,13 @@ dev/reviews/         review records from /s-build, one per task
 - GitHub-hosted Linux runners run checks and container tests.
 - The operator's Linux PC runs the self-hosted runner for x86_64 images and their VM tests (labels `self-hosted`, `Linux`, `X64`); `just runner setup` makes a machine a runner, never `just setup`.
 - The operator's Mac runs the self-hosted runner for aarch64 images (an arm64 Linux VM from `just runner vm`, labels `self-hosted`, `Linux`, `ARM64`).
+- `images` runs only on push to `main` (never by hand) and publishes each merged pull request's images as the test release `v0.0.0-pr.<n>` (a prerelease, replaced on a rerun; not a release).
 - Self-hosted runners take only `push` to `main` and `workflow_dispatch`, never `pull_request`; `just runner register` makes every outside contributor's run wait for approval.
 - `release` runs only by hand (`workflow_dispatch`, input `version`):
   - refuses a version that is not semver;
   - builds and tests all four images, then signs them;
   - tags `v<version>` and creates the GitHub release with each ISO, `SHA256SUMS` and its signature attached;
+  - today: the x86_64 images on the PC, unsigned; aarch64 jobs on the Mac and signing join when they exist (`just release create`, `upload`, `publish`: a draft until every image is attached);
   - an ISO over 2 GiB goes to Cloudflare R2 instead and the release links it: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, variable `R2_BUCKET` (the bucket name, such as `stackific-os`). Wired only once an ISO needs it.
   - A released version never changes.
 - Secrets are never printed and never committed; gitleaks runs in pre-commit and in `check`.

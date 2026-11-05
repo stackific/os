@@ -27,6 +27,9 @@ mod arch
 # Fedora base: live ISO build and boot test in the pinned builder container (recipes in fedora/justfile)
 mod fedora
 
+# GitHub Releases for the images: draft, upload, publish (recipes in release/justfile; release and images workflows)
+mod release
+
 # Website: marketing pages at / and Starlight docs at /docs (recipes in site/justfile)
 mod site
 
