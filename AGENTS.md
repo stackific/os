@@ -10,6 +10,7 @@ This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.st
   - MangoWM starts Noctalia through `stackific-noctalia.service` (package `stackific-desktop`), wanted by `mango-session.target`, which MangoWM starts itself; MangoWM's config stays stock.
   - `stackific-desktop` exports `WLR_RENDERER_ALLOW_SOFTWARE=1` (`/etc/profile.d/`), so MangoWM starts on software rendering too (VMs without 3D, GPUs without a working driver).
   - Live images autologin the user `live` (empty password, group `wheel`) into MangoWM through greetd's `initial_session`; noctalia-greeter is the login screen.
+- `stackific-release` owns `/etc/os-release` (`ID=stackific`, `ID_LIKE` and `BUILD_ID` set per base, `LOGO=stackific`, the icon being `branding/logo-color.svg`, the mark filled emerald `#007a55`); it takes precedence over the base's `/usr/lib/os-release`, so base packages and `/etc/arch-release` stay as shipped.
 - Boot and disk, the same on both bases: Limine from our own 4 GiB FAT32 ESP (never another OS's), one btrfs subvolume layout, installed alongside another OS or on a whole drive; Secure Boot off.
 - Hardware: every AMD and Intel CPU and GPU the base supports; NVIDIA Turing and newer on NVIDIA's open modules, prebuilt in the image or built on first boot; older NVIDIA on nouveau; the drivers and firmware regular hardware needs.
   - Left out: server and datacenter NICs, and hardware that needs a vendor kernel (Microsoft Surface, Apple T2 Macs, Apple Silicon, Raspberry Pi).
@@ -34,6 +35,7 @@ installer/           the installer: disk step, live-image copy, per-base steps
 branding/            the branding file, logo and wallpapers (committed, credited in wallpapers.toml)
 hardware/            PCI ID lists, chwd profiles and the Fedora detection step
 tests/               container and VM tests
+release/             GitHub Releases for the images (recipes the release and images workflows call)
 site/                user docs and the prompt trail
 docs/                developer notes: how to build, test and check (Markdown, not published)
 dev/                 `just dev check` (dev/justfile) over tasks, reviews and prompt-trail entries
@@ -106,7 +108,7 @@ dev/reviews/         review records from /s-build, one per task
 - The Fedora builder is `fedora/Containerfile` (kiwi, QEMU, OVMF, socat), its base pinned by digest in `fedora/vars.just`; kiwi runs as container root in rootless `--privileged` podman, with its work dir on a container tmpfs, because SELinux labels cannot be set on podman's overlay.
 - Fedora images never ship `fedora-release*`, `fedora-logos` or `fedora-release-notes` (Fedora's trademark guidelines); `generic-release` stands in until our Fedora `stackific-release`.
 - Our packages: makepkg in a fresh pinned container on Arch, mock on Fedora. They hold configuration, artwork, release files and third-party tools we package (Shelly on Arch).
-  - Arch: `arch/packages/<name>/PKGBUILD`, base-neutral sources in `desktop/`; `just arch packages` builds them into the local repo `.build/arch/repo/`, which the ISO build reads as `[stackific]` (unsigned until release signing).
+  - Arch: `arch/packages/<name>/PKGBUILD`, base-neutral sources in `desktop/` and `branding/`; `just arch packages` builds them into the local repo `.build/arch/repo/`, which the ISO build reads as `[stackific]` (unsigned until release signing).
 - The ArtCraft apps come from upstream's own release packages (`.pkg.tar.zst`, `.rpm`), checked against its `SHA256SUMS.txt` and pinned by version.
 - Fedora takes MangoWM, scenefx and Limine from Terra. Terra's repo file is limited with `includepkgs`, and its signing key is checked at build time. NVIDIA and Broadcom wl come from RPM Fusion; Bazaar from Flathub.
 - Signing: packages, repo databases, `SHA256SUMS` and images use a subkey of an offline project key; the subkey lives only in the `release` environment.
@@ -116,11 +118,13 @@ dev/reviews/         review records from /s-build, one per task
 - GitHub-hosted Linux runners run checks and container tests.
 - The operator's Linux PC runs the self-hosted runner for x86_64 images and their VM tests (labels `self-hosted`, `Linux`, `X64`); `just runner setup` makes a machine a runner, never `just setup`.
 - The operator's Mac runs the self-hosted runner for aarch64 images (an arm64 Linux VM from `just runner vm`, labels `self-hosted`, `Linux`, `ARM64`).
+- `images` runs only on push to `main` (never by hand) and publishes each merged pull request's images as the test release `v0.0.0-pr.<n>` (a prerelease, replaced on a rerun; not a release).
 - Self-hosted runners take only `push` to `main` and `workflow_dispatch`, never `pull_request`; `just runner register` makes every outside contributor's run wait for approval.
 - `release` runs only by hand (`workflow_dispatch`, input `version`):
   - refuses a version that is not semver;
   - builds and tests all four images, then signs them;
   - tags `v<version>` and creates the GitHub release with each ISO, `SHA256SUMS` and its signature attached;
+  - today: the x86_64 images on the PC, unsigned; aarch64 jobs on the Mac and signing join when they exist (`just release create`, `upload`, `publish`: a draft until every image is attached);
   - an ISO over 2 GiB goes to Cloudflare R2 instead and the release links it: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, variable `R2_BUCKET` (the bucket name, such as `stackific-os`). Wired only once an ISO needs it.
   - A released version never changes.
 - Secrets are never printed and never committed; gitleaks runs in pre-commit and in `check`.

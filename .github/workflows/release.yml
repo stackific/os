@@ -1,0 +1,89 @@
+# Releases Stackific OS by hand: input `version` (semver, without the v) becomes the GitHub release v<version>. The
+# images build and boot-test on the self-hosted runners; GitHub-hosted runners open the draft and publish it once
+# every image is attached. Every step after the setup calls a just recipe. The aarch64 images (the Mac runner) and
+# signing join when they exist.
+name: release
+
+on:
+  workflow_dispatch:
+    inputs:
+      version:
+        description: Version to release, semver without the v (for example 0.1.0)
+        required: true
+        type: string
+
+permissions:
+  contents: write
+
+# One release at a time, never cancelled half-published
+concurrency:
+  group: release
+  cancel-in-progress: false
+
+env:
+  GH_REPO: ${{ github.repository }}
+  VERSION: ${{ inputs.version }}
+
+jobs:
+  create:
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+      - run: just release create "$VERSION" "$GITHUB_SHA"
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  arch-x86_64:
+    needs: create
+    # The operator's Linux PC
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+      - run: just arch iso "$VERSION"
+      - run: just arch test "$VERSION"
+      - run: just release upload "$VERSION" arch x86_64
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  fedora-x86_64:
+    needs: create
+    # The operator's Linux PC
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+      - run: just fedora iso "$VERSION"
+      - run: just fedora test "$VERSION"
+      - run: just release upload "$VERSION" fedora x86_64
+        env:
+          GH_TOKEN: ${{ github.token }}
+
+  publish:
+    needs: [arch-x86_64, fedora-x86_64]
+    runs-on: ubuntu-24.04
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+      - run: just release publish "$VERSION"
+        env:
+          GH_TOKEN: ${{ github.token }}

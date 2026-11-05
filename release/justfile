@@ -1,0 +1,59 @@
+# Release module: GitHub Releases for the images, called by the release and images workflows. `create` opens a draft
+# release, each image job `upload`s its ISO, manifest and checksum, and `publish` adds SHA256SUMS and publishes it.
+# gh reads GH_TOKEN and GH_REPO from the environment.
+
+import '../just/gh/vars.just'
+
+[private]
+mod gh '../just/gh/mod.just'
+
+# Print the test-build version of a commit on main: 0.0.0-pr.<n> for the pull request that merged it, or nothing
+[positional-arguments]
+pr-version sha: gh::install
+  @"{{ gh }}" api "repos/{owner}/{repo}/commits/$1/pulls" --jq '.[0].number // empty | "0.0.0-pr.\(.)"'
+
+# A test build (0.0.0-pr.<n>) replaces an earlier one for the same pull request; any other version must be new,
+# because a released version never changes.
+# Open the draft release v<version> at commit <sha>
+[positional-arguments]
+create version sha: gh::install
+  #!/usr/bin/env bash
+  set -euo pipefail
+  [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must be semver, got '$1'" >&2; exit 1; }
+  tag="v$1"
+  if [[ $1 =~ ^0\.0\.0-pr\.([0-9]+)$ ]]; then
+    pr=${BASH_REMATCH[1]}
+    if "{{ gh }}" release view "$tag" >/dev/null 2>&1; then "{{ gh }}" release delete "$tag" --cleanup-tag --yes; fi
+    flags=(--prerelease --title "Test build for #$pr"
+      --notes "Test build of the images after pull request #$pr merged: built and boot-tested, unsigned. Not a release.")
+  else
+    if "{{ gh }}" release view "$tag" >/dev/null 2>&1 || "{{ gh }}" api "repos/{owner}/{repo}/git/ref/tags/$tag" >/dev/null 2>&1; then
+      echo "release: $tag exists (a released version never changes; delete a leftover draft by hand)" >&2
+      exit 1
+    fi
+    flags=(--title "Stackific OS $1" --generate-notes)
+    [[ $1 != *-* ]] || flags+=(--prerelease)
+  fi
+  "{{ gh }}" release create "$tag" --draft --target "$2" "${flags[@]}"
+
+# Upload one image's ISO, package manifest and SHA-256 from .build/<base>/<arch>/ to the draft release v<version>
+[positional-arguments]
+upload version base arch: gh::install
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cd "{{ justfile_directory() }}/.build/$2/$3"
+  name="stackific-$1-$2-$3"
+  sha256sum "$name.iso" >"$name.iso.sha256"
+  "{{ gh }}" release upload "v$1" "$name.iso" "$name.packages.txt" "$name.iso.sha256" --clobber
+
+# Attach SHA256SUMS over every uploaded ISO to the draft release v<version>, then publish it
+[positional-arguments]
+publish version: gh::install
+  #!/usr/bin/env bash
+  set -euo pipefail
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  "{{ gh }}" release download "v$1" --pattern '*.iso.sha256' --dir "$tmp"
+  cat "$tmp"/*.iso.sha256 >"$tmp/SHA256SUMS"
+  "{{ gh }}" release upload "v$1" "$tmp/SHA256SUMS" --clobber
+  "{{ gh }}" release edit "v$1" --draft=false
