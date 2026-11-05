@@ -15,7 +15,7 @@ The goal is a commit-ready task: tests pass, the review finds nothing, the docs 
    - start from the task's Inputs, which are already in the tracked tree;
    - write the code and config;
    - run the task's tests and the `just` checks the change touches (tests run without asking).
-4. Docs entry: add or update the docs pages under `site/src/content/docs/` that the change needs.
+4. Docs entry: add or update the docs the change needs: user docs under `site/src/content/docs/user/`, developer notes in `docs/`.
 5. Prompt-trail entry: write it from `entry-template.md` in this folder, with the task's number, in the folder its `Base:` names: `site/src/content/docs/prompt-trail/<NNN>-<slug>.md` for `both`, or `prompt-trail/arch/` or `prompt-trail/fedora/`. Make a screenshot with `just site screenshot` for each screen or state the criteria name.
 6. Review cycle, on the whole change (code, tests, docs and entry):
    1. Run `/ponytail-review`.

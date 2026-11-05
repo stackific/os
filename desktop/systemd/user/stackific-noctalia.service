@@ -1,0 +1,16 @@
+# Starts the Noctalia shell in MangoWM sessions; shipped by the package stackific-desktop.
+# Glue, because no packaged piece does it: Noctalia ships no unit, and MangoWM's stock config does not start it.
+# MangoWM imports WAYLAND_DISPLAY into the user manager, then starts mango-session.target itself, so wanting this unit
+# there starts Noctalia with MangoWM's config left as packaged. Plasma never starts that target.
+[Unit]
+Description=Noctalia desktop shell
+Documentation=https://docs.noctalia.dev
+PartOf=graphical-session.target
+After=graphical-session.target
+
+[Service]
+ExecStart=/usr/bin/noctalia
+Restart=on-failure
+
+[Install]
+WantedBy=mango-session.target

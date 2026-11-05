@@ -3,7 +3,8 @@
 # Test access comes only from one-boot SMBIOS credentials, never from the image: they add a token-gated vsock shell
 # (the units next to this script), which waits for the end of boot and runs the checks. systemd's vmm.notify_socket is
 # not used: over vsock it opens one connection per message and drops some, READY=1 included.
-# Usage: boot.sh <iso> <out-dir>. Leaves <out-dir>/screen.png and <out-dir>/serial.log.
+# Usage: boot.sh <iso> <out-dir>. Leaves <out-dir>/screen.png (the live desktop), <out-dir>/greeter.png (the login
+# screen after a logout) and <out-dir>/serial.log.
 set -euo pipefail
 
 iso=$1
@@ -45,6 +46,14 @@ vm_until() {
   done
 }
 
+# Save the VM's display as <out-dir>/<name>.png through the QEMU monitor
+screenshot() {
+  echo "screendump $out/$1.png -f png" | socat -t 5 - "UNIX-CONNECT:$tmp/monitor" >/dev/null
+  for _ in $(seq 10); do [ -s "$out/$1.png" ] && break; sleep 1; done
+  [ -s "$out/$1.png" ] || fail "no screenshot $1.png"
+  echo "ok: $out/$1.png"
+}
+
 token=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
 # The token reaches QEMU through a 0600 file (path=), so it never shows on a process command line
 printf 'io.systemd.credential:stackific.test.token=%s' "$token" >"$tmp/token"
@@ -59,7 +68,7 @@ cred systemd.extra-unit.stackific-test-shell@.service "$here/stackific-test-shel
 cred systemd.unit-dropin.sockets.target "$tmp/sockets.conf"
 
 cp "$ovmf/OVMF_VARS.4m.fd" "$tmp/vars.fd"
-rm -f "$out/screen.png" "$out/serial.log"
+rm -f "$out/screen.png" "$out/greeter.png" "$out/serial.log"
 qemu-system-x86_64 -machine q35,accel=kvm -cpu host -smp 2 -m 4096 \
   -drive "if=pflash,format=raw,readonly=on,file=$ovmf/OVMF_CODE.4m.fd" \
   -drive "if=pflash,format=raw,file=$tmp/vars.fd" \
@@ -72,7 +81,6 @@ qemu=$!
 # The shell listens from sockets.target on; --wait returns once boot has finished, in whatever state it reached
 vm_until 'systemctl is-system-running --wait' '^[a-z]+$' 300
 vm_until 'systemctl is-system-running' '^running$' 0
-vm_until 'who' '^root +tty1 ' 30
 vm_until 'nmcli -t -f RUNNING general' '^running$' 30
 
 # A wrong token must get no shell: no output, connection closed
@@ -80,10 +88,20 @@ got=$(printf 'bad\nid\n' | socat -t 10 - "VSOCK-CONNECT:$cid:$shell_port" 2>/dev
 [ -z "$got" ] || fail "wrong token got a shell: '$got'"
 echo "ok: wrong token rejected"
 
-echo "screendump $out/screen.png -f png" | socat -t 5 - "UNIX-CONNECT:$tmp/monitor" >/dev/null
-for _ in $(seq 10); do [ -s "$out/screen.png" ] && break; sleep 1; done
-[ -s "$out/screen.png" ] || fail "no screenshot"
-echo "ok: $out/screen.png"
+# The live session: greetd logs `live` into MangoWM, which starts Noctalia through stackific-noctalia.service
+vm_until 'systemctl is-active greetd' '^active$' 0
+vm_until 'systemctl --user -M live@ is-active stackific-noctalia.service' '^active$' 120
+vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
+vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/wayland-sessions/plasma.desktop && echo ok' \
+  '^ok$' 0
+sleep 10 # Noctalia draws a few seconds after its unit is active, on the VM's software renderer
+screenshot screen
+
+# After a logout greetd shows noctalia-greeter. Its comm name is cut to 15 characters, so match the command line.
+vm 'loginctl terminate-user live' >/dev/null
+vm_until "pgrep -u greeter -f '^/usr/bin/noctalia-greeter( |\$)'" '^[0-9]+$' 60
+sleep 10
+screenshot greeter
 
 vm 'systemctl poweroff' >/dev/null 2>&1 || true
 for _ in $(seq 60); do kill -0 "$qemu" 2>/dev/null || break; sleep 1; done

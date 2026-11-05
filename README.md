@@ -28,7 +28,8 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
 - `just` lists every recipe. `just doctor` rechecks the tools.
 - `just graphify update` rebuilds the code graph after code changes.
 - `just site dev` serves the site at `localhost:4321`.
-- `just arch iso` builds the Arch x86_64 live ISO into `.build/arch/x86_64/`; `just arch test` boots it under QEMU and checks it. See the Arch ISO page in the developer docs (`site/src/content/docs/developer/arch-iso.md`).
+- `just arch iso` builds the Arch x86_64 live ISO into `.build/arch/x86_64/`; `just arch test` boots it under QEMU and checks it. See [docs/arch-iso.md](docs/arch-iso.md); [docs/checks.md](docs/checks.md) lists the checks.
+- `just arch packages` builds our Arch packages into `.build/arch/repo/` (`just arch iso` runs it first).
 - `just lefthook all` runs every pre-commit check on every tracked file.
 - Distro work runs through `/s-task <ask>`, then `/s-build <task>`. See [AGENTS.md](AGENTS.md).
 

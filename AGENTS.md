@@ -7,6 +7,9 @@ This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.st
 - Each ISO aims at 2 GiB or less, a soft target (GitHub's per-file release cap); every image task reports its ISO size.
 - Configure and package; build as little as possible. No own command-line tool and no AI features. Avoid tools built by CachyOS; chwd (hardware detection on Arch) is accepted. Small glue (a systemd unit, a udev rule, a short script) only when no packaged tool does the job, and the task says why. The installer, one program for both bases, is the one larger program we write.
 - Desktop on every image: MangoWM with Noctalia, both unmodified packages, plus KDE Plasma on Arch and GNOME on Fedora. Our defaults ship as config files in a package, never as patches.
+  - MangoWM starts Noctalia through `stackific-noctalia.service` (package `stackific-desktop`), wanted by `mango-session.target`, which MangoWM starts itself; MangoWM's config stays stock.
+  - `stackific-desktop` exports `WLR_RENDERER_ALLOW_SOFTWARE=1` (`/etc/profile.d/`), so MangoWM starts on software rendering too (VMs without 3D, GPUs without a working driver).
+  - Live images autologin the user `live` (empty password, group `wheel`) into MangoWM through greetd's `initial_session`; noctalia-greeter is the login screen.
 - Boot and disk, the same on both bases: Limine from our own 4 GiB FAT32 ESP (never another OS's), one btrfs subvolume layout, installed alongside another OS or on a whole drive; Secure Boot off.
 - Hardware: every AMD and Intel CPU and GPU the base supports; NVIDIA Turing and newer on NVIDIA's open modules, prebuilt in the image or built on first boot; older NVIDIA on nouveau; the drivers and firmware regular hardware needs.
   - Left out: server and datacenter NICs, and hardware that needs a vendor kernel (Microsoft Surface, Apple T2 Macs, Apple Silicon, Raspberry Pi).
@@ -31,7 +34,8 @@ installer/           the installer: disk step, live-image copy, per-base steps
 branding/            the branding file, logo and wallpapers (committed, credited in wallpapers.toml)
 hardware/            PCI ID lists, chwd profiles and the Fedora detection step
 tests/               container and VM tests
-site/                docs and the prompt trail
+site/                user docs and the prompt trail
+docs/                developer notes: how to build, test and check (Markdown, not published)
 dev/                 `just dev check` (dev/justfile) over tasks, reviews and prompt-trail entries
 dev/tasks/           task files from /s-task
 dev/reviews/         review records from /s-build, one per task
@@ -85,21 +89,22 @@ dev/reviews/         review records from /s-build, one per task
 - **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`.
 
 ## Site
-- `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components. Recipes in `site/justfile`.
+- `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components; `src/content/i18n/en.json` is `{}` only because Starlight's core always reads that collection, and Astro warns when it is missing. Recipes in `site/justfile`.
   - It publishes `llms.txt` (`starlight-llms-txt`) and a `.md` twin of every docs page (`src/pages/[...slug].md.ts`).
   - Fonts and colours come from the branding file.
-  - Sidebar groups: Developer Guide (`developer/`) and Prompt Trail (`prompt-trail/`); add a group to `astro.config.mjs` with its first page.
+  - Sidebar groups: User Guide (`user/`) and Prompt Trail (`prompt-trail/`); add a group to `astro.config.mjs` with its first page. The site carries no developer guide.
 - Prompt trail: one entry per task PR, written from `.claude/skills/s-build/entry-template.md`. A task on both bases goes to `site/src/content/docs/prompt-trail/<NNN>-<slug>.md`; a single-base task goes under `prompt-trail/arch/` or `prompt-trail/fedora/`, labelled Arch and Fedora by `src/routeData.ts`. Frontmatter `pr:` and `task:` draw the links under the title.
 - Screenshots: `site/src/assets/prompt-trail/<NNN>/<name>.webp`, shown only by their own entry and made with `just site screenshot <raw.png> <out.webp>` (WebP, longest side 1600 px or less, 300 KB or less, metadata stripped).
   - `just site screenshots-check` (pre-commit) enforces it.
   - Site pages are never screenshotted.
-- Docs entry: every task adds or updates the docs pages its change needs, user docs for what users see and developer docs for how to build and test it.
+- Docs entry: every task adds or updates the docs its change needs: user docs in `site/src/content/docs/user/` for what users see, developer notes in `docs/` for how to build and test it.
 
 ## Builds
 - Arch x86_64 builds pin one Arch Linux Archive date, moved forward only through a test gate; Arch builds and tests run in a pinned container. Outputs go to `.build/` (gitignored).
 - The Arch builder is `arch/Containerfile`, pinned with the archive date in `arch/vars.just`; mkarchiso runs in it as the unprivileged user `build` (rootless podman cannot mount devtmpfs).
 - Arch Linux ARM and Fedora build from their live repos; every image records its full package manifest.
 - Our packages: makepkg in a fresh pinned container on Arch, mock on Fedora. They hold configuration, artwork, release files and third-party tools we package (Shelly on Arch).
+  - Arch: `arch/packages/<name>/PKGBUILD`, base-neutral sources in `desktop/`; `just arch packages` builds them into the local repo `.build/arch/repo/`, which the ISO build reads as `[stackific]` (unsigned until release signing).
 - The ArtCraft apps come from upstream's own release packages (`.pkg.tar.zst`, `.rpm`), checked against its `SHA256SUMS.txt` and pinned by version.
 - Fedora takes MangoWM, scenefx and Limine from Terra. Terra's repo file is limited with `includepkgs`, and its signing key is checked at build time. NVIDIA and Broadcom wl come from RPM Fusion; Bazaar from Flathub.
 - Signing: packages, repo databases, `SHA256SUMS` and images use a subkey of an offline project key; the subkey lives only in the `release` environment.
