@@ -52,14 +52,17 @@ just arch test 1.2.3
 
 `tests/vm/boot.sh` boots the ISO under QEMU with KVM and OVMF. It reaches the VM only through one-boot SMBIOS credentials, which systemd reads at boot:
 
-- `systemd.extra-unit.*` credentials add a vsock socket and service (`tests/vm/stackific-test-shell.*`), and a `systemd.unit-dropin.sockets.target` credential starts the socket.
+- A `systemd.extra-unit.*` credential adds the test shell, `tests/vm/stackific-test-shell.service`, which listens on vsock through `systemd-socket-activate`. A `systemd.unit-dropin.multi-user.target` credential starts it. It is a service, not a socket unit, because Fedora's SELinux policy denies PID 1 such a socket (`docs/fedora-iso.md`).
 - A random token arrives as the `stackific.test.token` credential. The shell runs `bash` on a connection only when its first line is that token.
 
-Nothing from `tests/` is in the image, and the image has no sshd. The test waits for `systemctl is-system-running --wait` over the shell, then checks:
+Nothing from `tests/` is in the image, and the image has no sshd. The test waits for `systemctl is-system-running --wait` over the shell, then runs the checks every image passes:
 
 - the system is `running`;
 - NetworkManager is running;
-- a wrong token gets no shell;
+- a wrong token gets no shell.
+
+`boot.sh` then sources the Arch checks, `tests/vm/arch-x86_64.sh` (`just arch test` passes it as the third argument):
+
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
 - the MangoWM and Plasma session files are present.
 

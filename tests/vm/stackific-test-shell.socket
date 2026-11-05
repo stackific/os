@@ -1,8 +1,0 @@
-# Test shell for VM boot tests on vsock port 5001. tests/vm/boot.sh passes it to the guest as a one-boot SMBIOS
-# credential (systemd.extra-unit.*); it is never part of an image.
-[Unit]
-Description=Stackific test shell (vsock)
-
-[Socket]
-ListenStream=vsock::5001
-Accept=yes

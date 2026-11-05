@@ -1,0 +1,92 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!-- kiwi description of the Stackific OS console live ISO on Fedora 45 x86_64 (`just fedora iso`). -->
+<image schemaversion="8.5" name="stackific" displayname="Stackific OS">
+  <description type="system">
+    <author>Stackific OS</author>
+    <contact>https://os.stackific.com</contact>
+    <specification>Stackific OS console live ISO, Fedora 45 base</specification>
+  </description>
+  <preferences>
+    <!-- Unused: `just fedora iso` names the outputs with its own version -->
+    <version>0.0.0</version>
+    <packagemanager>dnf5</packagemanager>
+    <release-version>45</release-version>
+    <locale>en_US</locale>
+    <keytable>us</keytable>
+    <timezone>UTC</timezone>
+    <!-- UEFI only, no shim (Secure Boot is off). GRUB, because kiwi's systemd-boot ISO path needs a loop device. -->
+    <type image="iso" primary="true" flags="dmsquash" filesystem="erofs" erofscompression="lzma,level=6"
+          firmware="efi" eficsm="false" efiparttable="gpt" efifatimagesize="30" mediacheck="false"
+          volid="STACKIFIC" publisher="Stackific OS" application_id="Stackific OS Live (Fedora base)"
+          kernelcmdline="console=ttyS0,115200 console=tty0">
+      <bootloader name="grub2" timeout="3"/>
+    </type>
+  </preferences>
+  <repository type="rpm-md" alias="fedora" sourcetype="metalink" package_gpgcheck="true">
+    <source path="https://mirrors.fedoraproject.org/metalink?repo=fedora-$releasever&amp;arch=$basearch">
+      <signing key="file:///usr/share/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-primary"/>
+    </source>
+  </repository>
+  <repository type="rpm-md" alias="updates" sourcetype="metalink" package_gpgcheck="true">
+    <source path="https://mirrors.fedoraproject.org/metalink?repo=updates-released-f$releasever&amp;arch=$basearch">
+      <signing key="file:///usr/share/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-primary"/>
+    </source>
+  </repository>
+  <!-- generic-release, not fedora-release: Fedora's trademark guidelines require a remix to leave out fedora-release,
+       fedora-logos and fedora-release-notes. Naming it here keeps dnf from picking fedora-release for system-release. -->
+  <packages type="bootstrap">
+    <package name="filesystem"/>
+    <package name="generic-release"/>
+  </packages>
+  <!-- Named packages only: kiwi installs no weak dependencies (patternType onlyRequired). -->
+  <packages type="image">
+    <package name="kernel"/>
+    <package name="kernel-modules-extra"/>
+    <package name="systemd"/>
+    <!-- Only a Recommends of systemd; without it login opens no logind session -->
+    <package name="systemd-pam"/>
+    <package name="systemd-udev"/>
+    <package name="dracut-live"/>
+    <package name="grub2-efi-x64"/>
+    <package name="grub2-efi-x64-cdboot"/>
+    <!-- kiwi's ISO builder reads the x86_64-efi modules from the image root -->
+    <package name="grub2-efi-x64-modules"/>
+    <!-- linux-firmware and the default firmware of Fedora's hardware-support group (no server or datacenter NICs) -->
+    <package name="linux-firmware"/>
+    <package name="alsa-sof-firmware"/>
+    <package name="amd-gpu-firmware"/>
+    <package name="atheros-firmware"/>
+    <package name="brcmfmac-firmware"/>
+    <package name="cirrus-audio-firmware"/>
+    <package name="intel-audio-firmware"/>
+    <package name="intel-gpu-firmware"/>
+    <package name="intel-vsc-firmware"/>
+    <package name="iwlegacy-firmware"/>
+    <package name="iwlwifi-dvm-firmware"/>
+    <package name="iwlwifi-mvm-firmware"/>
+    <package name="libertas-firmware"/>
+    <package name="mt7xxx-firmware"/>
+    <package name="nvidia-gpu-firmware"/>
+    <package name="nxpwireless-firmware"/>
+    <package name="qcom-wwan-firmware"/>
+    <package name="realtek-firmware"/>
+    <package name="tiwilink-firmware"/>
+    <package name="amd-ucode-firmware"/>
+    <package name="microcode_ctl"/>
+    <package name="NetworkManager"/>
+    <package name="btrfs-progs"/>
+    <package name="dosfstools"/>
+    <package name="selinux-policy-targeted"/>
+    <package name="passwd"/>
+    <package name="util-linux"/>
+    <package name="procps-ng"/>
+    <!-- <locale>en_US</locale> needs the en_US.UTF-8 locale installed -->
+    <package name="glibc-langpack-en"/>
+    <package name="kbd"/>
+    <!-- Weak dependencies kept because users commonly need them (the rest are left out; task 003 lists both):
+         time zones, passwd's dictionary check, and firmware for the NPU in Intel Core Ultra laptops -->
+    <package name="tzdata"/>
+    <package name="cracklib-dicts"/>
+    <package name="intel-npu-firmware"/>
+  </packages>
+</image>

@@ -61,7 +61,7 @@ iso version="0.0.0-dev": packages
 test version="0.0.0-dev": builder
   podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
-    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-x86_64.iso" /out
+    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-x86_64.iso" /out /tests/arch-x86_64.sh
 
 # Check the host prerequisites image builds need: rootless podman, and read-write /dev/kvm and /dev/vhost-vsock
 check:

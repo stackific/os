@@ -103,6 +103,8 @@ dev/reviews/         review records from /s-build, one per task
 - Arch x86_64 builds pin one Arch Linux Archive date, moved forward only through a test gate; Arch builds and tests run in a pinned container. Outputs go to `.build/` (gitignored).
 - The Arch builder is `arch/Containerfile`, pinned with the archive date in `arch/vars.just`; mkarchiso runs in it as the unprivileged user `build` (rootless podman cannot mount devtmpfs).
 - Arch Linux ARM and Fedora build from their live repos; every image records its full package manifest.
+- The Fedora builder is `fedora/Containerfile` (kiwi, QEMU, OVMF, socat), its base pinned by digest in `fedora/vars.just`; kiwi runs as container root in rootless `--privileged` podman, with its work dir on a container tmpfs, because SELinux labels cannot be set on podman's overlay.
+- Fedora images never ship `fedora-release*`, `fedora-logos` or `fedora-release-notes` (Fedora's trademark guidelines); `generic-release` stands in until our Fedora `stackific-release`.
 - Our packages: makepkg in a fresh pinned container on Arch, mock on Fedora. They hold configuration, artwork, release files and third-party tools we package (Shelly on Arch).
   - Arch: `arch/packages/<name>/PKGBUILD`, base-neutral sources in `desktop/`; `just arch packages` builds them into the local repo `.build/arch/repo/`, which the ISO build reads as `[stackific]` (unsigned until release signing).
 - The ArtCraft apps come from upstream's own release packages (`.pkg.tar.zst`, `.rpm`), checked against its `SHA256SUMS.txt` and pinned by version.
@@ -131,6 +133,8 @@ dev/reviews/         review records from /s-build, one per task
   - QEMU UEFI (OVMF, AAVMF) boot, session and unattended-install tests for every image, in both install modes, on blank and Windows-like disk images.
 - VMs get test access only from one-boot SMBIOS credentials with a token-gated vsock shell; no image ships sshd or test units.
 - Boot tests reach the VM only through the vsock shell from `systemd.extra-unit.*`/`systemd.unit-dropin.*` credentials and wait with `systemctl is-system-running --wait` over it; `vmm.notify_socket` over vsock drops messages, so it is not used (`tests/vm/`).
+- `tests/vm/boot.sh <iso> <out-dir> <checks>` runs the checks every image passes, then sources the image's `tests/vm/<base>-<arch>.sh`; a check that only one image passes goes there.
+- The test shell is a `systemd-socket-activate` service (`tests/vm/stackific-test-shell.service`), not a socket unit, because Fedora's SELinux policy denies PID 1 a listening vsock socket labelled for a shell.
 - Tests read and edit disk images only through `qemu-img`, `qemu-io` and `mtools` on image files: never root, loop devices, `qemu-nbd` or mounts.
 
 ## Workflow: /s-task and /s-build

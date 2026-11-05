@@ -1,0 +1,14 @@
+# Test shell for VM boot tests on vsock port 5001. tests/vm/boot.sh passes it to the guest as a one-boot SMBIOS
+# credential (systemd.extra-unit.*); it is never part of an image.
+# A service running systemd-socket-activate, not a socket unit: Fedora's SELinux policy denies PID 1 a listening vsock
+# socket labelled for a shell (initrc_t), while this service runs as unconfined_service_t, which may listen on vsock.
+# Each connection reads one line and runs bash on the connection only when the line is this boot's token, which boot.sh
+# passes as the stackific.test.token credential. A wrong or empty line (an empty one would match a missing credential)
+# closes the connection without a shell, and only that connection's child exits, so a rejected probe never marks the
+# system degraded. systemd-socket-activate clears the child's environment, so --setenv passes the credential dir on.
+[Unit]
+Description=Stackific test shell (vsock)
+
+[Service]
+ImportCredential=stackific.test.token
+ExecStart=/usr/bin/systemd-socket-activate --listen=vsock::5001 --accept --inetd --setenv=CREDENTIALS_DIRECTORY /usr/bin/bash -c 'exec 2>&1; IFS= read -r t; [ -n "$$t" ] && [ "$$t" = "$$(< "$$CREDENTIALS_DIRECTORY/stackific.test.token")" ] || exit 0; exec /usr/bin/bash'
