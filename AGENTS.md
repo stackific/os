@@ -88,7 +88,7 @@ dev/reviews/         review records from /s-build, one per task
 - **LSP plugins** join with their language: `pyright-lsp` (with `pyright-langserver` in `just setup`) arrives with the first Python code. No `typescript-lsp`: the site's few TypeScript files are covered by `astro check`.
 - **Other tools** (rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`README.md`).
 - **When to use what:** graphify, then Serena, for this repo and earlier work; context7 for library APIs. rtk wraps shell output on its own.
-- **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. `just claude plugins` skips a marketplace that the operator's user or managed settings list from another source (Claude Code refuses it) and says so. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`.
+- **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. `just claude plugins` skips a marketplace that the operator's user or managed settings list from another source (Claude Code refuses it) and says so. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`. In the Mac's Fedora runner VM, SELinux keeps unprivileged containers off bind mounts and `/dev/vhost-vsock` (`just arch packages` and `just arch test` run with `--security-opt label=disable`); pacman's Landlock sandbox fails in unprivileged rootless podman (`podman build` steps use `--disable-sandbox`).
 
 ## Site
 - `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components; `src/content/i18n/en.json` is `{}` only because Starlight's core always reads that collection, and Astro warns when it is missing. Recipes in `site/justfile`.
@@ -104,6 +104,7 @@ dev/reviews/         review records from /s-build, one per task
 ## Builds
 - Arch x86_64 builds pin one Arch Linux Archive date, moved forward only through a test gate; Arch builds and tests run in a pinned container. Outputs go to `.build/` (gitignored).
 - The Arch builder is `arch/Containerfile`, pinned with the archive date in `arch/vars.just`; mkarchiso runs in it as the unprivileged user `build` (rootless podman cannot mount devtmpfs).
+- The host's architecture picks the Arch image (no cross-builds): Arch Linux ARM aarch64 builds natively in the Mac's runner VM from the same Containerfile and profile, on `docker.io/menci/archlinuxarm` by digest (no official image), with packages from ALARM's live repos and archiso and edk2-aarch64 from the archive date.
 - Arch Linux ARM and Fedora build from their live repos; every image records its full package manifest.
 - The Fedora builder is `fedora/Containerfile` (kiwi, QEMU, OVMF, socat), its base pinned by digest in `fedora/vars.just`; kiwi runs as container root in rootless `--privileged` podman, with its work dir on a container tmpfs, because SELinux labels cannot be set on podman's overlay.
 - Fedora images never ship `fedora-release*`, `fedora-logos` or `fedora-release-notes` (Fedora's trademark guidelines); `generic-release` stands in until our Fedora `stackific-release`.
@@ -124,7 +125,7 @@ dev/reviews/         review records from /s-build, one per task
   - refuses a version that is not semver;
   - builds and tests all four images, then signs them;
   - tags `v<version>` and creates the GitHub release with each ISO, `SHA256SUMS` and its signature attached;
-  - today: the x86_64 images on the PC, unsigned; aarch64 jobs on the Mac and signing join when they exist (`just release create`, `upload`, `publish`: a draft until every image is attached);
+  - today: the x86_64 images on the PC and Arch aarch64 on the Mac, unsigned; Fedora aarch64 and signing join when they exist (`just release create`, `upload`, `publish`: a draft until every image is attached);
   - an ISO over 2 GiB goes to Cloudflare R2 instead and the release links it: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, variable `R2_BUCKET` (the bucket name, such as `stackific-os`). Wired only once an ISO needs it.
   - A released version never changes.
 - Secrets are never printed and never committed; gitleaks runs in pre-commit and in `check`.

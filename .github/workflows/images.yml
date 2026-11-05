@@ -83,8 +83,29 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  arch-aarch64:
+    needs: test-release
+    # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 90
+    env:
+      VERSION: ${{ needs.test-release.outputs.version || '0.0.0-dev' }}
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+      - run: just arch iso "$VERSION"
+      - run: just arch test "$VERSION"
+      - if: needs.test-release.outputs.version != ''
+        run: just release upload "$VERSION" arch aarch64
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   publish:
-    needs: [test-release, arch-x86_64, fedora-x86_64]
+    needs: [test-release, arch-x86_64, fedora-x86_64, arch-aarch64]
     if: needs.test-release.outputs.version != ''
     runs-on: ubuntu-24.04
     steps:

@@ -1,12 +1,14 @@
 #!/usr/bin/env bash
-# Boot test for an x86_64 live ISO under QEMU with OVMF; runs inside a builder container (`just <base> test`).
+# Boot test for a live ISO under QEMU with KVM and UEFI firmware, for the host's architecture: x86_64 (q35, OVMF) or
+# aarch64 (virt, AAVMF). Runs inside a builder container (`just <base> test`).
 # Test access comes only from one-boot SMBIOS credentials, never from the image: they add a token-gated vsock shell
 # (stackific-test-shell.service next to this script), which waits for the end of boot and runs the checks. systemd's
 # vmm.notify_socket is not used: over vsock it opens one connection per message and drops some, READY=1 included.
 # Usage: boot.sh <iso> <out-dir> <checks>. It runs the checks every image passes, then sources <checks>, the image's own
 # check file (tests/vm/<base>-<arch>.sh), which uses vm, vm_until and screenshot from here. A check only one image
 # passes goes into that image's file. Leaves <out-dir>/serial.log, and the screenshots the check file takes.
-# OVMF_CODE and OVMF_VARS name the raw firmware pair in the builder; the defaults are the Arch builder's.
+# OVMF_CODE and OVMF_VARS name the raw firmware pair in the builder (AAVMF's on aarch64); the defaults are the Arch
+# builder's.
 set -euo pipefail
 
 iso=$1
@@ -14,8 +16,22 @@ out=$2
 checks=$3
 here=$(dirname "$(readlink -f "$0")")
 shell_port=$(sed -n 's/.*--listen=vsock::\([0-9]*\) .*/\1/p' "$here/stackific-test-shell.service")
-ovmf_code=${OVMF_CODE:-/usr/share/edk2/x64/OVMF_CODE.4m.fd}
-ovmf_vars=${OVMF_VARS:-/usr/share/edk2/x64/OVMF_VARS.4m.fd}
+
+# The machine and its default firmware for this architecture
+case "$(uname -m)" in
+  x86_64)
+    machine=(qemu-system-x86_64 -machine "q35,accel=kvm" -vga std)
+    ovmf_code=${OVMF_CODE:-/usr/share/edk2/x64/OVMF_CODE.4m.fd}
+    ovmf_vars=${OVMF_VARS:-/usr/share/edk2/x64/OVMF_VARS.4m.fd}
+    ;;
+  aarch64)
+    # virtio-gpu-pci is the display that works with KVM on virt; tty1 shows once its driver loads
+    machine=(qemu-system-aarch64 -machine "virt,accel=kvm" -device virtio-gpu-pci)
+    ovmf_code=${OVMF_CODE:-/usr/share/edk2/aarch64/QEMU_EFI.fd}
+    ovmf_vars=${OVMF_VARS:-/usr/share/edk2/aarch64/QEMU_VARS.fd}
+    ;;
+  *) echo "boot.sh: unsupported architecture $(uname -m)" >&2; exit 2 ;;
+esac
 
 tmp=$(mktemp -d)
 qemu=""
@@ -72,12 +88,12 @@ cred systemd.unit-dropin.multi-user.target "$tmp/multi-user.conf"
 
 cp "$ovmf_vars" "$tmp/vars.fd"
 rm -f "$out/screen.png" "$out/greeter.png" "$out/serial.log"
-qemu-system-x86_64 -machine q35,accel=kvm -cpu host -smp 2 -m 4096 \
+"${machine[@]}" -cpu host -smp 2 -m 4096 \
   -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
   -drive "if=pflash,format=raw,file=$tmp/vars.fd" \
   -cdrom "$iso" -nic user,model=virtio-net-pci \
   -device "vhost-vsock-pci,guest-cid=$cid" "${smbios[@]}" \
-  -serial "file:$out/serial.log" -display none -vga std \
+  -serial "file:$out/serial.log" -display none \
   -monitor "unix:$tmp/monitor,server=on,wait=off" &
 qemu=$!
 
