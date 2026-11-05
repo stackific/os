@@ -36,9 +36,10 @@ packages: builder
       done
       createrepo_c --quiet /repo'
 
-# Build .build/fedora/x86_64/stackific-<version>-fedora-x86_64.iso and its package manifest, then print the ISO size
+# Build .build/fedora/x86_64/stackific-<version>-fedora-x86_64.iso and its package manifest, then print the ISO size.
+# Our RPMs come from the local repo `packages` fills, mounted read-only at /repo.
 [positional-arguments]
-iso version="0.0.0-dev": builder
+iso version="0.0.0-dev": packages
   #!/usr/bin/env bash
   set -euo pipefail
   # The version reaches file names and the container only as data ($1, env), and must be semver like a release
@@ -49,7 +50,8 @@ iso version="0.0.0-dev": builder
   # kiwi's work dir is a tmpfs inside the container: --rm discards it, so every build starts fresh, and unlike podman's
   # overlay it takes SELinux labels from rootless container root. podman's default tmpfs is noexec, which breaks the chroot.
   podman run --rm --privileged --tmpfs /work:rw,exec,dev,suid \
-    --volume "{{ justfile_directory() }}/fedora/iso:/desc:ro" --volume "{{ out }}:/out" --env NAME="$name" \
+    --volume "{{ justfile_directory() }}/fedora/iso:/desc:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
+    --env NAME="$name" \
     {{ builder }} bash -c 'kiwi-ng --type iso system build --description /desc --target-dir /work \
       && install -m644 /work/*.iso "/out/$NAME.iso" \
       && install -m644 /work/*.packages "/out/$NAME.packages.txt"'
@@ -58,7 +60,7 @@ iso version="0.0.0-dev": builder
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
 
 # Boot-test stackific-<version>-fedora-x86_64.iso under QEMU with OVMF (tests/vm/boot.sh with tests/vm/fedora-x86_64.sh);
-# leaves screen.png and serial.log
+# leaves screen.png (the desktop), greeter.png (the login screen after a logout) and serial.log
 # podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs
 [positional-arguments]
 test version="0.0.0-dev": builder
