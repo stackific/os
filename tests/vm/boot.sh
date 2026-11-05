@@ -1,17 +1,21 @@
 #!/usr/bin/env bash
-# Boot test for an x86_64 live ISO under QEMU with OVMF; runs inside a builder container (`just arch test`).
+# Boot test for an x86_64 live ISO under QEMU with OVMF; runs inside a builder container (`just <base> test`).
 # Test access comes only from one-boot SMBIOS credentials, never from the image: they add a token-gated vsock shell
-# (the units next to this script), which waits for the end of boot and runs the checks. systemd's vmm.notify_socket is
-# not used: over vsock it opens one connection per message and drops some, READY=1 included.
-# Usage: boot.sh <iso> <out-dir>. Leaves <out-dir>/screen.png (the live desktop), <out-dir>/greeter.png (the login
-# screen after a logout) and <out-dir>/serial.log.
+# (stackific-test-shell.service next to this script), which waits for the end of boot and runs the checks. systemd's
+# vmm.notify_socket is not used: over vsock it opens one connection per message and drops some, READY=1 included.
+# Usage: boot.sh <iso> <out-dir> <checks>. It runs the checks every image passes, then sources <checks>, the image's own
+# check file (tests/vm/<base>-<arch>.sh), which uses vm, vm_until and screenshot from here. A check only one image
+# passes goes into that image's file. Leaves <out-dir>/serial.log, and the screenshots the check file takes.
+# OVMF_CODE and OVMF_VARS name the raw firmware pair in the builder; the defaults are the Arch builder's.
 set -euo pipefail
 
 iso=$1
 out=$2
+checks=$3
 here=$(dirname "$(readlink -f "$0")")
-shell_port=$(sed -n 's/^ListenStream=vsock::\([0-9]*\)$/\1/p' "$here/stackific-test-shell.socket")
-ovmf=/usr/share/edk2/x64
+shell_port=$(sed -n 's/.*--listen=vsock::\([0-9]*\) .*/\1/p' "$here/stackific-test-shell.service")
+ovmf_code=${OVMF_CODE:-/usr/share/edk2/x64/OVMF_CODE.4m.fd}
+ovmf_vars=${OVMF_VARS:-/usr/share/edk2/x64/OVMF_VARS.4m.fd}
 
 tmp=$(mktemp -d)
 qemu=""
@@ -59,18 +63,17 @@ token=$(od -An -N32 -tx1 /dev/urandom | tr -d ' \n')
 printf 'io.systemd.credential:stackific.test.token=%s' "$token" >"$tmp/token"
 chmod 600 "$tmp/token"
 cid=$((3 + (RANDOM << 15 | RANDOM)))
-printf '[Unit]\nWants=stackific-test-shell.socket\n' >"$tmp/sockets.conf"
+printf '[Unit]\nWants=stackific-test-shell.service\n' >"$tmp/multi-user.conf"
 smbios=(
   -smbios "type=11,path=$tmp/token"
 )
-cred systemd.extra-unit.stackific-test-shell.socket "$here/stackific-test-shell.socket"
-cred systemd.extra-unit.stackific-test-shell@.service "$here/stackific-test-shell@.service"
-cred systemd.unit-dropin.sockets.target "$tmp/sockets.conf"
+cred systemd.extra-unit.stackific-test-shell.service "$here/stackific-test-shell.service"
+cred systemd.unit-dropin.multi-user.target "$tmp/multi-user.conf"
 
-cp "$ovmf/OVMF_VARS.4m.fd" "$tmp/vars.fd"
+cp "$ovmf_vars" "$tmp/vars.fd"
 rm -f "$out/screen.png" "$out/greeter.png" "$out/serial.log"
 qemu-system-x86_64 -machine q35,accel=kvm -cpu host -smp 2 -m 4096 \
-  -drive "if=pflash,format=raw,readonly=on,file=$ovmf/OVMF_CODE.4m.fd" \
+  -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
   -drive "if=pflash,format=raw,file=$tmp/vars.fd" \
   -cdrom "$iso" -nic user,model=virtio-net-pci \
   -device "vhost-vsock-pci,guest-cid=$cid" "${smbios[@]}" \
@@ -78,7 +81,7 @@ qemu-system-x86_64 -machine q35,accel=kvm -cpu host -smp 2 -m 4096 \
   -monitor "unix:$tmp/monitor,server=on,wait=off" &
 qemu=$!
 
-# The shell listens from sockets.target on; --wait returns once boot has finished, in whatever state it reached
+# The shell listens from multi-user.target on; --wait returns once boot has finished, in whatever state it reached
 vm_until 'systemctl is-system-running --wait' '^[a-z]+$' 300
 vm_until 'systemctl is-system-running' '^running$' 0
 vm_until 'nmcli -t -f RUNNING general' '^running$' 30
@@ -88,20 +91,9 @@ got=$(printf 'bad\nid\n' | socat -t 10 - "VSOCK-CONNECT:$cid:$shell_port" 2>/dev
 [ -z "$got" ] || fail "wrong token got a shell: '$got'"
 echo "ok: wrong token rejected"
 
-# The live session: greetd logs `live` into MangoWM, which starts Noctalia through stackific-noctalia.service
-vm_until 'systemctl is-active greetd' '^active$' 0
-vm_until 'systemctl --user -M live@ is-active stackific-noctalia.service' '^active$' 120
-vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
-vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/wayland-sessions/plasma.desktop && echo ok' \
-  '^ok$' 0
-sleep 10 # Noctalia draws a few seconds after its unit is active, on the VM's software renderer
-screenshot screen
-
-# After a logout greetd shows noctalia-greeter. Its comm name is cut to 15 characters, so match the command line.
-vm 'loginctl terminate-user live' >/dev/null
-vm_until "pgrep -u greeter -f '^/usr/bin/noctalia-greeter( |\$)'" '^[0-9]+$' 60
-sleep 10
-screenshot greeter
+# The image's own checks
+# shellcheck source=/dev/null
+source "$checks"
 
 vm 'systemctl poweroff' >/dev/null 2>&1 || true
 for _ in $(seq 60); do kill -0 "$qemu" 2>/dev/null || break; sleep 1; done
