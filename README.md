@@ -31,3 +31,33 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
 - `just arch iso` builds the Arch x86_64 live ISO into `.build/arch/x86_64/`; `just arch test` boots it under QEMU and checks it. See the Arch ISO page in the developer docs (`site/src/content/docs/developer/arch-iso.md`).
 - `just lefthook all` runs every pre-commit check on every tracked file.
 - Distro work runs through `/s-task <ask>`, then `/s-build <task>`. See [AGENTS.md](AGENTS.md).
+
+## Self-hosted runners
+
+The `images` workflow builds and boot-tests the images on our own machines after each merge to `main`, or when started by hand from the Actions tab. The x86_64 images run on a Linux PC and the aarch64 images on a Mac. A machine becomes a runner only through `just runner setup`; `just setup` never does it.
+
+The runner runs every job as the user who set it up. The workflow never runs on pull requests, and `just runner register` makes GitHub hold every outside contributor's workflow run until a maintainer approves it. Never add `pull_request` to a workflow that runs on `self-hosted`.
+
+### Linux PC (x86_64 images)
+
+1. Finish the developer setup above, including podman and the `/dev/kvm` and `/dev/vhost-vsock` access.
+2. Log the pinned gh in to GitHub as a repo admin: `just gh login`.
+3. Run `just runner setup`. It installs the runner into `.tools/actions-runner/` and registers this PC with the labels `self-hosted`, `Linux` and `X64`. It then installs and starts the runner as a systemd service under your user, which asks for your sudo password once.
+4. Check that it is online: `just runner status` prints `<hostname> online busy=false self-hosted,Linux,X64`.
+
+The service starts at boot. To take the PC out of CI, run `just runner remove`.
+
+### Mac (aarch64 images)
+
+The runner runs in an arm64 Linux VM, because image builds need Linux. The VM's nested virtualization needs Apple M3 or later and macOS 15 or later.
+
+1. Install Lima: `brew install lima`.
+2. Run `just runner vm` in this repo on the Mac. It creates and starts the Fedora VM `stackific-runner` (6 CPUs, 12 GiB memory, 100 GiB disk), which mounts nothing from the Mac.
+3. Open a shell in it: `limactl shell stackific-runner`. Then, inside the VM:
+   1. Install what the runner needs: `sudo dnf install -y git just podman`.
+   2. Clone the repo: `git clone https://github.com/stackific/os.git && cd os`.
+   3. Log gh in: `just gh login`.
+   4. Run `just runner setup`. It registers the VM with the labels `self-hosted`, `Linux` and `ARM64`.
+4. Check that it is online: `just runner status`.
+
+After the Mac restarts, run `just runner vm` again; the runner service starts with the VM.

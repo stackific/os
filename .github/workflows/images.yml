@@ -1,0 +1,32 @@
+# Builds and boot-tests the images on the self-hosted runners (just runner setup), after each merge to main or by
+# hand. Self-hosted runners take only push to main and workflow_dispatch, never pull_request: code from a fork must
+# never run on them. Every step after the setup calls a just recipe.
+name: images
+
+on:
+  push:
+    branches: [main]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+# A newer push replaces a build still running for the same branch
+concurrency:
+  group: images-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  arch-x86_64:
+    # The operator's Linux PC
+    runs-on: [self-hosted, Linux, X64]
+    timeout-minutes: 60
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+      - run: just arch iso
+      - run: just arch test

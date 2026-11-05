@@ -78,9 +78,9 @@ dev/reviews/         review records from /s-build, one per task
 | claude-md-management | Keeping this file current | Plugin `claude-md-management@claude-plugins-official` |
 
 - **Every session** uses rtk, caveman, ponytail, context7, Serena and graphify. Plugins and MCP servers load at session start, so restart Claude Code after `just setup`.
-- **Pins** (checked 2026-11-04), in `just/<tool>/vars.just`: rtk 1.1.0, graphify 0.9.102, Serena 2.1.0, uv 0.13.5 with Python 3.13, Go 1.27.3, gopls v0.24.0, Bun 1.4.4, lefthook 2.2.2, gitleaks 8.30.1, shellcheck 0.11.0, actionlint 1.7.12. Marketplaces are pinned by `ref` in `.claude/settings.json`: caveman v4.0.1, ponytail v5.3.3. Site packages are pinned in `site/package.json` and `site/bun.lock`; CI actions by commit SHA.
+- **Pins** (checked 2026-11-04), in `just/<tool>/vars.just`: rtk 1.1.0, graphify 0.9.102, Serena 2.1.0, uv 0.13.5 with Python 3.13, Go 1.27.3, gopls v0.24.0, Bun 1.4.4, lefthook 2.2.2, gitleaks 8.30.1, shellcheck 0.11.0, actionlint 1.7.12, gh 2.103.3, Actions runner 2.338.2 (first install only; it updates itself). Marketplaces are pinned by `ref` in `.claude/settings.json`: caveman v4.0.1, ponytail v5.3.3. Site packages are pinned in `site/package.json` and `site/bun.lock`; CI actions by commit SHA.
 - **LSP plugins** join with their language: `pyright-lsp` (with `pyright-langserver` in `just setup`) arrives with the first Python code. No `typescript-lsp`: the site's few TypeScript files are covered by `astro check`.
-- **Other tools** (gh, rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`README.md`).
+- **Other tools** (rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`README.md`).
 - **When to use what:** graphify, then Serena, for this repo and earlier work; context7 for library APIs. rtk wraps shell output on its own.
 - **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`.
 
@@ -106,8 +106,10 @@ dev/reviews/         review records from /s-build, one per task
 
 ## CI and releases
 - GitHub Actions in `.github/workflows/`; every step after checkout and just's setup calls a just recipe. `check` (pull requests, pushes to `main`) runs `just lefthook all` and `just gitleaks history`.
-- GitHub-hosted Linux runners run checks, container tests, x86_64 images and their VM tests.
-- The operator's Mac runs the self-hosted runner for aarch64 images (an arm64 Linux VM, labels `self-hosted`, `Linux`, `ARM64`). It takes only `push` to `main` and `workflow_dispatch`, never `pull_request`.
+- GitHub-hosted Linux runners run checks and container tests.
+- The operator's Linux PC runs the self-hosted runner for x86_64 images and their VM tests (labels `self-hosted`, `Linux`, `X64`); `just runner setup` makes a machine a runner, never `just setup`.
+- The operator's Mac runs the self-hosted runner for aarch64 images (an arm64 Linux VM from `just runner vm`, labels `self-hosted`, `Linux`, `ARM64`).
+- Self-hosted runners take only `push` to `main` and `workflow_dispatch`, never `pull_request`; `just runner register` makes every outside contributor's run wait for approval.
 - `release` runs only by hand (`workflow_dispatch`, input `version`):
   - refuses a version that is not semver;
   - builds and tests all four images, then signs them;

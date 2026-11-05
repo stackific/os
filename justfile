@@ -14,6 +14,10 @@ mod gitleaks 'just/gitleaks/mod.just'
 mod shellcheck 'just/shellcheck/mod.just'
 mod actionlint 'just/actionlint/mod.just'
 
+# GitHub: the gh CLI, and the self-hosted runner for the images workflow (`just runner setup`, CI machines only)
+mod gh 'just/gh/mod.just'
+mod runner 'just/runner/mod.just'
+
 # Task files, review records and their prompt-trail entries (recipes in dev/justfile)
 mod dev
 
@@ -29,7 +33,7 @@ default:
 
 # graphify comes last among the agent tools: its project install rewrites .claude/settings.json after the plugin installs.
 # Install every tool this repo needs (host prerequisites: README.md), then run doctor
-setup: uv::install rtk::install go::install serena::install claude::plugins graphify::install gitleaks::install shellcheck::install actionlint::install site::install lefthook::hooks doctor
+setup: uv::install rtk::install go::install serena::install claude::plugins graphify::install gitleaks::install shellcheck::install actionlint::install gh::install site::install lefthook::hooks doctor
 
 # Check every tool's pinned version and wiring, and the host prerequisites setup cannot install
 doctor:
