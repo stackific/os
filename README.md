@@ -10,6 +10,7 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
    - Arch: `sudo pacman -S --needed git just nodejs npm unzip`
    - Fedora: `sudo dnf install git just nodejs npm unzip`
    - macOS: `xcode-select --install`, then `brew install just node`
+   - Linux also needs rootless `podman` for image builds (Arch: `sudo pacman -S --needed podman`, Fedora: `sudo dnf install podman`), and read-write `/dev/kvm` and `/dev/vhost-vsock`. Arch and Fedora make both 0666; elsewhere, add yourself to the `kvm` group (`sudo usermod -aG kvm "$USER"`, then log in again). Check with `ls -l /dev/kvm /dev/vhost-vsock`. `just doctor` reports them on its `arch:` line and fails without them.
 2. Install Claude Code: `curl -fsSL https://claude.ai/install.sh | bash`
 3. Put `~/.local/bin` on your PATH, where the launchers for `rtk`, `graphify` and `claude` go. On macOS:
    ```sh
@@ -27,5 +28,6 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
 - `just` lists every recipe. `just doctor` rechecks the tools.
 - `just graphify update` rebuilds the code graph after code changes.
 - `just site dev` serves the site at `localhost:4321`.
+- `just arch iso` builds the Arch x86_64 live ISO into `.build/arch/x86_64/`; `just arch test` boots it under QEMU and checks it. See the Arch ISO page in the developer docs (`site/src/content/docs/developer/arch-iso.md`).
 - `just lefthook all` runs every pre-commit check on every tracked file.
 - Distro work runs through `/s-task <ask>`, then `/s-build <task>`. See [AGENTS.md](AGENTS.md).

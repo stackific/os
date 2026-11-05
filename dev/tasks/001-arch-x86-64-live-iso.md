@@ -7,7 +7,7 @@ Base: arch
 ## Ask
 
 ```text title="Prompt" wrap
-Build the first Stackific OS image: an Arch Linux x86_64 live ISO, console only (kernel, firmware, microcode, btrfs and FAT tools, NetworkManager, root autologin on tty1; no desktop, branding or hardware detection yet). Build it with archiso inside a pinned container from one pinned Arch Linux Archive date. Boot it with archiso's systemd-boot mode, UEFI only. Name it stackific-<version>-arch-x86_64.iso, record its package manifest and report its size against the 2 GiB target. Add a QEMU/OVMF boot test that waits for systemd's READY notification over vsock and then runs checks through a token-gated vsock shell injected by one-boot SMBIOS credentials, so the image itself ships no test units and no sshd. Expose both as just recipes that run unattended on a local Linux PC; a CI job will call the same recipes later.
+Build the first Stackific OS image: an Arch Linux x86_64 live ISO, console only (kernel, firmware, microcode, btrfs and FAT tools, NetworkManager, root autologin on tty1; no desktop, branding or hardware detection yet). Build it with archiso inside a pinned container from one pinned Arch Linux Archive date. Boot it with archiso's systemd-boot mode, UEFI only. Name it stackific-<version>-arch-x86_64.iso, record its package manifest and report its size against the 2 GiB target. Add a QEMU/OVMF boot test that runs checks through a token-gated vsock shell injected by one-boot SMBIOS credentials, so the image itself ships no test units and no sshd. It waits for the end of boot through that shell with `systemctl is-system-running --wait`; systemd's vmm.notify_socket READY over vsock proved lossy here, so the test does not use it. Expose both as just recipes that run unattended on a local Linux PC; a CI job will call the same recipes later.
 ```
 
 ## Goal
@@ -31,13 +31,13 @@ Facts, all checked 2026-11-04:
 - Container base image: `docker.io/archlinux/archlinux:base-20261101.0.620341`, digest `sha256:837194727013a6e81fb55be11e61d6dcfe7fdd095b3313f8f3cff9bb3f9b182d`. Source: Docker Hub tags API for `archlinux/archlinux`.
 - edk2-ovmf installs `/usr/share/edk2/x64/OVMF_CODE.4m.fd` and `/usr/share/edk2/x64/OVMF_VARS.4m.fd`. Source: https://archlinux.org/packages/extra/any/edk2-ovmf/files/.
 - systemd as PID 1 reads system credentials from SMBIOS type 11 strings `io.systemd.credential:name=value` and `io.systemd.credential.binary:name=<base64>`. Source: systemd(1), https://www.freedesktop.org/software/systemd/man/latest/systemd.html.
-- `vmm.notify_socket` (systemd 253+) makes PID 1 send `READY=1` when boot completes. The payload for vsock is `vsock:CID:PORT`, or `vsock-stream:`, `vsock-dgram:` or `vsock-seqpacket:` to force a socket type. Source: systemd(1) and systemd.system-credentials(7).
+- `vmm.notify_socket` (systemd 253+) makes PID 1 send `READY=1` when boot completes. The payload for vsock is `vsock:CID:PORT`, or `vsock-stream:`, `vsock-dgram:` or `vsock-seqpacket:` to force a socket type. Source: systemd(1) and systemd.system-credentials(7). Measured during /s-build on 2026-11-04 (QEMU 11.1.3, systemd 262.1): sd_notify opens one vsock connection per message and drops a message when connect fails. A listener got 17 to 19 unit messages out of 149 unit events, and missed READY=1 in 2 of 10 boots. The test therefore does not use it.
 - `systemd.extra-unit.<unit>` credentials add units, and `systemd.unit-dropin.<unit>` credentials add drop-ins, to the final system (systemd 256+, via systemd-debug-generator). Source: systemd.system-credentials(7), systemd-debug-generator(8).
 - QEMU accepts `-smbios type=11,value=<str>` or `-smbios type=11,path=<file>`; `path=` reads the string from a file. Source: https://www.qemu.org/docs/master/system/invocation.html.
 - AGENTS.md rules this task applies: Arch x86_64 builds pin one archive date, moved forward only through a test gate; Arch builds and tests run in a pinned container; outputs go to `.build/`; every image records its full package manifest; every image task reports its ISO size; VM test access comes only from one-boot SMBIOS credentials with a token-gated vsock shell; no image ships sshd or test units; no NOPASSWD.
 
 ## Inputs
-None. The operator chose, in this session: console base only; systemd-boot, UEFI only (no syslinux, no Limine on the ISO); a READY notification plus token-gated vsock shell boot test.
+None. The operator chose, in this session: console base only; systemd-boot, UEFI only (no syslinux, no Limine on the ISO); a token-gated vsock shell boot test. During /s-build the operator dropped the READY notification, because it proved lossy (see Context), and chose to gate the boot on the shell with `systemctl is-system-running --wait`.
 
 ## Changes
 - `.gitignore`: add `/.build/` under a "Build output" heading.
@@ -70,24 +70,22 @@ None. The operator chose, in this session: console base only; systemd-boot, UEFI
   - `etc/systemd/system/multi-user.target.wants/NetworkManager.service` (symlink to `/usr/lib/systemd/system/NetworkManager.service`).
 - `tests/vm/boot.sh`: the base-neutral boot test, given an ISO path and an output dir. Steps:
   1. Make a random token in a 0600 file, a random guest CID and a copy of OVMF_VARS.
-  2. Listen with socat on a vsock port for the READY notification.
-  3. Start `qemu-system-x86_64` with KVM, q35, OVMF pflash, the ISO as CD-ROM, `vhost-vsock-pci`, a serial log, `-display none` and an HMP monitor socket. Pass these SMBIOS type 11 credentials, the token through `path=` so it never appears in `ps`:
-     - `vmm.notify_socket=vsock-stream:2:<port>`;
+  2. Start `qemu-system-x86_64` with KVM, q35, OVMF pflash, the ISO as CD-ROM, `vhost-vsock-pci`, a serial log, `-display none` and an HMP monitor socket. Pass these SMBIOS type 11 credentials, the token through `path=` so it never appears in `ps`:
      - `stackific.test.token`;
      - `systemd.extra-unit.stackific-test-shell.socket` and `systemd.extra-unit.stackific-test-shell@.service`;
      - `systemd.unit-dropin.sockets.target`, which adds `Wants=stackific-test-shell.socket`.
-  4. Wait up to 300 s for `READY=1`.
-  5. Run each check over a new vsock connection: send the token line, then the command.
-  6. Save a PNG screenshot of the console with HMP `screendump -f png`.
-  7. Send `systemctl poweroff` and wait up to 60 s for QEMU to exit.
-  8. On any failure, print the tail of the serial log and exit non-zero.
+  3. Retry the shell for up to 300 s until `systemctl is-system-running --wait` prints `running`.
+  4. Run each check over a new vsock connection: send the token line, then the command.
+  5. Save a PNG screenshot of the console with HMP `screendump -f png`.
+  6. Send `systemctl poweroff` and wait up to 60 s for QEMU to exit.
+  7. On any failure, print the tail of the serial log and exit non-zero.
 - `tests/vm/stackific-test-shell.socket`: `ListenStream=vsock::<port>`, `Accept=yes`.
 - `tests/vm/stackific-test-shell@.service`: `ImportCredential=stackific.test.token`, socket stdin and stdout. It reads one line and execs `bash` only if the line equals the token; otherwise it exits 1.
 - `README.md`: Linux host prerequisite `podman` for image builds, plus read-write `/dev/kvm` and `/dev/vhost-vsock` (and how to check them); `just arch iso` and `just arch test` under Everyday use.
 - `AGENTS.md`, one line each:
   - the doctor line becomes "Image tasks add podman, KVM and vhost-vsock; OVMF and AAVMF come from the pinned builder containers";
   - under Builds: the Arch builder is `arch/Containerfile`, pinned with the archive date in `arch/vars.just`;
-  - under Tests: boot tests use `vmm.notify_socket` for READY and `systemd.extra-unit.*`/`systemd.unit-dropin.*` credentials for the vsock shell (`tests/vm/`).
+  - under Tests: boot tests reach the VM only through the vsock shell from `systemd.extra-unit.*`/`systemd.unit-dropin.*` credentials and wait with `systemctl is-system-running --wait` over it; `vmm.notify_socket` over vsock drops messages, so it is not used (`tests/vm/`).
 - `site/src/content/docs/developer/arch-iso.md`: build and test the Arch ISO, its outputs, how the test reaches the VM, and how to move the archive date (edit `arch/vars.just`, then `just arch iso` and `just arch test` must pass). No user docs yet: nothing is released, so users cannot see this image.
 
 ## Acceptance criteria
@@ -115,7 +113,7 @@ Must not:
 
 ## Tests
 - `just arch iso`, then `ls -l .build/arch/x86_64/` and `grep -E '^(linux|systemd|openssh|cloud-init|syslinux|grub) ' .build/arch/x86_64/*.packages.txt`. This proves the build and naming criteria, the manifest pin and the absent packages.
-- `just arch test`: proves READY, the three shell checks, the screenshot and the serial log. Add the wrong-token check to `tests/vm/boot.sh` itself, so it runs on every test.
+- `just arch test`: proves the boot wait, the three shell checks, the screenshot and the serial log. Add the wrong-token check to `tests/vm/boot.sh` itself, so it runs on every test.
 - `just doctor` and `just lefthook all`.
 - Run `just arch iso` twice in a row; the second run must rebuild cleanly. This proves the fresh work dir.
 - Manual, only if the operator wants a real-hardware check:

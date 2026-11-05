@@ -49,7 +49,7 @@ dev/reviews/         review records from /s-build, one per task
 - `just setup` installs every prerequisite to build, test, lint and run everything, plus the agent tools below; only the host prerequisites in `README.md` (git, just, node, npm, unzip, Claude Code) are installed by hand. A change that adds a tool or dependency updates `just setup` in the same change.
 - Setup hosts: Linux (x86_64, aarch64) and macOS on Apple silicon; image builds need Linux. Host-specific asset names, checksums and the checksum command live in `just/host/vars.just` and each tool's `vars.just`.
 - `README.md` keeps the developer setup step by step. A change to setup or its host prerequisites updates it in the same change. Replies to the operator point to it instead of listing steps.
-- `just doctor` prints one line per tool: its pinned version and wiring (git hooks included), plus host prerequisites setup cannot install (`claude`; `node` for ponytail's and caveman's hooks; `npm` for Serena's Bash language server). Image tasks add KVM, podman, OVMF and AAVMF.
+- `just doctor` prints one line per tool: its pinned version and wiring (git hooks included), plus host prerequisites setup cannot install (`claude`; `node` for ponytail's and caveman's hooks; `npm` for Serena's Bash language server). Image tasks add podman, KVM and vhost-vsock; OVMF and AAVMF come from the pinned builder containers.
 - Git hooks: lefthook (pinned), mapped in `lefthook.yml`, calling just recipes only; after editing `lefthook.yml`, run `just lefthook hooks`. `just lefthook all` runs every pre-commit check on every tracked file (only tracked: nothing before the first `git add`).
   - pre-commit: hygiene (`git diff --check`, files over 1 MiB except the wallpapers in `branding/wallpapers/`, names of `.git/info/exclude` root entries), gitleaks, justfile parse, shellcheck (`*.sh`, `PKGBUILD`), actionlint, `just dev check`, site format, lint, types, audit, screenshots and build on `site/**`. `mango -p` joins when `desktop/` ships the MangoWM config.
   - commit-msg: DCO sign-off.
@@ -80,7 +80,7 @@ dev/reviews/         review records from /s-build, one per task
 - **Every session** uses rtk, caveman, ponytail, context7, Serena and graphify. Plugins and MCP servers load at session start, so restart Claude Code after `just setup`.
 - **Pins** (checked 2026-11-04), in `just/<tool>/vars.just`: rtk 1.1.0, graphify 0.9.102, Serena 2.1.0, uv 0.13.5 with Python 3.13, Go 1.27.3, gopls v0.24.0, Bun 1.4.4, lefthook 2.2.2, gitleaks 8.30.1, shellcheck 0.11.0, actionlint 1.7.12. Marketplaces are pinned by `ref` in `.claude/settings.json`: caveman v4.0.1, ponytail v5.3.3. Site packages are pinned in `site/package.json` and `site/bun.lock`; CI actions by commit SHA.
 - **LSP plugins** join with their language: `pyright-lsp` (with `pyright-langserver` in `just setup`) arrives with the first Python code. No `typescript-lsp`: the site's few TypeScript files are covered by `astro check`.
-- **Other tools** (podman, QEMU with OVMF and AAVMF, gh, rclone) join `just setup` with the first task that needs them.
+- **Other tools** (gh, rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`README.md`).
 - **When to use what:** graphify, then Serena, for this repo and earlier work; context7 for library APIs. rtk wraps shell output on its own.
 - **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`.
 
@@ -97,6 +97,7 @@ dev/reviews/         review records from /s-build, one per task
 
 ## Builds
 - Arch x86_64 builds pin one Arch Linux Archive date, moved forward only through a test gate; Arch builds and tests run in a pinned container. Outputs go to `.build/` (gitignored).
+- The Arch builder is `arch/Containerfile`, pinned with the archive date in `arch/vars.just`; mkarchiso runs in it as the unprivileged user `build` (rootless podman cannot mount devtmpfs).
 - Arch Linux ARM and Fedora build from their live repos; every image records its full package manifest.
 - Our packages: makepkg in a fresh pinned container on Arch, mock on Fedora. They hold configuration, artwork, release files and third-party tools we package (Shelly on Arch).
 - The ArtCraft apps come from upstream's own release packages (`.pkg.tar.zst`, `.rpm`), checked against its `SHA256SUMS.txt` and pinned by version.
@@ -122,6 +123,7 @@ dev/reviews/         review records from /s-build, one per task
   - container tests for packages, package lists and headless MangoWM with Noctalia;
   - QEMU UEFI (OVMF, AAVMF) boot, session and unattended-install tests for every image, in both install modes, on blank and Windows-like disk images.
 - VMs get test access only from one-boot SMBIOS credentials with a token-gated vsock shell; no image ships sshd or test units.
+- Boot tests reach the VM only through the vsock shell from `systemd.extra-unit.*`/`systemd.unit-dropin.*` credentials and wait with `systemctl is-system-running --wait` over it; `vmm.notify_socket` over vsock drops messages, so it is not used (`tests/vm/`).
 - Tests read and edit disk images only through `qemu-img`, `qemu-io` and `mtools` on image files: never root, loop devices, `qemu-nbd` or mounts.
 
 ## Workflow: /s-task and /s-build
