@@ -1,6 +1,6 @@
 # 005: Arch Linux ARM aarch64 console live ISO
 
-- [ ] Done
+- [x] Done
 
 Base: arch
 

@@ -1,6 +1,6 @@
 # 006: Branding file, wallpapers and fastfetch logo, with an Arch artwork package
 
-- [ ] Done
+- [x] Done
 
 Base: arch
 

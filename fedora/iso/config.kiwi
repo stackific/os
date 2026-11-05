@@ -1,10 +1,10 @@
 <?xml version="1.0" encoding="utf-8"?>
-<!-- kiwi description of the Stackific OS console live ISO on Fedora 45 x86_64 (`just fedora iso`). -->
+<!-- kiwi description of the Stackific OS desktop live ISO on Fedora 45 x86_64 (`just fedora iso`). -->
 <image schemaversion="8.5" name="stackific" displayname="Stackific OS">
   <description type="system">
     <author>Stackific OS</author>
     <contact>https://os.stackific.com</contact>
-    <specification>Stackific OS console live ISO, Fedora 45 base</specification>
+    <specification>Stackific OS desktop live ISO, Fedora 45 base</specification>
   </description>
   <preferences>
     <!-- Unused: `just fedora iso` names the outputs with its own version -->
@@ -32,11 +32,23 @@
       <signing key="file:///usr/share/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-primary"/>
     </source>
   </repository>
-  <!-- generic-release, not fedora-release: Fedora's trademark guidelines require a remix to leave out fedora-release,
-       fedora-logos and fedora-release-notes. Naming it here keeps dnf from picking fedora-release for system-release. -->
+  <!-- Terra supplies only mangowm and noctalia-greeter (terra-repo.sh appends includepkgs and gpgkey to its repo file).
+       Packages and metadata are checked against Terra 45's key, committed next to this file. -->
+  <repository type="rpm-md" alias="terra" package_gpgcheck="true" repository_gpgcheck="true" customize="terra-repo.sh">
+    <source path="https://repos.fyralabs.com/terra$releasever">
+      <signing key="file:///desc/terra-45.asc"/>
+    </source>
+  </repository>
+  <!-- Our RPMs from `just fedora packages`, mounted at /repo; unsigned until release signing -->
+  <repository type="rpm-md" alias="stackific">
+    <source path="dir:///repo"/>
+  </repository>
+  <!-- stackific-release, not fedora-release: Fedora's trademark guidelines require a remix to leave out fedora-release,
+       fedora-logos and fedora-release-notes. stackific-release replaces generic-release and provides system-release, so
+       naming it here keeps dnf from picking fedora-release. -->
   <packages type="bootstrap">
     <package name="filesystem"/>
-    <package name="generic-release"/>
+    <package name="stackific-release"/>
   </packages>
   <!-- Named packages only: kiwi installs no weak dependencies (patternType onlyRequired). -->
   <packages type="image">
@@ -88,5 +100,38 @@
     <package name="tzdata"/>
     <package name="cracklib-dicts"/>
     <package name="intel-npu-firmware"/>
+    <!-- gdm (a requirement of gnome-shell) requires system-logos; generic-logos keeps dnf from picking fedora-logos -->
+    <package name="generic-logos"/>
+    <!-- Our desktop defaults and artwork (the Noctalia unit, wlroots and greeter settings, wallpapers, fastfetch) -->
+    <package name="stackific-desktop"/>
+    <package name="stackific-artwork"/>
+    <!-- MangoWM with Noctalia, and foot and rofi, which MangoWM's stock keybinds launch -->
+    <package name="mangowm"/>
+    <package name="noctalia"/>
+    <package name="foot"/>
+    <package name="rofi"/>
+    <!-- The display manager and its login screen -->
+    <package name="greetd"/>
+    <package name="noctalia-greeter"/>
+    <!-- GNOME, the second session, with its terminal and file manager -->
+    <package name="gnome-shell"/>
+    <package name="gnome-session-wayland-session"/>
+    <package name="ptyxis"/>
+    <package name="nautilus"/>
+    <!-- Portals: GNOME's for GNOME, GTK's and wlr's for MangoWM (mango-portals.conf) -->
+    <package name="xdg-desktop-portal-gnome"/>
+    <package name="xdg-desktop-portal-gtk"/>
+    <package name="xdg-desktop-portal-wlr"/>
+    <!-- Sound -->
+    <package name="pipewire"/>
+    <package name="pipewire-pulseaudio"/>
+    <package name="wireplumber"/>
+    <!-- Weak dependencies kept for the desktop (task 008): Wi-Fi, which NetworkManager alone lacks on Fedora, and
+         GNOME's UI and monospace fonts -->
+    <package name="NetworkManager-wifi"/>
+    <package name="wpa_supplicant"/>
+    <package name="wireless-regdb"/>
+    <package name="adwaita-sans-fonts"/>
+    <package name="adwaita-mono-fonts"/>
   </packages>
 </image>

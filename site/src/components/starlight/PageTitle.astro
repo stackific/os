@@ -3,10 +3,10 @@
  * Override of Starlight's PageTitle: the usual title, plus a "Copy as Markdown" button on docs pages.
  * It copies the page's Markdown twin (src/pages/[...slug].md.ts), whose URL comes from the entry id.
  * Prompt-trail entries with `pr:` in their frontmatter also get the pull-request link under the title, and
- * with `task:` a link to the task file they built, on GitHub.
+ * with `task:` a link to the task file they built, on GitHub; both are GitHubLink.astro.
  */
 import Default from '@astrojs/starlight/components/PageTitle.astro';
-import PrLink from './PrLink.astro';
+import GitHubLink from './GitHubLink.astro';
 import { REPO_URL } from '../../repo';
 
 const { entry } = Astro.locals.starlightRoute;
@@ -29,12 +29,8 @@ const isDoc = /^docs(\/|$)/.test(entry.id);
     </button>
   )}
 </div>
-{entry.data.pr && <PrLink href={entry.data.pr} label={entry.data.title} />}
-{entry.data.task && (
-  <a class="task-link" href={`${REPO_URL}/blob/main/${entry.data.task}`}>
-    Task: {entry.data.task}
-  </a>
-)}
+{entry.data.pr && <GitHubLink href={entry.data.pr} label={entry.data.title} />}
+{entry.data.task && <GitHubLink href={`${REPO_URL}/blob/main/${entry.data.task}`} label={`Task: ${entry.data.task}`} />}
 
 <script>
   /** Copies the Markdown twin on click, then shows the result in the button for two seconds. */
@@ -83,11 +79,5 @@ const isDoc = /^docs(\/|$)/.test(entry.id);
   .copy-markdown:hover {
     background: var(--accent);
     color: var(--accent-foreground);
-  }
-  /* The task link sits on its own line under the pull-request link, quieter than it. */
-  .task-link {
-    display: block;
-    margin-top: 0.25rem;
-    font-size: var(--sl-text-sm);
   }
 </style>

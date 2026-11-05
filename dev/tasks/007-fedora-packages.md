@@ -1,6 +1,6 @@
 # 007: Fedora RPMs of our packages, built with mock into a local repo
 
-- [ ] Done
+- [x] Done
 
 Base: fedora
 

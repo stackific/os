@@ -1,6 +1,6 @@
 # 004: Arch release package: the image identifies as Stackific OS
 
-- [ ] Done
+- [x] Done
 
 Base: arch
 

@@ -28,7 +28,7 @@ export const collections = {
     }),
     schema: docsSchema({
       extend: z.object({
-        // Pull request a prompt-trail entry landed in; shown under the title (src/components/starlight/PrLink.astro).
+        // Pull request a prompt-trail entry landed in; shown under the title (src/components/starlight/GitHubLink.astro).
         pr: z.url().optional(),
         // Task file the entry built (`dev/tasks/<NNN>-<slug>.md`); linked under the title, checked by `just dev check`.
         task: z

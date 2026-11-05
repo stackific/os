@@ -8,7 +8,20 @@
 /* Starlight reads these tokens for body text and code blocks. */
 :root {
   --sl-font: var(--stackific-font-body);
-  --sl-font-mono: var(--stackific-font-body);
+  --sl-font-mono: var(--stackific-font-mono);
+  /* Headings 1 to 3 two steps below Starlight's scale (4xl, 3xl, 2xl) */
+  --sl-text-h1: var(--sl-text-2xl);
+  --sl-text-h2: var(--sl-text-xl);
+  --sl-text-h3: var(--sl-text-lg);
+}
+
+/* From Starlight's 50em breakpoint, two steps below its 5xl, 4xl, 3xl */
+@media (min-width: 50em) {
+  :root {
+    --sl-text-h1: var(--sl-text-3xl);
+    --sl-text-h2: var(--sl-text-2xl);
+    --sl-text-h3: var(--sl-text-xl);
+  }
 }
 
 /*

@@ -1,6 +1,6 @@
 # 002: Arch x86_64 live ISO boots to MangoWM with Noctalia, with KDE Plasma
 
-- [ ] Done
+- [x] Done
 
 Base: arch
 
