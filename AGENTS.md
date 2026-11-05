@@ -89,7 +89,7 @@ dev/reviews/         review records from /s-build, one per task
 - **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`.
 
 ## Site
-- `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components. Recipes in `site/justfile`.
+- `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components; `src/content/i18n/en.json` is `{}` only because Starlight's core always reads that collection, and Astro warns when it is missing. Recipes in `site/justfile`.
   - It publishes `llms.txt` (`starlight-llms-txt`) and a `.md` twin of every docs page (`src/pages/[...slug].md.ts`).
   - Fonts and colours come from the branding file.
   - Sidebar groups: User Guide (`user/`) and Prompt Trail (`prompt-trail/`); add a group to `astro.config.mjs` with its first page. The site carries no developer guide.

@@ -4,13 +4,18 @@
  * `docs` is Starlight's collection, loaded from src/content/docs as usual. Entry ids (and so URLs)
  * get a `docs/` prefix, so every Starlight page is served under /docs/*. That leaves the site root
  * free for regular Astro pages in src/pages.
+ *
+ * `i18n` exists only because Starlight's core always looks it up for UI string overrides, and Astro
+ * warns about a missing or empty collection. Its one entry, src/content/i18n/en.json, is `{}`: the
+ * site stays English-only with Starlight's own strings.
  */
 import { defineCollection } from 'astro:content';
 import { z } from 'astro/zod';
-import { docsLoader } from '@astrojs/starlight/loaders';
-import { docsSchema } from '@astrojs/starlight/schema';
+import { docsLoader, i18nLoader } from '@astrojs/starlight/loaders';
+import { docsSchema, i18nSchema } from '@astrojs/starlight/schema';
 
 export const collections = {
+  i18n: defineCollection({ loader: i18nLoader(), schema: i18nSchema() }),
   docs: defineCollection({
     loader: docsLoader({
       // Like glob's default id (frontmatter `slug`, else the path without extension or trailing
