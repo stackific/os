@@ -1,0 +1,30 @@
+---
+/**
+ * Override of Starlight's SiteTitle: identical look, but links to the docs home (/docs/) rather
+ * than the site root, which belongs to the marketing pages.
+ */
+const { siteTitle } = Astro.locals.starlightRoute;
+---
+
+<a href="/docs/" class="site-title sl-flex">
+  <span translate="no">{siteTitle}</span>
+</a>
+
+<style>
+  /* Mirrors Starlight's own SiteTitle styles, kept in its layer so user CSS can still override. */
+  @layer starlight.core {
+    .site-title {
+      align-items: center;
+      gap: var(--sl-nav-gap);
+      font-size: var(--sl-text-h4);
+      font-weight: 600;
+      color: var(--sl-color-text-accent);
+      text-decoration: none;
+      white-space: nowrap;
+      min-width: 0;
+    }
+    span {
+      overflow: hidden;
+    }
+  }
+</style>

@@ -1,0 +1,4 @@
+# Generated or locked files; Prettier must not rewrite them.
+dist/
+.astro/
+bun.lock

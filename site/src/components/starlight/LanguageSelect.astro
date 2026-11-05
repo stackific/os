@@ -1,0 +1,27 @@
+---
+/**
+ * Override of Starlight's LanguageSelect: the site is English only, so this header slot (rightmost,
+ * after the home icon) holds a GitHub link to the project's repository instead. Starlight's GitHub
+ * icon draws in currentColor, so it follows the light and dark themes.
+ */
+import { Icon } from '@astrojs/starlight/components';
+import { REPO_URL } from '../../repo';
+---
+
+<a href={REPO_URL} class="github sl-flex" aria-label="Stackific OS on GitHub">
+  <Icon name="github" />
+</a>
+
+<style>
+  /* Mirrors Starlight's social icon links so the icon matches the rest of the header. */
+  @layer starlight.core {
+    .github {
+      color: var(--sl-color-text-accent);
+      padding: 0.5em;
+      margin: -0.5em;
+    }
+    .github:hover {
+      color: var(--sl-color-white);
+    }
+  }
+</style>
