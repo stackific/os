@@ -4,6 +4,7 @@ description: The first image, a console-only Arch x86_64 live ISO built in a pin
 sidebar:
   order: 1
   label: 001 Arch x86_64 live ISO
+pr: https://github.com/stackific/os/pull/1
 task: dev/tasks/001-arch-x86-64-live-iso.md
 ---
 
