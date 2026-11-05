@@ -35,6 +35,44 @@ Each manifest line is `name|epoch|version|release|arch|disturl|license`. Fedora 
 
 Packages are checked against Fedora's signing key: both repositories set `package_gpgcheck="true"` with the builder's `RPM-GPG-KEY-fedora-45-primary`.
 
+## Our packages
+
+```sh
+just fedora packages          # stackific-release, stackific-desktop, stackific-artwork
+```
+
+Our Fedora packages are specs in `fedora/packages/<name>/<name>.spec`. They install the same base-neutral files from `desktop/` and `branding/`, at the same paths, as the Arch PKGBUILDs (`docs/arch-iso.md`), and render them from `branding/branding.env` with the same lines. Each spec's `SourceN:` files are found by name under `desktop/` and `branding/`, as `just arch packages` does, so every source name must be unique across both folders.
+
+The recipe runs one fresh `--privileged` builder container. In it, mock runs as container root, so it has no privileges on the host:
+
+- `--isolation=simple`, because the container has no systemd-nspawn, which mock's default isolation needs;
+- `--no-bootstrap-image`, because mock's default bootstrap pulls a container image, which would need podman inside the container.
+
+For each spec it runs `mock --buildsrpm`, then `mock --rebuild` of that source RPM, with the config `fedora-45-<host arch>`, and copies the `.noarch.rpm` to `.build/fedora/repo/`. `createrepo_c` then writes the repo metadata. The repo is unsigned until release signing lands. The first mock call takes about two minutes, because it sets up mock's bootstrap and build roots. Later calls in the same container reuse its root cache and take about 20 seconds.
+
+Two spec gotchas:
+
+- rpm expands `%` in spec sections and comments, so a shell `printf` format writes `%d` as `%%d`. Spec comments avoid `%`.
+- Without a `%changelog`, rpmbuild warns `%source_date_epoch_from_changelog is set, but %changelog has no entries`. The build still succeeds.
+
+A branding edit changes what `stackific-release` and `stackific-artwork` render, so bump their `Release`.
+
+### stackific-release
+
+`stackific-release` replaces only `generic-release`, which owns just `/usr/lib/os-release`. It keeps `generic-release-common`, which holds Fedora's rpm macros (`%fedora`, `%dist`), dnf5's defaults (`pkg_gpgcheck=True` among them) and the `/etc` symlinks. One of them is `/etc/os-release`, which points at `/usr/lib/os-release`, so on Fedora our package owns `/usr/lib/os-release`, not `/etc/os-release` as on Arch. The rendered file has Fedora's per-base lines `ID_LIKE=fedora`, `VERSION_ID=45` and `SUPPORT_END=2027-12-08`, and no `BUILD_ID`. `/etc/system-release` still reads `Generic release 45 (Generic)`, because `generic-release-common` owns it.
+
+Its provides keep what depends on `generic-release` working:
+
+- `system-release` and `system-release(45)`: `fedora-repos` requires `system-release(45)`.
+- `system-release(releasever) = 45`: dnf5 takes `$releasever` from this provide. Without it, it would use the package's own version, `0.1.0`, and every Fedora repo URL would break.
+- `generic-release-variant = 45-0.4`: `generic-release-common` requires exactly that version. Bump it when Fedora updates `generic-release`.
+
+It also requires `distribution-systemd-presets`, as `generic-release` does: the presets turn on NetworkManager, PipeWire and the other services Fedora enables by default. On a system that has `generic-release`, `dnf install --allowerasing stackific-release` swaps it out. On one with `fedora-release*` it swaps those out too, because `generic-release-common` conflicts with `fedora-release-common`.
+
+### stackific-desktop and stackific-artwork
+
+They hold the same files as on Arch (`docs/arch-iso.md`, "Our packages"): the Noctalia unit, defaults and `/etc/skel` include, the wlroots and greeter profile.d scripts, the greeter's `greeter.toml` with its tmpfiles link, and the greeter's asset folder, whose links point `noctalia.svg` at `stackific-release`'s icon and `fonts` at Terra's `noctalia-greeter` fonts, which sit at the same path as on Arch; and the wallpapers with their credits and fastfetch's config. `stackific-artwork` requires `fastfetch` and `stackific-desktop` requires `noctalia-greeter` and `stackific-release`, as on Arch. `stackific-desktop` builds with `systemd-rpm-macros` for `%{_tmpfilesdir}`.
+
 ## What is in the image
 
 - The kernel, `linux-firmware` and the default firmware of Fedora's `hardware-support` group, plus AMD and Intel microcode. The server and datacenter firmware in that group is optional there, so it stays out.
