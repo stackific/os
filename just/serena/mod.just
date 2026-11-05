@@ -17,6 +17,7 @@ export PATH := go_dir / "bin" + ":" + gopls_dir / "bin" + ":" + env("PATH")
 
 # Serve Serena over MCP on stdio for this repo (launched by .mcp.json)
 mcp:
+  @test -x "{{ tools_bin }}/serena" || { echo "serena: not installed; run 'just setup', then reconnect with /mcp" >&2; exit 1; }
   @exec "{{ tools_bin }}/serena" start-mcp-server --context claude-code --project "{{ justfile_directory() }}"
 
 # Start this repo's language servers and query them end to end (slow; run after setup or a language change)

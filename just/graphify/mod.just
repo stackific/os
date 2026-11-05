@@ -23,7 +23,8 @@ update dir=".":
 check:
   #!/usr/bin/env bash
   set -euo pipefail
+  d="${XDG_BIN_HOME:-$HOME/.local/bin}"; case ":$PATH:" in *":$d:"*) ;; *) PATH="$d:$PATH" ;; esac # setup put it in the shell profiles; this shell may predate that
   v=$(graphify --version 2>/dev/null) || { echo "graphify: not on PATH (just graphify install; put ~/.local/bin on PATH)"; exit 1; }
-  [ "$v" = "graphify {{ graphify_version }}" ] || { echo "graphify: $(command -v graphify) is '$v', pinned {{ graphify_version }}"; exit 1; }
+  [ "$v" = "graphify {{ graphify_version }}" ] || { echo "graphify: $(command -v graphify) is '$v', pinned {{ graphify_version }} (put ~/.local/bin ahead of it on PATH)"; exit 1; }
   [ -f "{{ justfile_directory() }}/.claude/skills/graphify/SKILL.md" ] || { echo "graphify: project skill missing (just graphify install)"; exit 1; }
   echo "graphify: ok ({{ graphify_version }})"

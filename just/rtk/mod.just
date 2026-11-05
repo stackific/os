@@ -15,8 +15,9 @@ install: (fetch::get "https://github.com/rtk-ai/rtk/releases/download/v" + rtk_v
 check:
   #!/usr/bin/env bash
   set -euo pipefail
+  d="${XDG_BIN_HOME:-$HOME/.local/bin}"; case ":$PATH:" in *":$d:"*) ;; *) PATH="$d:$PATH" ;; esac # setup put it in the shell profiles; this shell may predate that
   v=$(rtk --version 2>/dev/null) || { echo "rtk: not on PATH (just rtk install; put ~/.local/bin on PATH)"; exit 1; }
-  [ "$v" = "rtk {{ rtk_version }}" ] || { echo "rtk: $(command -v rtk) is '$v', pinned {{ rtk_version }}"; exit 1; }
+  [ "$v" = "rtk {{ rtk_version }}" ] || { echo "rtk: $(command -v rtk) is '$v', pinned {{ rtk_version }} (put ~/.local/bin ahead of it on PATH)"; exit 1; }
   grep -qF '"rtk hook claude"' "{{ justfile_directory() }}/.claude/settings.json" \
     || { echo "rtk: Bash hook missing from .claude/settings.json"; exit 1; }
   echo '{"tool_name":"Bash","tool_input":{"command":"git status"}}' | rtk hook claude | grep -qF '"rtk git status"' \
