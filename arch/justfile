@@ -1,5 +1,6 @@
-# Arch module: builds the Arch x86_64 live ISO in the pinned builder container and boot-tests it under QEMU with OVMF.
-# Pins live in vars.just; outputs go to .build/arch/x86_64/. Image builds need Linux with rootless podman.
+# Arch module: builds the Arch live ISO for the host's architecture (x86_64, or aarch64 from Arch Linux ARM) in the
+# pinned builder container and boot-tests it under QEMU with UEFI firmware (OVMF or AAVMF). Pins live in vars.just;
+# outputs go to .build/arch/<arch>/. Image builds need Linux with rootless podman.
 
 import 'vars.just'
 
@@ -10,12 +11,14 @@ builder:
 
 # Build our packages (arch/packages/*/PKGBUILD) with makepkg in a fresh builder container into the local repo
 # .build/arch/repo/ (unsigned until release signing). Local sources come from desktop/ and branding/, staged by file name.
+# SELinux (Fedora, as in the Mac's runner VM) hides bind mounts from containers unless labelling is off; without
+# SELinux it is a no-op. The --privileged ISO build has labelling off already.
 packages: builder
   #!/usr/bin/env bash
   set -euo pipefail
   rm -rf "{{ repo }}"
   mkdir -p "{{ repo }}"
-  podman run --rm \
+  podman run --rm --security-opt label=disable \
     --volume "{{ justfile_directory() }}/arch/packages:/packages:ro" \
     --volume "{{ justfile_directory() }}/desktop:/desktop:ro" --volume "{{ justfile_directory() }}/branding:/branding:ro" \
     --volume "{{ repo }}:/repo" \
@@ -28,18 +31,18 @@ packages: builder
         for f in $(source "$p"; echo "${source[@]}"); do find /desktop /branding -type f -name "$f" -exec cp -t "$b" {} +; done
         chown -R build "$b"
         (cd "$b" && runuser -u build -- makepkg --nodeps)
-        cp "$b"/*.pkg.tar.zst /repo/
+        cp "$b"/*.pkg.tar.* /repo/
       done
-      repo-add -q /repo/stackific.db.tar.zst /repo/*.pkg.tar.zst'
+      repo-add -q /repo/stackific.db.tar.zst /repo/*.pkg.tar.*'
 
-# Build .build/arch/x86_64/stackific-<version>-arch-x86_64.iso and its package manifest, then print the ISO size
+# Build .build/arch/<arch>/stackific-<version>-arch-<arch>.iso and its package manifest, then print the ISO size
 [positional-arguments]
 iso version="0.0.0-dev": packages
   #!/usr/bin/env bash
   set -euo pipefail
   # The version reaches file names and the container only as data ($1, env), and must be semver like a release
   [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must be semver, got '$1'" >&2; exit 1; }
-  name="stackific-$1-arch-x86_64"
+  name="stackific-$1-arch-{{ arch() }}"
   mkdir -p "{{ out }}"
   rm -f "{{ out }}/$name.iso" "{{ out }}/$name.packages.txt"
   # mkarchiso runs as `build` with its work dir inside the container, so --rm discards it and every build starts fresh.
@@ -50,19 +53,21 @@ iso version="0.0.0-dev": packages
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
     {{ builder }} bash -c 'runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /profile \
       && install -m644 "/home/build/out/$NAME.iso" /out/ \
-      && install -m644 /home/build/work/iso/arch/pkglist.x86_64.txt "/out/$NAME.packages.txt"'
+      && install -m644 /home/build/work/iso/arch/pkglist.{{ arch() }}.txt "/out/$NAME.packages.txt"'
   mib=$(( $(stat -c %s "{{ out }}/$name.iso") / 1048576 ))
   [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
 
-# Boot-test stackific-<version>-arch-x86_64.iso under QEMU with OVMF (tests/vm/boot.sh); leaves screen.png, greeter.png
-# and serial.log
-# podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs
+# Boot-test stackific-<version>-arch-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with
+# tests/vm/arch-<arch>.sh); leaves serial.log and the screenshots the check file takes
+# podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs. SELinux also keeps
+# containers off /dev/vhost-vsock unless labelling is off (see packages).
 [positional-arguments]
 test version="0.0.0-dev": builder
   podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
+    --security-opt label=disable \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
-    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-x86_64.iso" /out /tests/arch-x86_64.sh
+    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-{{ arch() }}.iso" /out /tests/arch-{{ arch() }}.sh
 
 # Check the host prerequisites image builds need: rootless podman, and read-write /dev/kvm and /dev/vhost-vsock
 check:

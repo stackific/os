@@ -1,20 +1,20 @@
 # Arch ISO
 
-The Arch x86_64 live ISO is built with [archiso](https://gitlab.archlinux.org/archlinux/archiso) inside a pinned builder container, then boot-tested in the same container under QEMU with OVMF. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `arch:` line.
+The Arch live ISO is built with [archiso](https://gitlab.archlinux.org/archlinux/archiso) inside a pinned builder container, then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 from Arch Linux ARM in the Mac's runner VM (README.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `arch:` line.
 
 ## Build
 
 ```sh
 just arch iso                 # version 0.0.0-dev
-just arch iso 1.2.3           # stackific-1.2.3-arch-x86_64.iso
+just arch iso 1.2.3           # stackific-1.2.3-arch-<arch>.iso
 ```
 
-The version must be semver, as for a release; anything else is refused. The recipe builds the builder image first (`localhost/stackific-arch-builder:<date>`, from `arch/Containerfile`), then our packages (below), then runs `mkarchiso` on the profile in `arch/iso/`. Outputs go to `.build/arch/x86_64/`:
+The version must be semver, as for a release; anything else is refused. The recipe builds the builder image first (`localhost/stackific-arch-builder:<date>`, from `arch/Containerfile`), then our packages (below), then runs `mkarchiso` on the profile in `arch/iso/`. Outputs go to `.build/arch/<arch>/`:
 
 | File                                           | What it is                                          |
 | ---------------------------------------------- | --------------------------------------------------- |
-| `stackific-<version>-arch-x86_64.iso`          | The live ISO: UEFI only, systemd-boot               |
-| `stackific-<version>-arch-x86_64.packages.txt` | The package manifest (`pacman -Q` of the live root) |
+| `stackific-<version>-arch-<arch>.iso`          | The live ISO: UEFI only, systemd-boot               |
+| `stackific-<version>-arch-<arch>.packages.txt` | The package manifest (`pacman -Q` of the live root) |
 
 The last line prints the ISO size against the 2048 MiB target. Above the target, a warning comes first, but the build does not fail.
 
@@ -55,11 +55,11 @@ After a logout, greetd shows noctalia-greeter. There, KDE Plasma is the other se
 ## Boot test
 
 ```sh
-just arch test                # boots stackific-0.0.0-dev-arch-x86_64.iso
+just arch test                # boots stackific-0.0.0-dev-arch-<arch>.iso
 just arch test 1.2.3
 ```
 
-`tests/vm/boot.sh` boots the ISO under QEMU with KVM and OVMF. It reaches the VM only through one-boot SMBIOS credentials, which systemd reads at boot:
+`tests/vm/boot.sh` boots the ISO under QEMU with KVM: on x86_64 a q35 machine with OVMF, on aarch64 a `virt` machine with AAVMF and a `virtio-gpu-pci` display. It reaches the VM only through one-boot SMBIOS credentials, which systemd reads at boot:
 
 - A `systemd.extra-unit.*` credential adds the test shell, `tests/vm/stackific-test-shell.service`, which listens on vsock through `systemd-socket-activate`. A `systemd.unit-dropin.multi-user.target` credential starts it. It is a service, not a socket unit, because Fedora's SELinux policy denies PID 1 such a socket (`docs/fedora-iso.md`).
 - A random token arrives as the `stackific.test.token` credential. The shell runs `bash` on a connection only when its first line is that token.
@@ -70,13 +70,17 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 - NetworkManager is running;
 - a wrong token gets no shell.
 
-`boot.sh` then sources the Arch checks, `tests/vm/arch-x86_64.sh` (`just arch test` passes it as the third argument):
+`boot.sh` then sources the image's own checks, `tests/vm/arch-<arch>.sh`, which `just arch test` passes as its third argument. The x86_64 file, `tests/vm/arch-x86_64.sh`, checks:
 
 - `/etc/os-release` reads `ID=stackific`, `ID_LIKE=arch`, `BUILD_ID=rolling`, `PRETTY_NAME="Stackific OS"`, `LOGO=stackific` and mkarchiso's `IMAGE_ID=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; pacman says `stackific-release` owns `/etc/os-release` and `filesystem` owns `/etc/arch-release` and `/usr/lib/os-release`; `/usr/lib/os-release` has no `IMAGE_` lines; the `stackific` icon is filled `#007a55`;
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
 - the MangoWM and Plasma session files are present.
 
-It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`. It also saves `serial.log` to `.build/arch/x86_64/`, then powers the VM off. On failure it prints the end of the serial log.
+It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`.
+
+The aarch64 file, `tests/vm/arch-aarch64.sh`, checks a console: `uname -m` prints `aarch64`, `getty@tty1.service` is active, and tty1's text (`/dev/vcs1`) shows the `stackific login:` prompt. It saves `screen.png` of that prompt.
+
+Both save `serial.log` to `.build/arch/<arch>/`, then power the VM off. On failure the test prints the end of the serial log.
 
 Logging in to Plasma from the greeter is not automated yet. To check it by hand:
 
@@ -87,6 +91,28 @@ Logging in to Plasma from the greeter is not automated yet. To check it by hand:
 
 systemd's `vmm.notify_socket` is not used. Over vsock it opens one connection per message and drops some of them, READY=1 included.
 
+## aarch64
+
+The aarch64 image is built and tested on aarch64 Linux: the `arch-aarch64` jobs of the `images` workflow (after each merge to `main`) and of the `release` workflow run it on the Mac's runner VM, and upload it like the x86_64 images (`docs/releases.md`). Like the x86_64 one before task 002, it boots to a console: the desktop follows in a later task. It shares the profile in `arch/iso/` with x86_64 and has its own package list, `packages.aarch64`. Until the desktop arrives, the x86_64 desktop's airootfs files (the greetd config, the `live` and `greeter` accounts, the `display-manager.service` alias) sit unused in it.
+
+Where its parts come from:
+
+- [Arch Linux ARM](https://archlinuxarm.org) has no archive, so the image comes from its live repos, and the package manifest is the record of what went in.
+- The builder starts from `docker.io/menci/archlinuxarm`, pinned by digest in `arch/vars.just`. Arch Linux ARM publishes no container image; this one is built daily from its repos with pacstrap.
+- Arch Linux ARM does not package archiso or the AArch64 UEFI firmware. The builder installs Arch's `any` packages `archiso` and `edk2-aarch64` from the archive date in `ala_date`, checked against Arch's signing keys. archiso v92 builds aarch64 natively, with `systemd-bootaa64.efi` as `BOOTAA64.EFI`.
+
+What differs from x86_64:
+
+- Arch Linux ARM's kernel is `/boot/Image`, but mkarchiso and the boot entry take `vmlinuz-*`. The pacman hook `arch/iso/airootfs/etc/pacman.d/hooks/stackific-vmlinuz.hook` copies it to `/boot/vmlinuz-linux`. It is a copy, not a symlink, because mkarchiso sizes the ESP with `du`, which counts a symlink as the link itself.
+- The squashfs takes only the `arm64` BCJ filter (`profiledef.sh`). Arch Linux ARM's kernel cannot decode x86 BCJ blocks, which releng's `x86,arm64` could pick.
+- The boot entry names both serial consoles, `ttyS0` (x86_64) and `ttyAMA0` (aarch64). The kernel ignores the one the machine lacks.
+- Arch Linux ARM's makepkg writes `.pkg.tar.xz` instead of `.pkg.tar.zst`, so `just arch packages` takes either.
+
+The VM runs Fedora with SELinux enforcing, and rootless podman there has two gotchas:
+
+- SELinux hides bind mounts and `/dev/vhost-vsock` from unprivileged containers. `just arch packages` and `just arch test` run with `--security-opt label=disable` (a no-op without SELinux), rather than relabelling the checkout with `:z`. The `--privileged` ISO build has labelling off already.
+- pacman's Landlock download sandbox fails in an unprivileged container there, so the builder's pacman calls use `--disable-sandbox`. The `--privileged` ISO build keeps the sandbox.
+
 ## Move the package snapshot
 
 Every package, in the builder and in the image, comes from one [Arch Linux Archive](https://archive.archlinux.org/repos/) date: `ala_date` in `arch/vars.just`. The builder's base image is pinned there by digest too. To move forward:
@@ -94,3 +120,5 @@ Every package, in the builder and in the image, comes from one [Arch Linux Archi
 1. Set `ala_date` to the new date.
 2. Set `builder_base` to an `archlinux/archlinux:base-<date>` tag from the same day, with its digest.
 3. Run `just arch iso`, then `just arch test`. Both must pass before the change lands.
+
+On aarch64, move the builder base the same way: set the aarch64 `builder_base` to a newer `menci/archlinuxarm:base-<date>` tag with its arm64 digest (from its Docker Hub tags), then run `just arch iso` and `just arch test` in the Mac's runner VM. The image's own packages need no pin: every build takes Arch Linux ARM's current repos.

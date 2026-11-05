@@ -51,7 +51,7 @@ dev/reviews/         review records from /s-build, one per task
 - `just` runs every repo command; no Makefiles, Taskfiles or ad-hoc scripts.
 - The root `justfile` only wires modules, `setup` and `doctor`. Each area owns `<dir>/justfile` (`mod <dir>`); shared toolchains live in `just/<tool>/mod.just` with pins in `just/<tool>/vars.just`. Modules can't see siblings, so mount a needed toolchain as `[private] mod`.
 - Run recipes from the repo root: `just <module> <recipe>`. Run several recipes of one module as `just <module>::<a> <module>::<b>`.
-- Repo-local tools install to `.tools/` (gitignored), pinned by version and checksum in `vars.just`; single-file tools go through `just/fetch` (`fetch::get`), which skips the download while `<dest>.sha256` matches the pin. Launchers go to `~/.local/bin` only for tools that must be on PATH (language servers, `rtk`, `graphify`); an existing file there that does not point into `.tools/` is the user's and is kept.
+- Repo-local tools install to `.tools/` (gitignored), pinned by version and checksum in `vars.just`; single-file tools go through `just/fetch` (`fetch::get`), which skips the download while `<dest>.sha256` matches the pin. Launchers go to `~/.local/bin` only for tools that must be on PATH (language servers, `rtk`, `graphify`); an existing file there that does not point into `.tools/` is the user's and is kept. When `~/.local/bin` is not on PATH, the launcher step adds it to the shell profiles (`uv tool update-shell`); recipes that look up launchers prepend it for the current shell.
 - `just setup` installs every prerequisite to build, test, lint and run everything, plus the agent tools below; only the host prerequisites in `README.md` (git, just, node, npm, unzip, Claude Code) are installed by hand. A change that adds a tool or dependency updates `just setup` in the same change.
 - Setup hosts: Linux (x86_64, aarch64) and macOS on Apple silicon; image builds need Linux. Host-specific asset names, checksums and the checksum command live in `just/host/vars.just` and each tool's `vars.just`.
 - `README.md` keeps the developer setup step by step. A change to setup or its host prerequisites updates it in the same change. Replies to the operator point to it instead of listing steps.
@@ -88,7 +88,7 @@ dev/reviews/         review records from /s-build, one per task
 - **LSP plugins** join with their language: `pyright-lsp` (with `pyright-langserver` in `just setup`) arrives with the first Python code. No `typescript-lsp`: the site's few TypeScript files are covered by `astro check`.
 - **Other tools** (rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`README.md`).
 - **When to use what:** graphify, then Serena, for this repo and earlier work; context7 for library APIs. rtk wraps shell output on its own.
-- **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`.
+- **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. `just claude plugins` skips a marketplace that the operator's user or managed settings list from another source (Claude Code refuses it) and says so. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`. In the Mac's Fedora runner VM, SELinux keeps unprivileged containers off bind mounts and `/dev/vhost-vsock` (`just arch packages` and `just arch test` run with `--security-opt label=disable`); pacman's Landlock sandbox fails in unprivileged rootless podman (`podman build` steps use `--disable-sandbox`).
 
 ## Site
 - `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components; `src/content/i18n/en.json` is `{}` only because Starlight's core always reads that collection, and Astro warns when it is missing. Recipes in `site/justfile`.
@@ -104,6 +104,7 @@ dev/reviews/         review records from /s-build, one per task
 ## Builds
 - Arch x86_64 builds pin one Arch Linux Archive date, moved forward only through a test gate; Arch builds and tests run in a pinned container. Outputs go to `.build/` (gitignored).
 - The Arch builder is `arch/Containerfile`, pinned with the archive date in `arch/vars.just`; mkarchiso runs in it as the unprivileged user `build` (rootless podman cannot mount devtmpfs).
+- The host's architecture picks the Arch image (no cross-builds): Arch Linux ARM aarch64 builds natively in the Mac's runner VM from the same Containerfile and profile, on `docker.io/menci/archlinuxarm` by digest (no official image), with packages from ALARM's live repos and archiso and edk2-aarch64 from the archive date.
 - Arch Linux ARM and Fedora build from their live repos; every image records its full package manifest.
 - The Fedora builder is `fedora/Containerfile` (kiwi, QEMU, OVMF, socat), its base pinned by digest in `fedora/vars.just`; kiwi runs as container root in rootless `--privileged` podman, with its work dir on a container tmpfs, because SELinux labels cannot be set on podman's overlay.
 - Fedora images never ship `fedora-release*`, `fedora-logos` or `fedora-release-notes` (Fedora's trademark guidelines); `generic-release` stands in until our Fedora `stackific-release`.
@@ -117,14 +118,14 @@ dev/reviews/         review records from /s-build, one per task
 - GitHub Actions in `.github/workflows/`; every step after checkout and just's setup calls a just recipe. `check` (pull requests, pushes to `main`) runs `just lefthook all` and `just gitleaks history`.
 - GitHub-hosted Linux runners run checks and container tests.
 - The operator's Linux PC runs the self-hosted runner for x86_64 images and their VM tests (labels `self-hosted`, `Linux`, `X64`); `just runner setup` makes a machine a runner, never `just setup`.
-- The operator's Mac runs the self-hosted runner for aarch64 images (an arm64 Linux VM from `just runner vm`, labels `self-hosted`, `Linux`, `ARM64`).
+- The operator's Mac runs the self-hosted runner for aarch64 images in an arm64 Linux VM (labels `self-hosted`, `Linux`, `ARM64`); `just runner setup` on the Mac creates the VM (`just runner vm`) and runs itself inside it.
 - `images` runs only on push to `main` (never by hand) and publishes each merged pull request's images as the test release `v0.0.0-pr.<n>` (a prerelease, replaced on a rerun; not a release).
 - Self-hosted runners take only `push` to `main` and `workflow_dispatch`, never `pull_request`; `just runner register` makes every outside contributor's run wait for approval.
 - `release` runs only by hand (`workflow_dispatch`, input `version`):
   - refuses a version that is not semver;
   - builds and tests all four images, then signs them;
   - tags `v<version>` and creates the GitHub release with each ISO, `SHA256SUMS` and its signature attached;
-  - today: the x86_64 images on the PC, unsigned; aarch64 jobs on the Mac and signing join when they exist (`just release create`, `upload`, `publish`: a draft until every image is attached);
+  - today: the x86_64 images on the PC and Arch aarch64 on the Mac, unsigned; Fedora aarch64 and signing join when they exist (`just release create`, `upload`, `publish`: a draft until every image is attached);
   - an ISO over 2 GiB goes to Cloudflare R2 instead and the release links it: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, variable `R2_BUCKET` (the bucket name, such as `stackific-os`). Wired only once an ISO needs it.
   - A released version never changes.
 - Secrets are never printed and never committed; gitleaks runs in pre-commit and in `check`.

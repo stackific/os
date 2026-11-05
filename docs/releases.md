@@ -10,7 +10,7 @@ Run the `release` workflow by hand (Actions, release, Run workflow) with a semve
 2. Each image job runs `just <base> iso <version>` and `just <base> test <version>`, then `just release upload <version> <base> <arch>`. That uploads the ISO, its package manifest and `<iso>.sha256` to the draft.
 3. Once every image job passed, `just release publish <version>` joins the `.sha256` files into `SHA256SUMS`, attaches it and publishes the release. A failed job leaves the draft unpublished: delete it on GitHub before running the same version again.
 
-Today the release holds the x86_64 images from the operator's PC, unsigned. The aarch64 jobs on the Mac runner and signing join when they exist.
+Today the release holds the x86_64 images from the operator's PC and the Arch aarch64 image from the Mac's runner VM, unsigned. Fedora aarch64 and signing join when they exist.
 
 ## Test releases
 

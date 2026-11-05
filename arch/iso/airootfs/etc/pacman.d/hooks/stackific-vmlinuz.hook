@@ -1,0 +1,13 @@
+# Arch Linux ARM installs its kernel as /boot/Image, but mkarchiso (and the boot entry) take boot/vmlinuz-*.
+# A copy, not a symlink: mkarchiso sizes the ESP with `du`, which counts a symlink on its command line as the link.
+# Never triggers on x86_64, whose kernel is already /boot/vmlinuz-linux.
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = boot/Image
+
+[Action]
+Description = Copying /boot/Image to /boot/vmlinuz-linux...
+When = PostTransaction
+Exec = /usr/bin/cp /boot/Image /boot/vmlinuz-linux
