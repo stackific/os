@@ -1,22 +1,38 @@
 # Stackific OS release files for Arch: os-release and the logo icon. The sources are base-neutral files from branding/,
-# which `just arch packages` stages next to this file by name; the per-base fields are appended here.
+# which `just arch packages` stages next to this file by name. build() renders them from branding.env, the one branding
+# file; the per-base fields are appended here.
 # It owns /etc/os-release, which os-release(5) readers use instead of /usr/lib/os-release, so Arch's filesystem package
 # (which owns /usr/lib/os-release and /etc/arch-release) stays as shipped. systemd's tmpfiles line for /etc/os-release
-# is `L`, which leaves an existing file alone. The icon is branding/logo-color.svg, the mark filled emerald, because
-# logo.svg's currentColor renders black, which is invisible on a dark panel.
+# is `L`, which leaves an existing file alone. The icon is logo.svg filled with the accent, because its currentColor
+# renders black, which is invisible on a dark panel.
 # shellcheck disable=SC2034,SC2154
 
 pkgname=stackific-release
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Stackific OS release files: os-release and the logo icon'
 arch=('any')
 url='https://os.stackific.com'
 license=('Apache-2.0')
+makedepends=('gettext')
 options=('!debug' '!strip')
-source=('os-release' 'logo-color.svg')
-sha256sums=('d2c7db7827eeb4e17c99b29cd3dc5617034f3cee9d3f74f81a8bb813feeb8ceb'
-            '1644ae7c18a55a86489b80b79ae301b8645f333b25da7684c0b93d21f9ff4dde')
+source=('branding.env' 'os-release.in' 'logo.svg')
+sha256sums=('985affad12bfb221a563ef41d9a31b9b0b7fe0c103f4ce6be7ddd68c3a849759'
+            '0b3f41ea4940877b7accfd446cc098cb9c2d9adaed70edbb7704e8f2a3b46af4'
+            '43625b2beb9010a2ec1686c31e3b7173921c702b39f9050b2673ae6087a0514e')
+
+# Render os-release (ANSI_COLOR is the accent as a 24-bit terminal colour) and the accent-filled icon
+build() {
+  set -a
+  # shellcheck source=/dev/null # staged next to this file at build time
+  . ./branding.env
+  set +a
+  printf -v ANSI_COLOR '38;2;%d;%d;%d' "0x${ACCENT:1:2}" "0x${ACCENT:3:2}" "0x${ACCENT:5:2}"
+  export ANSI_COLOR
+  # shellcheck disable=SC2016 # envsubst takes the variable names literally
+  envsubst '$NAME $ID $HOME_URL $DOCUMENTATION_URL $SUPPORT_URL $BUG_REPORT_URL $ANSI_COLOR' <os-release.in >os-release
+  sed "s/currentColor/$ACCENT/" logo.svg >logo-color.svg
+}
 
 # Install os-release with Arch's per-base fields, and the icon as hicolor's scalable `stackific`
 package() {

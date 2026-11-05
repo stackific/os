@@ -1,25 +1,57 @@
-# Stackific OS desktop defaults for Arch. The sources are base-neutral files from desktop/, which `just arch packages`
-# stages next to this file by name. Text files only, so no debug package and nothing to strip.
+# Stackific OS desktop defaults for Arch. The sources are base-neutral files from desktop/ and branding/, which
+# `just arch packages` stages next to this file by name. Text files only, so no debug package and nothing to strip.
+# Noctalia reads no system-wide config, so its defaults reach each user through an include file in /etc/skel.
+# noctalia-greeter reads /var/lib/noctalia-greeter/greeter.toml, which a tmpfiles line links to our defaults, and takes
+# its logo from the asset folder that stackific-greeter.sh names: ours, with stackific-release's icon and its own fonts.
 # shellcheck disable=SC2034,SC2154
 
 pkgname=stackific-desktop
-pkgver=0.1.0
+pkgver=0.2.0
 pkgrel=1
-pkgdesc='Stackific OS desktop defaults: Noctalia starts in MangoWM sessions, which also start on software rendering'
+pkgdesc='Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter shows our look, and MangoWM also starts on software rendering'
 arch=('any')
 url='https://os.stackific.com'
 license=('Apache-2.0')
-depends=('mangowm' 'noctalia' 'systemd')
+depends=('mangowm' 'noctalia' 'noctalia-greeter' 'systemd' 'stackific-artwork' 'stackific-release')
+makedepends=('gettext')
 options=('!debug' '!strip')
-backup=('etc/profile.d/stackific-wlroots.sh')
-source=('stackific-noctalia.service' 'stackific-wlroots.sh')
+backup=('etc/profile.d/stackific-wlroots.sh' 'etc/profile.d/stackific-greeter.sh'
+        'etc/skel/.config/noctalia/00-stackific.toml')
+source=('stackific-noctalia.service' 'stackific-wlroots.sh' 'stackific-noctalia.toml' '00-stackific.toml'
+        'branding.env' 'stackific-greeter.toml.in' 'stackific-greeter.conf' 'stackific-greeter.sh')
 sha256sums=('d3bdf2b78fb86bdb7b57c3928640d72275165055c66b5da7d8f1b02bb83af0a5'
-            'a4f8c72e11c79d753efe80780d5efbc9778be340bd51b3b81fecf0b4c0c71171')
+            'a4f8c72e11c79d753efe80780d5efbc9778be340bd51b3b81fecf0b4c0c71171'
+            'd40d3a90f806be1c9de82e02c22178d651ed23eb57841a6942a52ca5f8a4d11f'
+            'cbf51e8ce45ed3089c768646c3232736799732a659111d9c8820d1e03b195503'
+            '985affad12bfb221a563ef41d9a31b9b0b7fe0c103f4ce6be7ddd68c3a849759'
+            '42563e03b28e8291ad599782efc717eb214cbc63b75ac572fb1991ab0425ff1b'
+            'd095d70104907d420a0dccdf8536e68f41e7d6cfbb7601b8868a67e2f089932a'
+            'eb28f7fd2801cb0470f84acad8d1b43d9511043b6759b888b6ecccd84f526d5f')
 
-# Install the unit, wanted by mango-session.target for every user, and the profile.d script
+# Render the greeter's defaults with the accent from branding.env
+build() {
+  set -a
+  # shellcheck source=/dev/null # staged next to this file at build time
+  . ./branding.env
+  set +a
+  # shellcheck disable=SC2016 # envsubst takes the variable name literally
+  envsubst '$ACCENT' <stackific-greeter.toml.in >stackific-greeter.toml
+}
+
+# Install the unit, wanted by mango-session.target for every user, the profile.d script, Noctalia's defaults with the
+# per-user file that includes them, the greeter's defaults with the tmpfiles line that links them, and the greeter's
+# asset folder: our logo (stackific-release's icon) and the greeter's own fonts, both as links
 package() {
   install -Dm644 -t "$pkgdir/usr/lib/systemd/user" stackific-noctalia.service
   install -d "$pkgdir/usr/lib/systemd/user/mango-session.target.wants"
   ln -s ../stackific-noctalia.service "$pkgdir/usr/lib/systemd/user/mango-session.target.wants/stackific-noctalia.service"
   install -Dm644 -t "$pkgdir/etc/profile.d" stackific-wlroots.sh
+  install -Dm644 stackific-noctalia.toml "$pkgdir/usr/share/stackific/noctalia.toml"
+  install -Dm644 -t "$pkgdir/etc/skel/.config/noctalia" 00-stackific.toml
+  install -Dm644 stackific-greeter.toml "$pkgdir/usr/share/stackific/greeter.toml"
+  install -Dm644 -t "$pkgdir/usr/lib/tmpfiles.d" stackific-greeter.conf
+  install -Dm644 -t "$pkgdir/etc/profile.d" stackific-greeter.sh
+  install -d "$pkgdir/usr/share/stackific/greeter-assets"
+  ln -s /usr/share/icons/hicolor/scalable/apps/stackific.svg "$pkgdir/usr/share/stackific/greeter-assets/noctalia.svg"
+  ln -s /usr/share/noctalia-greeter/assets/fonts "$pkgdir/usr/share/stackific/greeter-assets/fonts"
 }

@@ -7,3 +7,5 @@ mkinitcpio-archiso
 networkmanager
 btrfs-progs
 dosfstools
+stackific-release
+stackific-artwork

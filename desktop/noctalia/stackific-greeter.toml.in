@@ -1,0 +1,31 @@
+# Stackific OS defaults for noctalia-greeter (/usr/share/stackific/greeter.toml), rendered from branding/branding.env.
+# stackific-greeter.conf (tmpfiles) links /var/lib/noctalia-greeter/greeter.toml here only when that file is missing,
+# so an administrator's own greeter.toml wins. Our logo replaces Noctalia's through stackific-greeter.sh (profile.d).
+
+# The Synced scheme takes the palette below: our accent on the site's dark taupe
+[appearance]
+scheme = "Synced"
+theme_mode = "dark"
+
+[appearance.palette]
+primary = "${ACCENT}"
+on_primary = "#fbfaf9"
+secondary = "#aba09c"
+on_secondary = "#0c0a09"
+tertiary = "${ACCENT}"
+on_tertiary = "#fbfaf9"
+error = "#ff6467"
+on_error = "#0c0a09"
+surface = "#0c0a09"
+on_surface = "#fbfaf9"
+surface_variant = "#1d1816"
+on_surface_variant = "#aba09c"
+outline = "#3d3532"
+shadow = "#000000"
+hover = "${ACCENT}"
+on_hover = "#fbfaf9"
+
+# The desktop's default wallpaper (package stackific-artwork): Johan Christian Dahl, "An Eruption of Vesuvius" (1824)
+[appearance.wallpaper]
+path = "/usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg"
+fill_mode = "crop"

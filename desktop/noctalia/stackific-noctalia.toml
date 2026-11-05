@@ -1,0 +1,15 @@
+# Stackific OS defaults for Noctalia (/usr/share/stackific/noctalia.toml). Noctalia reads no system-wide config, so each
+# user's ~/.config/noctalia/00-stackific.toml (from /etc/skel) includes this file; package updates then reach them.
+# Settings picked in Noctalia's own UI go to ~/.local/state/noctalia/settings.toml, which loads last and wins.
+
+# No first-run setup wizard: the live image would show it on every boot
+[shell]
+setup_wizard_enabled = false
+
+# The wallpaper picker browses the shipped paintings (package stackific-artwork)
+[wallpaper]
+directory = "/usr/share/backgrounds/stackific"
+
+# The wallpaper every output starts with: Johan Christian Dahl, "An Eruption of Vesuvius" (1824)
+[wallpaper.default]
+path = "/usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg"

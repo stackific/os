@@ -1,0 +1,9 @@
+// Stackific OS defaults for fastfetch (/etc/xdg/fastfetch/config.jsonc): our text logo in the accent colour.
+// Everything else stays fastfetch's default. A user's own ~/.config/fastfetch/config.jsonc replaces this file.
+{
+  "logo": {
+    "type": "file",
+    "source": "/usr/share/stackific/logo.txt",
+    "color": { "1": "${ACCENT}" }
+  }
+}
