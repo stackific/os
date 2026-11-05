@@ -1,0 +1,93 @@
+---
+/**
+ * Override of Starlight's PageTitle: the usual title, plus a "Copy as Markdown" button on docs pages.
+ * It copies the page's Markdown twin (src/pages/[...slug].md.ts), whose URL comes from the entry id.
+ * Prompt-trail entries with `pr:` in their frontmatter also get the pull-request link under the title, and
+ * with `task:` a link to the task file they built, on GitHub.
+ */
+import Default from '@astrojs/starlight/components/PageTitle.astro';
+import PrLink from './PrLink.astro';
+import { REPO_URL } from '../../repo';
+
+const { entry } = Astro.locals.starlightRoute;
+/** Docs entries only (ids `docs` or `docs/…`); e.g. the 404 page has no Markdown twin. */
+const isDoc = /^docs(\/|$)/.test(entry.id);
+---
+
+<div class="title-row">
+  <Default />
+  {isDoc && (
+    <button
+      type="button"
+      class="copy-markdown"
+      data-copy-markdown
+      data-src={`/${entry.id}.md`}
+      data-copied="Copied"
+      data-failed="Copy failed"
+    >
+      Copy as Markdown
+    </button>
+  )}
+</div>
+{entry.data.pr && <PrLink href={entry.data.pr} label={entry.data.title} />}
+{entry.data.task && (
+  <a class="task-link" href={`${REPO_URL}/blob/main/${entry.data.task}`}>
+    Task: {entry.data.task}
+  </a>
+)}
+
+<script>
+  /** Copies the Markdown twin on click, then shows the result in the button for two seconds. */
+  for (const button of document.querySelectorAll<HTMLButtonElement>('[data-copy-markdown]')) {
+    const label = button.textContent;
+    button.addEventListener('click', async () => {
+      const { src, copied, failed } = button.dataset;
+      // The text is passed as a promise, not awaited first, so Safari still treats the write as
+      // part of the click and allows it.
+      const text = fetch(src!)
+        .then((res) => (res.ok ? res.text() : Promise.reject(new Error(`${res.status}`))))
+        .then((md) => new Blob([md], { type: 'text/plain' }));
+      try {
+        await navigator.clipboard.write([new ClipboardItem({ 'text/plain': text })]);
+        button.textContent = copied!;
+      } catch {
+        button.textContent = failed!;
+      }
+      setTimeout(() => (button.textContent = label), 2000);
+    });
+  }
+</script>
+
+<style>
+  /* Title on the left, button on the right, text baselines aligned; wraps on narrow screens. */
+  .title-row {
+    display: flex;
+    flex-wrap: wrap;
+    align-items: baseline;
+    justify-content: space-between;
+    column-gap: 1rem;
+  }
+  /* Small pill outline button, as shadcn's "outline" variant in the Luma style. */
+  .copy-markdown {
+    margin-inline-start: auto;
+    padding: 0.25rem 0.75rem;
+    border: 1px solid var(--border);
+    border-radius: 9999px;
+    white-space: nowrap;
+    background: transparent;
+    color: var(--sl-color-gray-2);
+    font: inherit;
+    font-size: var(--sl-text-sm);
+    cursor: pointer;
+  }
+  .copy-markdown:hover {
+    background: var(--accent);
+    color: var(--accent-foreground);
+  }
+  /* The task link sits on its own line under the pull-request link, quieter than it. */
+  .task-link {
+    display: block;
+    margin-top: 0.25rem;
+    font-size: var(--sl-text-sm);
+  }
+</style>

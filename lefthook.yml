@@ -1,0 +1,56 @@
+# Git hooks (https://lefthook.dev). Each command only calls a just recipe; the logic lives in justfiles.
+# `just setup` installs the hooks; after editing this file, run `just lefthook hooks`.
+# `just lefthook all` runs every pre-commit check on every tracked file, as the check workflow does.
+
+# Standard globs: `**/` also matches the repo root
+glob_matcher: doublestar
+
+pre-commit:
+  commands:
+    # Whitespace errors, conflict markers, files over 1 MiB and names of local untracked material
+    hygiene:
+      run: just lefthook hygiene {staged_files}
+    # Secrets in the staged changes
+    secrets:
+      run: just gitleaks staged
+    # Every justfile and module still parses
+    justfiles:
+      glob: "{**/justfile,**/*.just}"
+      run: just lefthook justfiles
+    # Shell scripts and PKGBUILDs
+    shell:
+      glob: "{**/*.sh,**/*.bash,**/PKGBUILD}"
+      run: just shellcheck lint {staged_files}
+    # GitHub Actions workflows
+    workflows:
+      glob: ".github/workflows/*.{yml,yaml}"
+      run: just actionlint lint
+    # Task files, review records and prompt-trail entries follow their templates and point at each other
+    dev:
+      glob: "{dev/**,site/src/content/docs/prompt-trail/**}"
+      run: just dev check
+    # Website: formatting, lint, types, known-vulnerable dependencies, prompt-trail screenshots, then a full build
+    site-format:
+      glob: "site/**"
+      run: just site format-check
+    site-lint:
+      glob: "site/**"
+      run: just site lint
+    site-typecheck:
+      glob: "site/**"
+      run: just site typecheck
+    site-audit:
+      glob: "site/{package.json,bun.lock}"
+      run: just site audit
+    site-screenshots:
+      glob: "site/{screenshots/**,src/assets/**,src/content/docs/prompt-trail/**}"
+      run: just site screenshots-check
+    site-build:
+      glob: "site/**"
+      run: just site build
+
+commit-msg:
+  commands:
+    # Every commit is DCO signed-off (SSH signing is git's own commit.gpgsign)
+    dco:
+      run: just lefthook dco {1}

@@ -1,0 +1,102 @@
+/*
+ * Starlight (docs) overrides. Loaded via `customCss`, so it only applies to /docs pages.
+ * Shared fonts (fonts.css) and colors (theme.css) are mapped onto Starlight's tokens and elements.
+ */
+@import './fonts.css';
+@import './theme.css';
+
+/* Starlight reads these tokens for body text and code blocks. */
+:root {
+  --sl-font: var(--stackific-font-body);
+  --sl-font-mono: var(--stackific-font-body);
+}
+
+/*
+ * Colors: Starlight's tokens from the shadcn scheme. Starlight defines them per theme inside a
+ * cascade layer; these unlayered rules win in both, and the shadcn tokens switch themselves.
+ * Gray scale runs from text (gray-1) to surface (gray-7); Starlight flips its order per theme,
+ * which the swapping shadcn tokens already do.
+ */
+:root {
+  --sl-color-white: var(--foreground);
+  --sl-color-gray-1: var(--foreground);
+  --sl-color-gray-2: var(--accent-foreground);
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: var(--ring);
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--muted);
+  --sl-color-gray-7: var(--sidebar);
+  --sl-color-black: var(--background);
+
+  /*
+   * Accent: shadcn tokens used directly; no oklch mixing, which drifts the hue (emerald + taupe
+   * text → olive). The low tint mixes in sRGB, which keeps the hue. Text accent (links, current
+   * sidebar item) is --primary in light; dark overrides it below. --sidebar-primary-foreground
+   * reads on either one (light text in light mode, dark text in dark mode).
+   */
+  --sl-color-accent-low: color-mix(in srgb, var(--primary) 15%, var(--background));
+  --sl-color-accent: var(--primary);
+  --sl-color-accent-high: var(--sidebar-primary);
+
+  --sl-color-text: var(--foreground);
+  --sl-color-text-accent: var(--primary);
+  --sl-color-text-invert: var(--sidebar-primary-foreground);
+  --sl-color-bg: var(--background);
+  --sl-color-bg-nav: var(--background);
+  --sl-color-bg-sidebar: var(--sidebar);
+  --sl-color-bg-inline-code: var(--muted);
+  --sl-color-bg-accent: var(--primary);
+  --sl-color-hairline-light: var(--border);
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-shade: var(--border);
+}
+
+/* Dark --primary is too dim for text on the dark background; shadcn's brighter --sidebar-primary isn't. */
+@media (prefers-color-scheme: dark) {
+  :root {
+    --sl-color-text-accent: var(--sidebar-primary);
+  }
+}
+
+/*
+ * Starlight has no heading token, so target headings directly:
+ * page headings, the header site title, <Card> titles (rendered as <p class="title">), and the page
+ * titles in the previous/next links (the "Previous"/"Next" words keep the body font).
+ */
+h1,
+h2,
+h3,
+h4,
+h5,
+h6,
+.site-title,
+.card .title,
+.pagination-links .link-title {
+  font-family: var(--stackific-font-heading);
+}
+
+/*
+ * Shapes from the preset's shadcn "Luma" style: the current sidebar item is filled like a primary
+ * button (deep --primary with light text, in both themes), the search box is a pill on --muted,
+ * and pagination cards are softly rounded with no drop shadow.
+ */
+nav.sidebar a[aria-current='page'] {
+  border-radius: calc(var(--radius) - 2px);
+  background-color: var(--primary);
+  color: var(--primary-foreground);
+}
+@media (min-width: 50rem) {
+  site-search button[data-open-modal] {
+    border-color: transparent;
+    border-radius: 9999px;
+    background-color: var(--muted);
+  }
+}
+.pagination-links a {
+  border-radius: calc(var(--radius) + 6px);
+  box-shadow: none;
+}
+/* Page titles in the previous/next links: one step smaller than Starlight's 2xl. */
+.pagination-links .link-title {
+  font-size: var(--sl-text-xl);
+}

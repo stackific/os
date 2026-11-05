@@ -1,0 +1,23 @@
+# This file ignores only build output, setup output, IDE files and optional user files.
+# Personal patterns go in .git/info/exclude.
+
+## Setup output (`just setup`)
+/.tools/
+/.claude/skills/graphify/
+/.claude/CLAUDE.md
+/.claude/settings.json.graphify-bak
+
+## Code graph (`just graphify update`)
+/graphify-out/
+
+## Serena: everything but the committed project config (index cache, memories, project.local.yml)
+/.serena/*
+!/.serena/project.yml
+
+## Claude Code: personal settings and worktrees
+/.claude/settings.local.json
+/.claude/worktrees/
+
+## IDE files
+/.vscode/
+/.idea/

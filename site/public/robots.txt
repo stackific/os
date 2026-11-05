@@ -1,0 +1,5 @@
+# Everything is public; the sitemap lists every page in every language.
+User-agent: *
+Allow: /
+
+Sitemap: https://os.stackific.com/sitemap-index.xml

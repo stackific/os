@@ -1,0 +1,55 @@
+---
+/**
+ * Marketing home page layout (src/pages/index.astro passes its copy).
+ * Shares typography and colors with the docs via fonts.css and theme.css.
+ */
+import '../styles/fonts.css';
+import '../styles/theme.css';
+
+interface Props {
+  /** Page description, also used as the tagline. */
+  tagline: string;
+  /** Text of the link to the docs. */
+  docsLabel: string;
+}
+
+const { tagline, docsLabel } = Astro.props;
+---
+
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>Stackific OS</title>
+    <meta name="description" content={tagline} />
+  </head>
+  <body>
+    <main>
+      <h1>Stackific OS</h1>
+      <p>{tagline}</p>
+      <a href="/docs/">{docsLabel}</a>
+    </main>
+  </body>
+</html>
+
+<style>
+  body {
+    margin: 0;
+    font-family: var(--stackific-font-body);
+    background: var(--background);
+    color: var(--foreground);
+  }
+  main {
+    max-width: 40rem;
+    margin: 0 auto;
+    padding: 6rem 1rem;
+  }
+  h1 {
+    font-family: var(--stackific-font-heading);
+    font-size: 3rem;
+    margin: 0 0 1rem;
+  }
+  a {
+    color: inherit;
+  }
+</style>

@@ -1,0 +1,49 @@
+# Dev module: checks that task files (dev/tasks/), review records (dev/reviews/) and prompt-trail entries
+# (site/src/content/docs/prompt-trail/) follow the /s-task and /s-build templates and point at each other.
+
+# Fail, listing every problem, unless the task files, review records and prompt-trail entries agree (used by the pre-commit hook)
+check:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cd "{{ justfile_directory() }}"
+  rc=0
+  fail() { echo "$1" >&2; rc=1; }
+  # The base a task file names: both, arch or fedora (empty when missing)
+  base() { grep -oE '^Base: (both|arch|fedora)$' "$1" | cut -d' ' -f2 || true; }
+  name_re='^[0-9]{3}-[a-z0-9]+(-[a-z0-9]+)*$'
+  trail=site/src/content/docs/prompt-trail
+
+  for t in dev/tasks/*.md; do
+    [ -e "$t" ] || continue
+    n=$(basename "$t" .md)
+    [[ $n =~ $name_re ]] || { fail "$t: name must be <NNN>-<slug>.md"; continue; }
+    grep -q "^# ${n%%-*}: " "$t" || fail "$t: first heading must be '# ${n%%-*}: <title>'"
+    grep -qE '^- \[[ x]\] Done$' "$t" || fail "$t: missing '- [ ] Done'"
+    [ -n "$(base "$t")" ] || fail "$t: missing 'Base: both', 'Base: arch' or 'Base: fedora'"
+    for s in Ask Goal Context Inputs Changes 'Acceptance criteria' Tests; do
+      grep -qx "## $s" "$t" || fail "$t: missing section '## $s'"
+    done
+  done
+
+  for r in dev/reviews/*.md; do
+    [ -e "$r" ] || continue
+    [ -f "dev/tasks/$(basename "$r")" ] || fail "$r: no task dev/tasks/$(basename "$r")"
+    grep -qE '^Status: (open|commit ready|stopped \(not making progress\))$' "$r" \
+      || fail "$r: Status must be 'open', 'commit ready' or 'stopped (not making progress)'"
+  done
+
+  for e in "$trail"/*.md "$trail"/arch/*.md "$trail"/fedora/*.md; do
+    [ -e "$e" ] || continue
+    n=$(basename "$e" .md)
+    [ "$n" != index ] || continue
+    t="dev/tasks/$n.md"
+    [ -f "$t" ] || { fail "$e: no task $t"; continue; }
+    grep -qx "task: $t" "$e" || fail "$e: frontmatter must say 'task: $t'"
+    # A task on both bases has its entry at the top of the trail, a single-base task in its base's folder
+    b=$(base "$t")
+    [ -n "$b" ] || continue
+    want="$trail"
+    [ "$b" = both ] || want="$trail/$b"
+    [ "$(dirname "$e")" = "$want" ] || fail "$e: $t has 'Base: $b', so its entry belongs in $want/"
+  done
+  exit "$rc"

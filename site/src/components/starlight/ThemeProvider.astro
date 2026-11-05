@@ -1,0 +1,16 @@
+---
+/**
+ * Override of Starlight's ThemeProvider: the docs always follow the system color scheme.
+ * There is no theme picker, and any theme Starlight saved in localStorage earlier is ignored.
+ */
+---
+
+{/* Inline so the theme is set before first paint (no flash). */}
+<script is:inline>
+  (() => {
+    const light = window.matchMedia('(prefers-color-scheme: light)');
+    const apply = () => (document.documentElement.dataset.theme = light.matches ? 'light' : 'dark');
+    apply();
+    light.addEventListener('change', apply);
+  })();
+</script>

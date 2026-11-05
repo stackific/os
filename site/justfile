@@ -1,0 +1,54 @@
+# Site module: marketing pages (/) and Starlight docs (/docs). Recipes run inside site/.
+
+import '../just/bun/vars.just'
+
+# Modules can't see siblings, so mount the Bun toolchain here to depend on its install
+[private]
+mod bun '../just/bun/mod.just'
+
+# Install site dependencies from the lockfile
+install: bun::install
+  {{ bun }} install --frozen-lockfile
+
+# Run the dev server at localhost:4321
+dev: install
+  {{ bun }} run dev
+
+# Build the site into site/dist
+build: install
+  {{ bun }} run build
+
+# Format every file with Prettier (Astro plugin included)
+format: install
+  {{ bun }} run format
+
+# Fail unless every file is Prettier-formatted (used by the pre-commit hook)
+format-check: install
+  {{ bun }} run format:check
+
+# Lint JavaScript and TypeScript with ESLint, warnings as errors (used by the pre-commit hook)
+lint: install
+  {{ bun }} run lint
+
+# Type-check .astro and TypeScript files with astro check (used by the pre-commit hook)
+typecheck: install
+  {{ bun }} run typecheck
+
+# Fail if any installed dependency has a known vulnerability (used by the pre-commit hook)
+audit: install
+  # shortcut: ignores a lint-time-only DoS advisory in minimatch (via eslint, typescript-eslint; it needs minimatch 11,
+  # which neither takes yet, 2026-11-04) on glob patterns we write ourselves; drop --ignore once `bun audit fix` resolves it
+  {{ bun }} audit --ignore GHSA-g3hv-75wg-m249
+
+# Process a raw screenshot into a prompt-trail image: longest side at most 1600 px, metadata stripped, WebP;
+# paths are relative to where just was run (screenshots/process.ts)
+screenshot input output: install
+  {{ bun }} screenshots/process.ts "{{ join(invocation_directory(), input) }}" "{{ join(invocation_directory(), output) }}"
+
+# Fail unless every prompt-trail image is a shown WebP within the size limits (used by the pre-commit hook)
+screenshots-check: install
+  {{ bun }} screenshots/check.ts
+
+# Build, then preview the production site
+preview: build
+  {{ bun }} run preview
