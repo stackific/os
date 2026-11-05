@@ -6,7 +6,7 @@
 
 pkgname=stackific-artwork
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Stackific OS artwork: the wallpapers, and fastfetch with the Stackific OS logo'
 arch=('any')
 url='https://os.stackific.com'
@@ -29,7 +29,7 @@ _wallpapers=(
 )
 source=('branding.env' 'fastfetch.jsonc.in' 'logo.txt' 'wallpapers.toml' "${_wallpapers[@]}")
 sha256sums=('985affad12bfb221a563ef41d9a31b9b0b7fe0c103f4ce6be7ddd68c3a849759'
-            'e69c6a6837c82d6ff362d2b8f224c9eff6154acc04db0c38a69bb62446131c1b'
+            '81c8441d96116fd93b0fdf2c1f9c7b03fb74f98d14308a63b6248a4a0a863ca8'
             'd10a6fe45d48f754ec535750564c759133f916af16aae435cc5b28918b741d5f'
             '0af37796e25aea7b4ccf9bba41b8c898c2751801de625006cfdb38903e2c8c89'
             'da2450709d123ea009945144037c4d22bce474acece8ff0b082d26d86ba31b06'
