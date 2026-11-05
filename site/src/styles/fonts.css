@@ -1,12 +1,13 @@
 /*
  * Shared typography for the whole site (marketing pages and Starlight docs):
- * Geist for headings, Monaspace Neon for body and code.
+ * Geist for headings and body text, Monaspace Neon only for code (inline code, code blocks, prompts).
  * Imports must stay at the top of the file for the browser to honour them.
  */
 @import url('https://cdn.jsdelivr.net/npm/@fontsource-variable/geist@5.3.0/index.css');
 @import url('https://cdn.jsdelivr.net/npm/@fontsource/monaspace-neon@5.3.0/index.css');
 
 :root {
-  --stackific-font-body: 'Monaspace Neon', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
+  --stackific-font-body: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
+  --stackific-font-mono: 'Monaspace Neon', ui-monospace, SFMono-Regular, Menlo, Consolas, monospace;
   --stackific-font-heading: 'Geist Variable', ui-sans-serif, system-ui, -apple-system, 'Segoe UI', sans-serif;
 }
