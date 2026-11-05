@@ -1,14 +1,30 @@
-# Arch builder: archiso to build the live ISO, fakeroot for makepkg (our packages), and QEMU with OVMF and socat to
-# boot-test the ISO.
+# Arch builder: archiso to build the live ISO, fakeroot for makepkg (our packages), and QEMU with UEFI firmware and
+# socat to boot-test the ISO. It builds natively for the host's architecture; `just arch builder` passes both pins
+# from arch/vars.just.
+# - x86_64: every package comes from one Arch Linux Archive date.
+# - aarch64 (Arch Linux ARM): packages come from its live repos, except archiso and edk2-aarch64 (AAVMF), which Arch
+#   Linux ARM does not package: both are Arch's `any` packages from the archive date, signature-checked by pacman.
+#   QEMU's virtio-gpu-pci display (the one that works with KVM on virt) is a separate module package there.
+#   pacman's Landlock download sandbox fails in an unprivileged rootless build there, hence --disable-sandbox.
 # mkarchiso runs as the user `build`, archiso's supported unprivileged mode: rootless podman cannot mount devtmpfs,
 # so pacstrap must bind-mount /dev in its own user namespace, mapped onto build's sub-IDs (1001-65535 here).
 # The base image ships newuidmap and newgidmap without their file capabilities, so they are setuid (container root).
-# Every package comes from one Arch Linux Archive date; `just arch builder` passes both pins from arch/vars.just.
 ARG BASE
 FROM ${BASE}
 ARG ALA_DATE
-RUN echo "Server = https://archive.archlinux.org/repos/${ALA_DATE}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist \
-  && pacman -Syu --noconfirm archiso edk2-ovmf fakeroot qemu-system-x86 socat \
+RUN case "$(uname -m)" in \
+    x86_64) \
+      echo "Server = https://archive.archlinux.org/repos/${ALA_DATE}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist \
+      && pacman -Syu --noconfirm archiso edk2-ovmf fakeroot qemu-system-x86 socat ;; \
+    aarch64) \
+      pacman-key --init && pacman-key --populate archlinuxarm archlinux \
+      && pacman -Syu --noconfirm --disable-sandbox fakeroot qemu-system-aarch64 qemu-hw-display-virtio-gpu \
+        qemu-hw-display-virtio-gpu-pci socat \
+      && pacman -U --noconfirm --disable-sandbox \
+        "https://archive.archlinux.org/repos/${ALA_DATE}/extra/os/x86_64/archiso-92-1-any.pkg.tar.zst" \
+        "https://archive.archlinux.org/repos/${ALA_DATE}/extra/os/x86_64/edk2-aarch64-202608-1-any.pkg.tar.zst" ;; \
+    *) echo "unsupported architecture $(uname -m)" >&2; exit 1 ;; \
+  esac \
   && pacman -Scc --noconfirm \
   && useradd --uid 1000 --create-home build \
   && echo build:1001:64535 | tee /etc/subuid > /etc/subgid \

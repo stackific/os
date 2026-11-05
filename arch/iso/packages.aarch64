@@ -1,0 +1,9 @@
+base
+linux-aarch64
+linux-firmware
+archlinuxarm-keyring
+mkinitcpio
+mkinitcpio-archiso
+networkmanager
+btrfs-progs
+dosfstools
