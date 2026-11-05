@@ -1,0 +1,7 @@
+# Fedora builder: kiwi to build the live ISO, and QEMU with OVMF and socat to boot-test it.
+# binutils is here because kiwi's ISO build calls `strings` on the build host.
+# `just fedora builder` passes the pinned base from fedora/vars.just.
+ARG BASE
+FROM ${BASE}
+RUN dnf -y install kiwi-cli kiwi-systemdeps-iso-media binutils edk2-ovmf qemu-system-x86-core socat \
+  && dnf clean all
