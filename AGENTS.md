@@ -132,7 +132,7 @@ dev/reviews/         review records from /s-build, one per task
   - refuses a version that is not semver;
   - builds and tests all four images, then signs them;
   - tags `v<version>` and creates the GitHub release with each ISO, `SHA256SUMS` and its signature attached;
-  - today: the x86_64 images on the PC and Arch aarch64 on the Mac, unsigned; Fedora aarch64 and signing join when they exist (`just release create`, `upload`, `publish`: a draft until every image is attached);
+  - today: all four images, the x86_64 ones on the PC and the aarch64 ones on the Mac, unsigned; signing joins when it exists (`just release create`, `upload`, `publish`: a draft until every image is attached);
   - an ISO over 2 GiB goes to Cloudflare R2 instead and the release links it: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, variable `R2_BUCKET` (the bucket name, such as `stackific-os`). Wired only once an ISO needs it.
   - A released version never changes.
 - Secrets are never printed and never committed; gitleaks runs in pre-commit and in `check`.

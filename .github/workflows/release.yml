@@ -1,7 +1,7 @@
 # Releases Stackific OS by hand: input `version` (semver, without the v) becomes the GitHub release v<version>. The
 # images build and boot-test on the self-hosted runners; GitHub-hosted runners open the draft and publish it once
-# every image is attached. Every step after the setup calls a just recipe. The x86_64 images build on the PC and Arch
-# aarch64 on the Mac's runner VM; Fedora aarch64 and signing join when they exist.
+# every image is attached. Every step after the setup calls a just recipe. The x86_64 images build on the PC and the
+# aarch64 images on the Mac's runner VM; signing joins when it exists.
 name: release
 
 on:
@@ -92,8 +92,26 @@ jobs:
         env:
           GH_TOKEN: ${{ github.token }}
 
+  fedora-aarch64:
+    needs: create
+    # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
+    runs-on: [self-hosted, Linux, ARM64]
+    timeout-minutes: 90
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: extractions/setup-just@53165ef7e734c5c07cb06b3c8e7b647c5aa16db3 # v4
+        with:
+          just-version: 1.59.0
+      - run: just fedora iso "$VERSION"
+      - run: just fedora test "$VERSION"
+      - run: just release upload "$VERSION" fedora aarch64
+        env:
+          GH_TOKEN: ${{ github.token }}
+
   publish:
-    needs: [arch-x86_64, fedora-x86_64, arch-aarch64]
+    needs: [arch-x86_64, fedora-x86_64, arch-aarch64, fedora-aarch64]
     runs-on: ubuntu-24.04
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
