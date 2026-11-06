@@ -5,8 +5,8 @@
 # (stackific-test-shell.service next to this script), which waits for the end of boot and runs the checks. systemd's
 # vmm.notify_socket is not used: over vsock it opens one connection per message and drops some, READY=1 included.
 # Usage: boot.sh <iso> <out-dir> <checks>. It runs the checks every image passes, then sources <checks>, the image's own
-# check file (tests/vm/<base>-<arch>.sh), which uses vm, vm_until and screenshot from here. A check only one image
-# passes goes into that image's file. Leaves <out-dir>/serial.log, and the screenshots the check file takes.
+# check file (tests/vm/<base>.sh, or tests/vm/<base>-<arch>.sh for checks only one architecture passes), which uses vm,
+# vm_until and screenshot from here. Leaves <out-dir>/serial.log, and the screenshots the check file takes.
 # OVMF_CODE and OVMF_VARS name the raw firmware pair in the builder (AAVMF's on aarch64); the defaults are the Arch
 # builder's.
 set -euo pipefail

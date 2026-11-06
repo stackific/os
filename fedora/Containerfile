@@ -1,8 +1,15 @@
-# Fedora builder: kiwi to build the live ISO, QEMU with OVMF and socat to boot-test it, and mock (which brings
-# createrepo_c) to build our RPMs.
+# Fedora builder: kiwi to build the live ISO, QEMU with UEFI firmware and socat to boot-test it, and mock (which brings
+# createrepo_c) to build our RPMs. It builds natively for the host's architecture: OVMF on x86_64, AAVMF on aarch64.
+# On aarch64 QEMU's virtio-gpu-pci display, the one boot.sh uses with KVM on virt, is a separate package that
+# qemu-system-aarch64-core does not require.
 # binutils is here because kiwi's ISO build calls `strings` on the build host.
 # `just fedora builder` passes the pinned base from fedora/vars.just.
 ARG BASE
 FROM ${BASE}
-RUN dnf -y install kiwi-cli kiwi-systemdeps-iso-media binutils edk2-ovmf qemu-system-x86-core socat mock \
+RUN case "$(uname -m)" in \
+    x86_64) qemu="edk2-ovmf qemu-system-x86-core" ;; \
+    aarch64) qemu="qemu-system-aarch64-core edk2-aarch64 qemu-device-display-virtio-gpu-pci" ;; \
+    *) echo "unsupported architecture $(uname -m)" >&2; exit 1 ;; \
+  esac \
+  && dnf -y install kiwi-cli kiwi-systemdeps-iso-media binutils $qemu socat mock \
   && dnf clean all

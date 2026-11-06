@@ -1,6 +1,7 @@
-# Fedora module: builds our RPMs with mock into a local repo, builds the Fedora 45 x86_64 live ISO with kiwi in the pinned
-# builder container and boot-tests it under QEMU with OVMF. Pins live in vars.just; outputs go to .build/fedora/.
-# Image and package builds need Linux with rootless podman.
+# Fedora module: builds our RPMs with mock into a local repo, builds the Fedora 45 live ISO for the host's architecture
+# (x86_64 on the PC, aarch64 in the Mac's runner VM; nothing is cross-built) with kiwi in the pinned builder container,
+# and boot-tests it under QEMU with UEFI firmware (OVMF or AAVMF). Pins live in vars.just; outputs go to
+# .build/fedora/<arch>/. Image and package builds need Linux with rootless podman.
 
 import 'vars.just'
 
@@ -36,7 +37,7 @@ packages: builder
       done
       createrepo_c --quiet /repo'
 
-# Build .build/fedora/x86_64/stackific-<version>-fedora-x86_64.iso and its package manifest, then print the ISO size.
+# Build .build/fedora/<arch>/stackific-<version>-fedora-<arch>.iso and its package manifest, then print the ISO size.
 # Our RPMs come from the local repo `packages` fills, mounted read-only at /repo.
 [positional-arguments]
 iso version="0.0.0-dev": packages
@@ -44,30 +45,36 @@ iso version="0.0.0-dev": packages
   set -euo pipefail
   # The version reaches file names and the container only as data ($1, env), and must be semver like a release
   [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must be semver, got '$1'" >&2; exit 1; }
-  name="stackific-$1-fedora-x86_64"
+  name="stackific-$1-fedora-{{ arch() }}"
   mkdir -p "{{ out }}"
   rm -f "{{ out }}/$name.iso" "{{ out }}/$name.packages.txt"
-  # kiwi's work dir is a tmpfs inside the container: --rm discards it, so every build starts fresh, and unlike podman's
-  # overlay it takes SELinux labels from rootless container root. podman's default tmpfs is noexec, which breaks the chroot.
-  podman run --rm --privileged --tmpfs /work:rw,exec,dev,suid \
+  # kiwi's work and temp dirs are on a tmpfs that container root mounts itself: --rm discards it, so every build starts
+  # fresh, and unlike podman's overlay it takes SELinux labels from rootless container root. Not podman's --tmpfs: on an
+  # SELinux host (the Mac's runner VM) podman mounts it, like the overlay, with one fixed context=, so no file there can
+  # be relabelled. kiwi's default temp dir, /var/tmp, is on the overlay.
+  podman run --rm --privileged \
     --volume "{{ justfile_directory() }}/fedora/iso:/desc:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
     --env NAME="$name" \
-    {{ builder }} bash -c 'kiwi-ng --type iso system build --description /desc --target-dir /work \
+    {{ builder }} bash -c 'mkdir -p /work && mount -t tmpfs tmpfs /work && mkdir /work/tmp \
+      && kiwi-ng --temp-dir /work/tmp --type iso system build --description /desc --target-dir /work \
       && install -m644 /work/*.iso "/out/$NAME.iso" \
       && install -m644 /work/*.packages "/out/$NAME.packages.txt"'
   mib=$(( $(stat -c %s "{{ out }}/$name.iso") / 1048576 ))
   [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
 
-# Boot-test stackific-<version>-fedora-x86_64.iso under QEMU with OVMF (tests/vm/boot.sh with tests/vm/fedora-x86_64.sh);
-# leaves screen.png (the desktop), greeter.png (the login screen after a logout) and serial.log
-# podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs
+# Boot-test stackific-<version>-fedora-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with tests/vm/fedora.sh,
+# the checks both Fedora images pass); leaves screen.png (the desktop), greeter.png (the login screen after a logout)
+# and serial.log
+# podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs. Without labelling off,
+# SELinux (Fedora, as in the Mac's runner VM) keeps containers off /dev/vhost-vsock and bind mounts.
 [positional-arguments]
 test version="0.0.0-dev": builder
   podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
-    --env OVMF_CODE=/usr/share/edk2/ovmf/OVMF_CODE.fd --env OVMF_VARS=/usr/share/edk2/ovmf/OVMF_VARS.fd \
+    --security-opt label=disable \
+    --env OVMF_CODE={{ uefi_code }} --env OVMF_VARS={{ uefi_vars }} \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
-    {{ builder }} /tests/boot.sh "/out/stackific-$1-fedora-x86_64.iso" /out /tests/fedora-x86_64.sh
+    {{ builder }} /tests/boot.sh "/out/stackific-$1-fedora-{{ arch() }}.iso" /out /tests/fedora.sh
 
 # Check the host prerequisites image builds need: rootless podman, and read-write /dev/kvm and /dev/vhost-vsock
 check:
