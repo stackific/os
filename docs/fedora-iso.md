@@ -1,12 +1,12 @@
 # Fedora ISO
 
-The Fedora 45 x86_64 desktop live ISO is built with [kiwi](https://osinside.github.io/kiwi/), the tool Fedora builds its own live ISOs with, inside a pinned builder container. It is then boot-tested in the same container under QEMU with OVMF. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `fedora:` line.
+The Fedora 45 desktop live ISO is built with [kiwi](https://osinside.github.io/kiwi/), the tool Fedora builds its own live ISOs with, inside a pinned builder container. It is then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 in the Mac's runner VM (README.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `fedora:` line.
 
 ## Build
 
 ```sh
 just fedora iso               # version 0.0.0-dev
-just fedora iso 1.2.3         # stackific-1.2.3-fedora-x86_64.iso
+just fedora iso 1.2.3         # stackific-1.2.3-fedora-<arch>.iso
 ```
 
 The version must be semver, as for a release; anything else is refused. The recipe builds the builder image first (`localhost/stackific-fedora-builder:45`, from `fedora/Containerfile`), then our RPMs (`just fedora packages`, below), then runs `kiwi-ng system build` on the description in `fedora/iso/`, with the local repo `.build/fedora/repo/` mounted read-only at `/repo`:
@@ -16,21 +16,25 @@ The version must be semver, as for a release; anything else is refused. The reci
 - `root/`: files copied into the image;
 - `terra-repo.sh` and `terra-45.asc`: the Terra repository's limits and key (below).
 
-kiwi runs as root of a rootless `--privileged` container, so it has no privileges on the host. It bind-mounts `/dev`, `/proc` and `/sys` into the image root, which needs `--privileged`. Its work directory is a tmpfs inside the container (`--tmpfs /work:rw,exec,dev,suid`), for two reasons:
+kiwi runs as root of a rootless `--privileged` container, so it has no privileges on the host. It bind-mounts `/dev`, `/proc` and `/sys` into the image root, which needs `--privileged`. Its work directory, and its temp directory (`--temp-dir /work/tmp`, in place of the default `/var/tmp` on podman's overlay), are on a tmpfs that container root mounts itself (`mount -t tmpfs tmpfs /work`, before `kiwi-ng`), for two reasons:
 
 - `--rm` discards it, so every build starts fresh.
-- Labelling the image for SELinux needs a filesystem where rootless container root may set `security.selinux`. podman's overlay storage refuses that (`setfiles: Could not set context ... Operation not permitted`); a tmpfs inside the container accepts it.
+- Labelling the image for SELinux needs a filesystem where rootless container root may set `security.selinux`. podman's overlay storage refuses that (`setfiles: Could not set context ... Operation not permitted`); a tmpfs container root mounts accepts it.
 
-podman's default tmpfs is `noexec`, which breaks kiwi's chroot, hence `exec`. The tmpfs peaks at about 5.3 GiB (5398 MiB, sampled with `df` during a build of the desktop ISO). By default the tmpfs is capped at half the host's RAM, so on a host with less than about 12 GiB the build stops with `No space left on device` under `/work`; there it needs an explicit `size=` on the tmpfs, with the RAM or swap behind it.
+It is not podman's `--tmpfs`. On a host with SELinux enabled, such as the Mac's runner VM, podman mounts that with one fixed `context=` label, even with `--privileged`. There, kiwi's first copy into the image root stops with `fsetxattr(... "security.selinux") failed: Operation not supported (95)`, and so does its EFI step in `/var/tmp`. mount(8)'s defaults include `exec`, which kiwi's chroot needs.
+
+On an SELinux host, rootless container root may also set only the contexts the host's own policy knows. So the build host's Fedora release must be the image's: on a Fedora 44 host, `setfiles` stops on Fedora 45's contexts (`Could not set context for /usr/share/accountsservice: Invalid argument`). The Mac's runner VM therefore runs Fedora 45 (README.md, "Mac (aarch64 images)").
+
+The tmpfs is capped at half the host's RAM. Sampled with `df` during a build of the desktop ISO, it peaks at about 5.3 GiB on x86_64 (5398 MiB) and about 6.6 GiB on aarch64 (6763 MiB), when xorriso writes the ISO last. So the host needs about 14 GiB of RAM; the Mac's runner VM has 16 GiB. In the VM's earlier 12 GiB, xorriso stopped with `Image size 733160s exceeds free space on media 323398s`. On a smaller host, the build stops like that or with `No space left on device` under `/work`, and it needs an explicit `size=` on the tmpfs, with the RAM or swap behind it.
 
 No loop device is needed: the live root is erofs, which `mkfs.erofs` writes straight from a directory, and kiwi makes the ISO's EFI image with `mkdosfs` and `mcopy`. kiwi's systemd-boot ISO path needs a loop device and a mount, so this ISO boots with GRUB.
 
-Outputs go to `.build/fedora/x86_64/`:
+Outputs go to `.build/fedora/<arch>/`:
 
 | File                                             | What it is                                     |
 | ------------------------------------------------ | ---------------------------------------------- |
-| `stackific-<version>-fedora-x86_64.iso`          | The live ISO: UEFI only, GRUB, no shim         |
-| `stackific-<version>-fedora-x86_64.packages.txt` | The package manifest, one package per line     |
+| `stackific-<version>-fedora-<arch>.iso`          | The live ISO: UEFI only, GRUB, no shim         |
+| `stackific-<version>-fedora-<arch>.packages.txt` | The package manifest, one package per line     |
 
 Each manifest line is `name|epoch|version|release|arch|disturl|license`. Fedora builds from its live repos, so the manifest is the record of what a build got. The last line of the build prints the ISO size against the 2048 MiB target. Above the target, a warning comes first, but the build does not fail.
 
@@ -115,11 +119,11 @@ The boot menu, volume ID (`STACKIFIC`) and ISO metadata say Stackific OS; the ke
 ## Boot test
 
 ```sh
-just fedora test              # boots stackific-0.0.0-dev-fedora-x86_64.iso
+just fedora test              # boots stackific-0.0.0-dev-fedora-<arch>.iso
 just fedora test 1.2.3
 ```
 
-It runs the same `tests/vm/boot.sh` as `just arch test` (see `docs/arch-iso.md`), with Fedora's raw OVMF pair (`OVMF_CODE` and `OVMF_VARS` in the environment). After the checks every image passes, `boot.sh` sources `tests/vm/fedora-x86_64.sh`. It makes the checks of `tests/vm/arch-x86_64.sh`, with Fedora's names, and adds Terra and SELinux:
+It runs the same `tests/vm/boot.sh` as `just arch test` (see `docs/arch-iso.md`), with the builder's raw firmware pair (`uefi_code` and `uefi_vars` in `fedora/vars.just`, passed as `OVMF_CODE` and `OVMF_VARS`). After the checks every image passes, `boot.sh` sources `tests/vm/fedora.sh`, which both Fedora architectures pass. It makes the checks of `tests/vm/arch.sh`, with Fedora's names, and adds Terra and SELinux:
 
 - `/etc/os-release` reads `ID=stackific`, `ID_LIKE=fedora`, `VERSION_ID=45`, `PRETTY_NAME="Stackific OS"` and `LOGO=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; rpm says `generic-release-common` owns `/etc/os-release` (the link) and `stackific-release` owns `/usr/lib/os-release`; no `fedora-release*`, `fedora-logos*` or `fedora-release-notes` is installed; the `stackific` icon is filled `#007a55`;
 - the only packages with vendor `Terra` are `mangowm` and `noctalia-greeter`;
@@ -130,23 +134,34 @@ It runs the same `tests/vm/boot.sh` as `just arch test` (see `docs/arch-iso.md`)
 - `/var/lib/noctalia-greeter` belongs to `greetd`, its `greeter.toml` links to ours, which has our accent as `primary`, and the greeter's asset folder links `noctalia.svg` to our icon;
 - `fastfetch` (as `live`) prints the logo's last line in the accent colour, and `OS: Stackific OS`.
 
-It saves `screen.png` (the live desktop), then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greetd` with `NOCTALIA_GREETER_ASSETS_DIR` set to our asset folder, and saves `greeter.png`. Last, the journal of the boot has no `avc:  denied` line. journald reads the kernel's audit records itself (`systemd-journald-audit.socket`), so the kernel's rate limit on printing them does not hide any. All three files go to `.build/fedora/x86_64/`, with `serial.log`.
+It saves `screen.png` (the live desktop), then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greetd` with `NOCTALIA_GREETER_ASSETS_DIR` set to our asset folder, and saves `greeter.png`. Last, the journal of the boot has no `avc:  denied` line. journald reads the kernel's audit records itself (`systemd-journald-audit.socket`), so the kernel's rate limit on printing them does not hide any. All three files go to `.build/fedora/<arch>/`, with `serial.log`.
 
 Logging in to GNOME from the greeter is not automated yet. To check it by hand:
 
-1. Boot `.build/fedora/x86_64/stackific-0.0.0-dev-fedora-x86_64.iso` in a VM with a display, UEFI firmware and 4 GiB of RAM (virt-manager or GNOME Boxes, for example). MangoWM with Noctalia's bar appears.
+1. Boot `.build/fedora/<arch>/stackific-0.0.0-dev-fedora-<arch>.iso` in a VM with a display, UEFI firmware and 4 GiB of RAM (virt-manager or GNOME Boxes, for example). MangoWM with Noctalia's bar appears.
 2. Press `Alt+Return`. A foot terminal opens. Run `loginctl terminate-user live`.
 3. At noctalia-greeter, pick the user `live` and the GNOME session, type any character as the password (above) and press Enter.
 4. GNOME's desktop appears. In Ptyxis, `systemctl --user is-active stackific-noctalia.service` prints `inactive`.
 
 The test shell is a service running `systemd-socket-activate`, not a socket unit. With a socket unit, PID 1 labels the listening vsock socket for the shell it will start (`initrc_t`), and Fedora's policy denies PID 1 that socket. The service runs as `unconfined_service_t`, which may listen on vsock.
 
+## aarch64
+
+The aarch64 image is built and tested on aarch64 Linux: the `fedora-aarch64` jobs of the `images` workflow (after each merge to `main`) and of the `release` workflow run it on the Mac's runner VM, and upload it like the other images (`docs/releases.md`). The Mac has one runner, so `arch-aarch64` and `fedora-aarch64` run one after the other. It is the same desktop live ISO as x86_64, from the same description, builder, recipes and checks. What differs:
+
+- `config.kiwi` keeps eight packages to one architecture with kiwi's `arch` attribute, which kiwi compares with the build host's architecture. On x86_64 they are `grub2-efi-x64`, `grub2-efi-x64-cdboot` and `grub2-efi-x64-modules`, and the x86 CPU microcode, `amd-ucode-firmware` and `microcode_ctl`. Fedora has no `microcode_ctl` on aarch64, and AMD's microcode serves only x86 CPUs. On aarch64 they are `grub2-efi-aa64`, `grub2-efi-aa64-cdboot` and `grub2-efi-aa64-modules`. Every other line serves both images, so the two package sets cannot drift apart. The firmware packages are noarch and stay on both, as on Arch Linux ARM.
+- The kernel command line names both serial consoles, `ttyS0` (x86_64) and `ttyAMA0` (aarch64), as on Arch; the kernel ignores the one the machine lacks.
+- The builder installs `qemu-system-aarch64-core` with `edk2-aarch64` (AAVMF) and `qemu-device-display-virtio-gpu-pci`, the display `boot.sh` uses with KVM on `virt`, which QEMU does not require. The base image's pin is a manifest list, so the same digest gives the arm64 image.
+- The boot test gives QEMU `edk2-aarch64`'s `QEMU_EFI-pflash.raw` and `vars-template-pflash.raw`. QEMU's `virt` machine takes only 64 MiB flash images, and `QEMU_EFI.fd` is 3 MiB.
+- The runner VM enforces SELinux, which keeps unprivileged containers off `/dev/vhost-vsock` and bind mounts, so `just fedora test` runs with `--security-opt label=disable`, as `just arch test` does. It is also why the ISO build mounts its own work tmpfs (above).
+- Terra's aarch64 `mangowm` and `noctalia-greeter` have the same versions as on x86_64 and are signed with the same Terra 45 key. On `virtio-gpu-pci`, Mesa renders in software, which `WLR_RENDERER_ALLOW_SOFTWARE=1` lets MangoWM use.
+
 ## Move the builder digest
 
 The builder's base image is pinned by digest in `fedora/vars.just` (`builder_base`). To move it:
 
-1. Look up the new digest of `registry.fedoraproject.org/fedora:45` (the `docker-content-digest` header of its manifest).
+1. Look up the new digest of `registry.fedoraproject.org/fedora:45` (the `docker-content-digest` header of its manifest list, which serves both architectures).
 2. Set `builder_base` to it.
-3. Run `just fedora iso`, then `just fedora test`. Both must pass before the change lands.
+3. Run `just fedora iso`, then `just fedora test`, on the PC and in the Mac's runner VM. Both must pass on both before the change lands.
 
 podman's layer cache keeps the builder's kiwi and QEMU until the digest moves.

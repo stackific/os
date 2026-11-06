@@ -1,6 +1,7 @@
 # Runner module: makes this machine a self-hosted GitHub Actions runner for the repo's image jobs (images workflow).
 # Only for the machines that serve CI: the operator's Linux PC (x86_64) and the Linux VM on the Mac (aarch64).
-# It is not part of `just setup`, because registering hands the machine to GitHub jobs.
+# Registering is not part of `just setup`, because it hands the machine to GitHub jobs; `just setup` only makes the
+# Mac's VM (vm), where the aarch64 images build.
 
 import 'vars.just'
 import '../host/vars.just'
@@ -73,10 +74,13 @@ remove: gh::login
   token=$("{{ gh }}" api -X POST "repos/{{ runner_repo }}/actions/runners/remove-token" --jq .token)
   ./config.sh remove --token "$token"
 
-# Lima with nested virtualization needs Apple M3 or later and macOS 15 or later. The VM mounts nothing from the Mac,
+# Lima with nested virtualization needs Apple M3 or later and macOS 15 or later. 16 GiB of memory, because the Fedora
+# ISO build's work tmpfs (capped at half of it) peaks at 6763 MiB on aarch64. The VM mounts nothing from the Mac,
 # so jobs cannot see its files. It gets what the runner needs (git, just, podman, and libicu for the runner's .NET)
-# and the repo cloned to ~/os, where `just runner setup` runs; both are no-ops once done.
-# On a Mac: create or start the arm64 Fedora VM that hosts the runner
+# and the repo cloned to ~/os, where images build and `just runner setup` runs; both are no-ops once done.
+# `just setup` runs this on a Mac, so a developer can build images; it registers nothing (that is `just runner setup`).
+# On a Mac: create or start the arm64 Fedora VM that builds the aarch64 images and hosts the runner (pinned in vars.just)
+[macos]
 vm:
   #!/usr/bin/env bash
   set -euo pipefail
@@ -85,9 +89,34 @@ vm:
     limactl start --tty=false "{{ runner_vm }}"
   else
     limactl start --tty=false --name="{{ runner_vm }}" --vm-type=vz --nested-virt --mount-none \
-      --cpus=6 --memory=12 --disk=100 template:fedora
+      --cpus=6 --memory=16 --disk=100 \
+      --set '.images = [{"location": "https://download.fedoraproject.org/pub/{{ runner_vm_image }}", "arch": "aarch64", "digest": "{{ runner_vm_digest }}"}, {"location": "https://dl.fedoraproject.org/pub/{{ runner_vm_image }}", "arch": "aarch64", "digest": "{{ runner_vm_digest }}"}]' \
+      template:fedora
   fi
   limactl shell --workdir / "{{ runner_vm }}" sudo dnf install -y --quiet git just podman libicu
   limactl shell --workdir / "{{ runner_vm }}" sh -c \
     '[ -d ~/os ] || git clone --quiet https://github.com/{{ runner_repo }}.git ~/os'
   echo "runner: VM up; open a shell in its clone with: limactl shell {{ runner_vm }}, then cd ~/os"
+
+# On Linux the host builds the images itself
+[linux]
+vm:
+  @echo "runner: no VM on Linux (images build on this host)"
+
+# Check the Mac's VM (used by `just doctor`): it runs, on the pinned Fedora release
+[macos]
+check:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  limactl list --quiet 2>/dev/null | grep -qx "{{ runner_vm }}" \
+    || { echo "runner vm: {{ runner_vm }} missing (just runner vm)"; exit 1; }
+  v=$(limactl shell --workdir / "{{ runner_vm }}" sed -n 's/^VERSION_ID=//p' /etc/os-release 2>/dev/null) \
+    || { echo "runner vm: {{ runner_vm }} not running (just runner vm)"; exit 1; }
+  [ "$v" = "{{ runner_vm_fedora }}" ] \
+    || { echo "runner vm: Fedora $v, want {{ runner_vm_fedora }} (README.md, \"Mac (aarch64 images)\")"; exit 1; }
+  echo "runner vm: ok ({{ runner_vm }}, Fedora $v)"
+
+# On Linux there is no VM to check
+[linux]
+check:
+  @echo "runner vm: not needed (images build on this host)"

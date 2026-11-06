@@ -1,5 +1,6 @@
 # shellcheck shell=bash
-# Fedora x86_64 checks: boot.sh sources this file after the checks every image passes (`just fedora test`).
+# Fedora checks, the same on x86_64 and aarch64: boot.sh sources this file after the checks every image passes
+# (`just fedora test`).
 
 # Identity: stackific-release owns /usr/lib/os-release, which generic-release-common's /etc/os-release links to, and no
 # Fedora release or logo package is in the image (Fedora's trademark guidelines)
