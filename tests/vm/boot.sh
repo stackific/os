@@ -6,9 +6,9 @@
 # vmm.notify_socket is not used: over vsock it opens one connection per message and drops some, READY=1 included.
 # Usage: boot.sh <iso> <out-dir> <checks>. It runs the checks every image passes, then sources <checks>, the image's own
 # check file (tests/vm/<base>.sh, or tests/vm/<base>-<arch>.sh for checks only one architecture passes), which uses vm,
-# vm_until and screenshot from here. Leaves <out-dir>/serial.log, and the screenshots the check file takes.
+# vm_until, screenshot and sendkey from here. Leaves <out-dir>/serial.log, and the screenshots the check file takes.
 # OVMF_CODE and OVMF_VARS name the raw firmware pair in the builder (AAVMF's on aarch64); the defaults are the Arch
-# builder's.
+# builder's. STACKIFIC_TEST_DISK, when it names a raw image file, is attached as a virtio disk (/dev/vda in the guest).
 set -euo pipefail
 
 iso=$1
@@ -66,6 +66,16 @@ vm_until() {
   done
 }
 
+# Press keys in the VM, one after the other (QEMU key names, such as esc, ret or shift-a), through the QEMU monitor
+sendkey() {
+  local k
+  for k in "$@"; do
+    echo "sendkey $k"
+    sleep 0.25
+  done | socat -t 5 - "UNIX-CONNECT:$tmp/monitor" >/dev/null
+  echo "ok: sendkey $*"
+}
+
 # Save the VM's display as <out-dir>/<name>.png through the QEMU monitor
 screenshot() {
   echo "screendump $out/$1.png -f png" | socat -t 5 - "UNIX-CONNECT:$tmp/monitor" >/dev/null
@@ -86,12 +96,14 @@ smbios=(
 cred systemd.extra-unit.stackific-test-shell.service "$here/stackific-test-shell.service"
 cred systemd.unit-dropin.multi-user.target "$tmp/multi-user.conf"
 
+disk=()
+[ -z "${STACKIFIC_TEST_DISK:-}" ] || disk=(-drive "file=$STACKIFIC_TEST_DISK,format=raw,if=virtio")
 cp "$ovmf_vars" "$tmp/vars.fd"
 rm -f "$out/screen.png" "$out/greeter.png" "$out/serial.log"
 "${machine[@]}" -cpu host -smp 2 -m 4096 \
   -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
   -drive "if=pflash,format=raw,file=$tmp/vars.fd" \
-  -cdrom "$iso" -nic user,model=virtio-net-pci \
+  -cdrom "$iso" "${disk[@]}" -nic user,model=virtio-net-pci \
   -device "vhost-vsock-pci,guest-cid=$cid" "${smbios[@]}" \
   -serial "file:$out/serial.log" -display none \
   -monitor "unix:$tmp/monitor,server=on,wait=off" &

@@ -19,6 +19,13 @@ vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
 vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/wayland-sessions/plasma.desktop && echo ok' \
   '^ok$' 0
 
+# The installer's launcher, Disks with NTFS resizing, and Plasma's GTK integration, which gives Disks Plasma's look
+vm_until "grep -cx -e 'Name=Install Stackific OS' -e 'Exec=foot --app-id=stackific-installer --window-size-chars=100x30 \
+--font=monospace:size=11 --override=dpi-aware=yes run0 stackific-installer' /usr/share/applications/stackific-installer.desktop" '^2$' 0
+vm_until 'test -x /usr/bin/gnome-disks -a -f /usr/share/applications/org.gnome.DiskUtility.desktop -a -x /usr/bin/ntfsresize && echo ok' \
+  '^ok$' 0
+vm_until 'test -d /usr/share/themes/Breeze/gtk-3.0 && pacman -Q kde-gtk-config >/dev/null && echo ok' '^ok$' 0
+
 # Artwork and defaults: the shipped wallpapers, Noctalia's defaults through the /etc/skel include, fastfetch's logo
 vm_until 'ls /usr/share/backgrounds/stackific/*.jpg | wc -l' '^10$' 0
 vm_until 'cmp /etc/skel/.config/noctalia/00-stackific.toml /home/live/.config/noctalia/00-stackific.toml && echo ok' \

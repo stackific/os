@@ -7,7 +7,7 @@
 
 pkgname=stackific-desktop
 pkgver=0.2.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter shows our look, and MangoWM also starts on software rendering'
 arch=('any')
 url='https://os.stackific.com'
@@ -21,7 +21,7 @@ source=('stackific-noctalia.service' 'stackific-wlroots.sh' 'stackific-noctalia.
         'branding.env' 'stackific-greeter.toml.in' 'stackific-greeter.conf' 'stackific-greeter.sh')
 sha256sums=('d3bdf2b78fb86bdb7b57c3928640d72275165055c66b5da7d8f1b02bb83af0a5'
             'a4f8c72e11c79d753efe80780d5efbc9778be340bd51b3b81fecf0b4c0c71171'
-            'd40d3a90f806be1c9de82e02c22178d651ed23eb57841a6942a52ca5f8a4d11f'
+            'ff9b3e4f951d97e9f2d2c3168bf7a6938c698e377f9d0c546fc1fe996a6fb2bb'
             'cbf51e8ce45ed3089c768646c3232736799732a659111d9c8820d1e03b195503'
             '985affad12bfb221a563ef41d9a31b9b0b7fe0c103f4ce6be7ddd68c3a849759'
             '42563e03b28e8291ad599782efc717eb214cbc63b75ac572fb1991ab0425ff1b'
