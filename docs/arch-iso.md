@@ -16,7 +16,7 @@ The version must be semver, as for a release; anything else is refused. The reci
 | `stackific-<version>-arch-<arch>.iso`          | The live ISO: UEFI only, systemd-boot               |
 | `stackific-<version>-arch-<arch>.packages.txt` | The package manifest (`pacman -Q` of the live root) |
 
-The last line prints the ISO size against the 2048 MiB target. Above the target, a warning comes first, but the build does not fail.
+The last line prints the ISO size against the 2048 MiB target. Above the target, a warning comes first, but the build does not fail. The x86_64 ISO was 1543 MiB on 2026-11-06, with the installer, Disks and Plasma's GTK integration (1497 MiB before them).
 
 `mkarchiso` runs as the unprivileged user `build` inside the container. Its work directory stays in the container, so each build starts fresh. Rootless podman cannot mount devtmpfs, which archiso needs when it runs as root.
 
@@ -58,6 +58,8 @@ A branding edit changes `branding.env`'s sha256, so update it, and bump `pkgrel`
 - `/usr/share/stackific/logo.txt`: the block-character text logo, `$1` marking where fastfetch puts the colour;
 - `/etc/xdg/fastfetch/config.jsonc`, rendered from `branding/fastfetch.jsonc.in`: the logo file in the accent, with fastfetch's default modules. fastfetch reads the first `fastfetch/config.jsonc` it finds in `~/.config/`, `$XDG_CONFIG_DIRS`, `/etc/xdg/` and `/etc/`, so a user's own config replaces ours.
 
+`stackific-installer` is the installer ([installer.md](installer.md)), built from the Rust crate in `installer/` with Arch's `rust`, which the builder carries because makepkg runs with `--nodeps`. The recipe packs the crate (`Cargo.toml`, `Cargo.lock`, `src/`, `fixtures/`, never `target/`) into `stackific-installer-crate.tar` next to the PKGBUILD, which lists it with the checksum `SKIP`: makepkg takes no directories, and a checksum per file would change with every code change. `prepare()` fetches the locked crates, `build()` builds and renders the launcher, `check()` runs the tests. It installs `/usr/bin/stackific-installer`, the launcher `/usr/share/applications/stackific-installer.desktop`, and `stackific-installer.target` with `stackific-installer-console.service` for the boot menu's Install entry. It is on the x86_64 image only for now.
+
 `stackific-release` makes the image identify as Stackific OS. It holds two files:
 
 - `/etc/os-release`: `branding/os-release.in` rendered from the branding file (the base-neutral fields: `ID=stackific`, `NAME` and `PRETTY_NAME` "Stackific OS", the site and GitHub issues URLs, `DEFAULT_HOSTNAME=stackific`, `LOGO=stackific` and the emerald `ANSI_COLOR`), followed by Arch's per-base lines `ID_LIKE=arch` and `BUILD_ID=rolling`. The base is rolling, so there is no `VERSION` or `VERSION_ID`, as os-release(5) allows. The template has no comment lines, because some os-release readers split every line on `=`.
@@ -72,6 +74,10 @@ To change a file in `desktop/` or `branding/`, update its `sha256sums` entry in 
 ## Live session
 
 The ISO boots to a desktop. greetd (`arch/iso/airootfs/etc/greetd/config.toml`) logs the user `live` into MangoWM with no prompt, and MangoWM starts Noctalia, which shows Dahl's "An Eruption of Vesuvius" and no setup wizard (our defaults, above). `fastfetch` in a terminal prints our logo in emerald. In MangoWM's stock config, `Alt+Return` opens foot and `Alt+space` opens rofi.
+
+The app launcher has "Install Stackific OS" (the installer in foot, through run0) and "Disks" (GNOME Disks, `gnome-disk-utility`), the partition editor, with `ntfs-3g` and `ntfsprogs` for NTFS. Disks runs as the user and asks polkit for each change: in MangoWM, Noctalia's own polkit agent answers (`polkit_agent = true` in our defaults), in Plasma `polkit-kde-agent`. `breeze-gtk` and `kde-gtk-config` give GTK apps such as Disks Plasma's look. The boot menu has "Try Stackific OS" (the default) and "Install Stackific OS", which boots to the installer on tty1 without the greeter; on aarch64 `just arch iso` leaves the Install entry out until task 018.
+
+Known, for later: in a VM without 3D (software rendering), MangoWM can leave stale regions on screen after small redraws, such as typing in a terminal or in rofi; what the apps draw is right (task 012's screenshot run). `WLR_SCENE_DEBUG_DAMAGE=rerender` (wlroots' scene setting, which scenefx keeps) re-renders every frame, but slowed the 2-CPU test VM until key presses arrived seconds late; `just arch screenshots` switches workspace away and back before each shot instead. A later task finds a fix for the live image.
 
 After a logout, greetd shows noctalia-greeter. There, KDE Plasma is the other session. `live` has an empty password and is in `wheel`, so polkit treats it as an admin (with its empty password). root also has an empty password, on the other consoles. These accounts exist only in the live image: `arch/iso/airootfs/etc/{passwd,group,shadow,gshadow}` and `etc/sysusers.d/stackific-live.conf`. mkarchiso creates `/home/live` from `/etc/skel`.
 
@@ -99,7 +105,8 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
 - the MangoWM and Plasma session files are present;
 - the ten wallpapers are installed, `live`'s `00-stackific.toml` matches `/etc/skel`'s, and `noctalia config export merged` (as `live`) shows the wizard off, the wallpaper folder and the default wallpaper;
-- `fastfetch --pipe false` (as `live`) prints the logo's last line in the accent colour.
+- `fastfetch --pipe false` (as `live`) prints the logo's last line in the accent colour;
+- the installer's launcher has its name and `Exec=` line; Disks, its launcher and `ntfsresize` are installed; Breeze's GTK theme and `kde-gtk-config` are installed.
 
 It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`. It also saves `serial.log` to `.build/arch/<arch>/`, then powers the VM off. On failure it prints the end of the serial log.
 
@@ -111,6 +118,24 @@ Logging in to Plasma from the greeter is not automated yet. To check it by hand:
 4. In Konsole, `systemctl --user is-active stackific-noctalia.service` prints `inactive`.
 
 systemd's `vmm.notify_socket` is not used. Over vsock it opens one connection per message and drops some of them, READY=1 included.
+
+## Install test
+
+```sh
+just arch test-install        # x86_64; uses stackific-0.0.0-dev-arch-<arch>.iso
+just arch test-install 1.2.3
+```
+
+It reads the boot menu from the ISO with bsdtar (Try is the default, Install adds `systemd.unit=stackific-installer.target`), creates a blank 64 GiB raw image with `qemu-img` in `.build/arch/<arch>/`, and boots the ISO once with it attached as `/dev/vda` (`STACKIFIC_TEST_DISK`). `tests/vm/install.sh` then checks, in order:
+
+0. the console path: `systemctl isolate stackific-installer.target` runs the installer on tty1 with the greeter stopped (`installer-console.png`), two Esc presses (`sendkey`) end it, and `graphical.target` is active again;
+1. an erase whose confirmation is not the drive's name exits 2 and leaves the disk blank;
+2. an unattended erase (a transient unit, polled until it ends) leaves exactly our two partitions;
+3. a Windows-like table (ESP `SYSTEM`, Microsoft reserved, a 2 GiB gap, basic data, a large gap, recovery; numbered 1, 2, 3 and 5), saved as `windows-like.dump`;
+4. BitLocker's signature on partition 3 (the boot code's jump and `-FVE-FS-` at byte 3) refuses the free space with exit 2 and the table unchanged;
+5. a free-space install keeps the label ID and every old entry byte-identical, and puts two new partitions on the 1 MiB grid inside the large gap.
+
+After runs 2 and 5 it checks the installed system on its partitions: labels, the twelve subvolumes and NOCOW, fstab by UUID, `stackific-release` in and `stackific-installer` out, the user (uid 1000, `wheel`, yescrypt, root locked, its MangoWM file), the computer name, timezone and keymaps, no live state, and no password in the journal. After the VM powers off, `minfo` reads the free-space install's ESP from the image as FAT32. The image is removed after a pass.
 
 ## aarch64
 
