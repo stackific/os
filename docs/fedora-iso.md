@@ -1,6 +1,6 @@
 # Fedora ISO
 
-The Fedora 45 desktop live ISO is built with [kiwi](https://osinside.github.io/kiwi/), the tool Fedora builds its own live ISOs with, inside a pinned builder container. It is then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 in the Mac's runner VM (README.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `fedora:` line.
+The Fedora 45 desktop live ISO is built with [kiwi](https://osinside.github.io/kiwi/), the tool Fedora builds its own live ISOs with, inside a pinned builder container. It is then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 in the Mac's runner VM (docs/setup.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `fedora:` line.
 
 ## Build
 
@@ -23,7 +23,7 @@ kiwi runs as root of a rootless `--privileged` container, so it has no privilege
 
 It is not podman's `--tmpfs`. On a host with SELinux enabled, such as the Mac's runner VM, podman mounts that with one fixed `context=` label, even with `--privileged`. There, kiwi's first copy into the image root stops with `fsetxattr(... "security.selinux") failed: Operation not supported (95)`, and so does its EFI step in `/var/tmp`. mount(8)'s defaults include `exec`, which kiwi's chroot needs.
 
-On an SELinux host, rootless container root may also set only the contexts the host's own policy knows. So the build host's Fedora release must be the image's: on a Fedora 44 host, `setfiles` stops on Fedora 45's contexts (`Could not set context for /usr/share/accountsservice: Invalid argument`). The Mac's runner VM therefore runs Fedora 45 (README.md, "Mac (aarch64 images)").
+On an SELinux host, rootless container root may also set only the contexts the host's own policy knows. So the build host's Fedora release must be the image's: on a Fedora 44 host, `setfiles` stops on Fedora 45's contexts (`Could not set context for /usr/share/accountsservice: Invalid argument`). The Mac's runner VM therefore runs Fedora 45 (docs/setup.md, "Mac (aarch64 images)").
 
 The tmpfs is capped at half the host's RAM. Sampled with `df` during a build of the desktop ISO, it peaks at about 5.3 GiB on x86_64 (5398 MiB) and about 6.6 GiB on aarch64 (6763 MiB), when xorriso writes the ISO last. So the host needs about 14 GiB of RAM; the Mac's runner VM has 16 GiB. In the VM's earlier 12 GiB, xorriso stopped with `Image size 733160s exceeds free space on media 323398s`. On a smaller host, the build stops like that or with `No space left on device` under `/work`, and it needs an explicit `size=` on the tmpfs, with the RAM or swap behind it.
 

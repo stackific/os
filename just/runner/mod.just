@@ -113,7 +113,7 @@ check:
   v=$(limactl shell --workdir / "{{ runner_vm }}" sed -n 's/^VERSION_ID=//p' /etc/os-release 2>/dev/null) \
     || { echo "runner vm: {{ runner_vm }} not running (just runner vm)"; exit 1; }
   [ "$v" = "{{ runner_vm_fedora }}" ] \
-    || { echo "runner vm: Fedora $v, want {{ runner_vm_fedora }} (README.md, \"Mac (aarch64 images)\")"; exit 1; }
+    || { echo "runner vm: Fedora $v, want {{ runner_vm_fedora }} (docs/setup.md, \"Mac (aarch64 images)\")"; exit 1; }
   echo "runner vm: ok ({{ runner_vm }}, Fedora $v)"
 
 # On Linux there is no VM to check

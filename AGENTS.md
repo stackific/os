@@ -3,6 +3,7 @@
 This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.stackific.com). Work runs through two skills, `/s-task` and `/s-build` (`.claude/skills/`); the rules below apply to all work, skill or not.
 
 ## Product
+- Positioning (the operator's words): an "Open Prompt", the most vibe-codable OS foundation for making your own Linux. Every change starts as a published prompt (the prompt trail), so anyone can fork the repo, change a prompt and rebuild their own Linux.
 - Stackific OS is a Linux distribution with two bases, Arch Linux (rolling; Arch Linux ARM on aarch64) and Fedora 45. Every release ships four live ISOs with one version: Arch x86_64, Arch Linux ARM aarch64, Fedora 45 x86_64 and Fedora 45 aarch64 (`stackific-<version>-<base>-<arch>.iso`).
 - The four images are one product: the same branding, messaging, defaults, files at the same paths, live session and boot-test checks. They differ only where a base or architecture forces it (the second desktop, package names, kernel, firmware, build tooling), and the task names each difference. A change to one image lands on all four, or the task says which image task carries it.
 - Each ISO aims at 2 GiB or less, a soft target (GitHub's per-file release cap); every image task reports its ISO size.
@@ -30,7 +31,7 @@ This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.st
 Planned; each directory appears with the first task that needs it. One concern per directory.
 
 ```
-README.md            developer setup, step by step
+README.md            front page: what Stackific OS is, the four images, links
 justfile             wires modules, setup and doctor, nothing else
 lefthook.yml         git hooks, each calling a just recipe
 just/<tool>/         shared toolchains: mod.just, vars.just (pins)
@@ -43,7 +44,7 @@ hardware/            PCI ID lists, chwd profiles and the Fedora detection step
 tests/               container and VM tests
 release/             GitHub Releases for the images (recipes the release and images workflows call)
 site/                user docs and the prompt trail
-docs/                developer notes: how to build, test and check (Markdown, not published)
+docs/                developer notes: setup (setup.md), how to build, test and check (Markdown, not published)
 dev/                 `just dev check` (dev/justfile) over tasks, reviews and prompt-trail entries
 dev/tasks/           task files from /s-task
 dev/reviews/         review records from /s-build, one per task
@@ -58,9 +59,9 @@ dev/reviews/         review records from /s-build, one per task
 - The root `justfile` only wires modules, `setup` and `doctor`. Each area owns `<dir>/justfile` (`mod <dir>`); shared toolchains live in `just/<tool>/mod.just` with pins in `just/<tool>/vars.just`. Modules can't see siblings, so mount a needed toolchain as `[private] mod`.
 - Run recipes from the repo root: `just <module> <recipe>`. Run several recipes of one module as `just <module>::<a> <module>::<b>`.
 - Repo-local tools install to `.tools/` (gitignored), pinned by version and checksum in `vars.just`; single-file tools go through `just/fetch` (`fetch::get`), which skips the download while `<dest>.sha256` matches the pin. Launchers go to `~/.local/bin` only for tools that must be on PATH (language servers, `rtk`, `graphify`); an existing file there that does not point into `.tools/` is the user's and is kept. When `~/.local/bin` is not on PATH, the launcher step adds it to the shell profiles (`uv tool update-shell`); recipes that look up launchers prepend it for the current shell.
-- `just setup` installs every prerequisite to build, test, lint and run everything, plus the agent tools below; only the host prerequisites in `README.md` (git, just, node, npm, unzip, Claude Code; Lima on macOS) are installed by hand. On macOS it also makes or starts the Fedora 45 build VM (`just runner vm`), which it never registers as a runner. A change that adds a tool or dependency updates `just setup` in the same change.
+- `just setup` installs every prerequisite to build, test, lint and run everything, plus the agent tools below; only the host prerequisites in `docs/setup.md` (git, just, node, npm, unzip, Claude Code; Lima on macOS) are installed by hand. On macOS it also makes or starts the Fedora 45 build VM (`just runner vm`), which it never registers as a runner. A change that adds a tool or dependency updates `just setup` in the same change.
 - Setup hosts: Linux (x86_64, aarch64) and macOS on Apple silicon; image builds need Linux. Host-specific asset names, checksums and the checksum command live in `just/host/vars.just` and each tool's `vars.just`.
-- `README.md` keeps the developer setup step by step. A change to setup or its host prerequisites updates it in the same change. Replies to the operator point to it instead of listing steps.
+- `docs/setup.md` keeps the developer setup step by step; `README.md` is the marketing front page (the ASCII mark from `branding/logo.txt`, the four images by their base labels, links) and points to it. A change to setup or its host prerequisites updates it in the same change. Replies to the operator point to it instead of listing steps.
 - `just doctor` prints one line per tool: its pinned version and wiring (git hooks included), plus host prerequisites setup cannot install (`claude`; `node` for ponytail's and caveman's hooks; `npm` for Serena's Bash language server). Image tasks add podman, KVM and vhost-vsock; OVMF and AAVMF come from the pinned builder containers. On macOS, `runner vm:` checks the build VM runs the pinned Fedora release.
 - Git hooks: lefthook (pinned), mapped in `lefthook.yml`, calling just recipes only; after editing `lefthook.yml`, run `just lefthook hooks`. `just lefthook all` runs every pre-commit check on every tracked file (only tracked: nothing before the first `git add`).
   - pre-commit: hygiene (`git diff --check`, files over 1 MiB except the wallpapers in `branding/wallpapers/`, names of `.git/info/exclude` root entries), gitleaks, justfile parse, shellcheck (`*.sh`, `PKGBUILD`), actionlint, `just dev check`, site format, lint, types, audit, screenshots and build on `site/**`. `mango -p` joins when `desktop/` ships the MangoWM config.
@@ -92,7 +93,7 @@ dev/reviews/         review records from /s-build, one per task
 - **Every session** uses rtk, caveman, ponytail, context7, Serena and graphify. Plugins and MCP servers load at session start, so restart Claude Code after `just setup`.
 - **Pins** (checked 2026-11-04), in `just/<tool>/vars.just`: rtk 1.1.0, graphify 0.9.102, Serena 2.1.0, uv 0.13.5 with Python 3.13, Bun 1.4.4, lefthook 2.2.2, gitleaks 8.30.1, shellcheck 0.11.0, actionlint 1.7.12, gh 2.103.3, Actions runner 2.338.2 (first install only; it updates itself). Marketplaces are pinned by `ref` in `.claude/settings.json`: caveman v4.0.1, ponytail v5.3.3. Site packages are pinned in `site/package.json` and `site/bun.lock`; CI actions by commit SHA.
 - **LSP plugins** join with their language: `pyright-lsp` (with `pyright-langserver` in `just setup`) arrives with the first Python code. No `typescript-lsp`: the site's few TypeScript files are covered by `astro check`.
-- **Other tools** (rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`README.md`).
+- **Other tools** (rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`docs/setup.md`).
 - **When to use what:** graphify, then Serena, for this repo and earlier work; context7 for library APIs. rtk wraps shell output on its own.
 - **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. `just claude plugins` skips a marketplace that the operator's user or managed settings list from another source (Claude Code refuses it) and says so. In the Mac's Fedora runner VM, SELinux keeps unprivileged containers off bind mounts and `/dev/vhost-vsock` (`just arch packages` and `just arch test` run with `--security-opt label=disable`); pacman's Landlock sandbox fails in unprivileged rootless podman (`podman build` steps use `--disable-sandbox`).
 

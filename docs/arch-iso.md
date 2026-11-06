@@ -1,6 +1,6 @@
 # Arch ISO
 
-The Arch live ISO is built with [archiso](https://gitlab.archlinux.org/archlinux/archiso) inside a pinned builder container, then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 from Arch Linux ARM in the Mac's runner VM (README.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `arch:` line.
+The Arch live ISO is built with [archiso](https://gitlab.archlinux.org/archlinux/archiso) inside a pinned builder container, then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 from Arch Linux ARM in the Mac's runner VM (docs/setup.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `arch:` line.
 
 ## Build
 

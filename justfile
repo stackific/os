@@ -39,7 +39,7 @@ default:
 
 # graphify comes last among the agent tools: its project install rewrites .claude/settings.json after the plugin installs.
 # runner::vm makes or starts the Mac's Fedora VM for image builds (a no-op on Linux); it registers no runner.
-# Install every tool this repo needs (host prerequisites: README.md), then run doctor
+# Install every tool this repo needs (host prerequisites: docs/setup.md), then run doctor
 setup: uv::install rtk::install serena::install claude::plugins graphify::install gitleaks::install shellcheck::install actionlint::install gh::install site::install lefthook::hooks runner::vm doctor
 
 # Check every tool's pinned version and wiring, and the host prerequisites setup cannot install
