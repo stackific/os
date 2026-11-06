@@ -2,7 +2,7 @@
 title: Wallpapers
 description: The ten paintings Stackific OS ships as wallpapers, how to pick another one, and who made them.
 sidebar:
-  order: 2
+  order: 3
 ---
 
 Stackific OS ships ten public-domain paintings as wallpapers, in `/usr/share/backgrounds/stackific/`. The MangoWM desktop starts with Johan Christian Dahl's _An Eruption of Vesuvius_.

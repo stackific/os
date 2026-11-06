@@ -107,7 +107,7 @@ Logging in to Plasma from the greeter is not automated yet. To check it by hand:
 
 1. Boot the ISO in a VM with a display, UEFI firmware and enough RAM (see `-m` in `tests/vm/boot.sh`).
 2. Press `Alt+Return` and run `loginctl terminate-user live`.
-3. Pick `live` and the Plasma session, type any character as the password, and log in. `live` has no password, but noctalia-greeter refuses an empty field (`site/src/content/docs/user/live-session.md`).
+3. Pick `live` and the Plasma session, type any character as the password, and log in. `live` has no password, but noctalia-greeter refuses an empty field (`site/src/content/docs/user/installation.md`).
 4. In Konsole, `systemctl --user is-active stackific-noctalia.service` prints `inactive`.
 
 systemd's `vmm.notify_socket` is not used. Over vsock it opens one connection per message and drops some of them, READY=1 included.

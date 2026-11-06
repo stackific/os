@@ -1,0 +1,23 @@
+---
+/**
+ * Override of Starlight's Footer: the usual footer, then Red Hat's trademark line. Fedora's trademark
+ * guidelines ask for it in the footer of every page that uses a Fedora mark, and the docs name Fedora
+ * and our Fedora Remix images (docs/releases.md, Base labels).
+ */
+import Default from '@astrojs/starlight/components/Footer.astro';
+
+const trademarks =
+  'Fedora and Fedora Remix are trademarks or registered trademarks of Red Hat, Inc., or its subsidiaries in the United States and other countries.';
+---
+
+<Default />
+<p class="trademarks">{trademarks}</p>
+
+<style>
+  /* Starlight's smallest size; gray-3 is the faintest theme colour that keeps 4.5:1 contrast in both themes. */
+  .trademarks {
+    margin-top: 1.5rem;
+    font-size: var(--sl-text-2xs);
+    color: var(--sl-color-gray-3);
+  }
+</style>

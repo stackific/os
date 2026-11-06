@@ -41,6 +41,8 @@ export default defineConfig({
         ThemeSelect: './src/components/starlight/ThemeSelect.astro',
         // English only, so the language selector's slot holds a GitHub link to the repository instead.
         LanguageSelect: './src/components/starlight/LanguageSelect.astro',
+        // Adds Red Hat's trademark line under every docs page, as Fedora's trademark guidelines ask.
+        Footer: './src/components/starlight/Footer.astro',
       },
       // Relabels the prompt trail's per-base groups (src/routeData.ts).
       routeMiddleware: './src/routeData.ts',
