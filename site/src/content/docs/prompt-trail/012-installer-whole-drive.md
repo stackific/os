@@ -92,13 +92,19 @@ Write the installer skeleton and its disk step, and ship it on the Arch x86_64 i
 
 The screens are ratatui on crossterm in a fixed 80 × 24 frame, centered: Display, Welcome, the six steps, Installing, and Done or Stopped. One spring model moves the slides, the selection marker, the rubber band and the progress bar; Reduced motion makes them instant. The mouse works in foot (press, release, cancel by moving off, the wheel with a projected flick); true-colour terminals get a tinted surface, a scrim and shadow behind the stop dialog, and faded list edges; High contrast and `NO_COLOR` drop all of it. Every spacing, colour and timing is a named constant in `ui/theme.rs`.
 
-On the Arch x86_64 image, `stackific-installer` installs the program, the "Install Stackific OS" launcher (foot at physical size, `run0`), and the target and service behind the boot menu's new "Install Stackific OS" entry, which runs the installer on tty1 and hands over to the live desktop when it ends. GNOME Disks, `ntfs-3g`, `ntfsprogs`, `breeze-gtk` and `kde-gtk-config` join the image, and Noctalia's own polkit agent is on, so Disks asks for the password in MangoWM too. The installer removes its own package from the system it installs.
+On the Arch x86_64 image, `stackific-installer` installs the program, the "Install Stackific OS" launcher (foot at physical size, `run0`), and the target and service behind the boot menu's new "Install Stackific OS" entry, which runs the installer on tty1 and hands over to the live desktop when it ends. GNOME Disks, `ntfs-3g`, `ntfsprogs`, `breeze-gtk` and `kde-gtk-config` join the image, and Noctalia's own polkit agent is on, so Disks asks for the password in MangoWM too. Plasma now starts on our wallpaper, Dahl's "An Eruption of Vesuvius" as in MangoWM, through our own look-and-feel package, and shows the installer as a desktop shortcut; in MangoWM, Super+Space opens Noctalia's launcher. The installer removes its own package from the system it installs.
 
 `just setup` installs Rust 1.99.1 with clippy, rustfmt and rust-analyzer through checksum-checked rustup 1.29.3; `just installer test` and `lint` run in pre-commit; `just arch test-install` installs twice in a VM, unattended, and checks each result on its partitions.
 
 The README and the release notes name MangoWM as the first desktop and end with the non-affiliation sentence in small print; the user docs say "MangoWM", and the installation page names the early installer and Disks.
 
 ### Screenshots
+
+Plasma, from `just arch test`: our wallpaper and the installer's shortcut:
+
+![Plasma's desktop on Dahl's An Eruption of Vesuvius, with the Install Stackific OS shortcut at the top left](../../../assets/prompt-trail/012/plasma-shortcut.webp)
+
+_Plasma starts on our wallpaper through our look-and-feel package, and shows the installer on its desktop; the italic label marks a link to the launcher._
 
 Taken from the image in a VM by `just arch screenshots`, which drives the real installer with key presses on a 64 GiB disk that starts with a Windows-like table.
 
@@ -167,12 +173,6 @@ _Free space under 40 GiB is refused with its reason; the erase stays._
 ![The Stopped screen after the user stopped an erase](../../../assets/prompt-trail/012/stopped.webp)
 
 _Stopped says why, what is left on the drive, and where the log is._
-
-Plasma, from `just arch test`: our wallpaper and the installer's shortcut:
-
-![Plasma's desktop on Dahl's An Eruption of Vesuvius, with the Install Stackific OS shortcut at the top left](../../../assets/prompt-trail/012/plasma-shortcut.webp)
-
-_Plasma starts on our wallpaper through our look-and-feel package, and shows the installer on its desktop; the italic label marks a link to the launcher._
 
 On the console, from the boot menu's Install entry:
 
