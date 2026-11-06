@@ -1,0 +1,24 @@
+┌ Stackific OS installer ──────────────────────────────────── 6 of 6 · Confirm ┐
+│                                                                              │
+│  Install Stackific OS in the free space on /dev/nvme0n1?                     │
+│                                                                              │
+│  Stays as it is:                                                             │
+│    nvme0n1p1     260.0 MiB   vfat    SYSTEM                                  │
+│    nvme0n1p2      16.0 MiB                                                   │
+│    nvme0n1p3     811.2 GiB   ntfs    Windows                                 │
+│                                                                              │
+│  New, in the 120.0 GiB of free space:                                        │
+│    new             4.0 GiB   FAT32   Stackific OS boot                       │
+│    new           116.0 GiB   btrfs   Stackific OS                            │
+│                                                                              │
+│  Keyboard de (German) · Timezone Europe/Berlin                               │
+│  User Ada Lovelace (ada), administrator · Computer stackific                 │
+│                                                                              │
+│  Nothing else on the drive changes.                                          │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Enter install · Esc back ────────────────────────────────────────────────────┘

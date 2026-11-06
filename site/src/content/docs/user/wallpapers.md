@@ -9,7 +9,7 @@ Stackific OS ships ten public-domain paintings as wallpapers, in `/usr/share/bac
 
 ## Pick another wallpaper
 
-Open Noctalia's wallpaper panel from its bar or control center. It lists the ten paintings; click one to use it. Noctalia remembers your choice in `~/.local/state/noctalia/settings.toml`.
+Open the wallpaper panel from the desktop's bar or control center. It lists the ten paintings; click one to use it. The choice is kept in `~/.local/state/noctalia/settings.toml`.
 
 To browse another folder, set `directory` under `[wallpaper]` in a file of your own in `~/.config/noctalia/`, such as `~/.config/noctalia/my-settings.toml`. Your files there win over Stackific OS's defaults, which come in through `~/.config/noctalia/00-stackific.toml`.
 

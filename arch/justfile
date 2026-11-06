@@ -10,7 +10,8 @@ builder:
     --tag {{ builder }} --file "{{ justfile_directory() }}/arch/Containerfile" "{{ justfile_directory() }}/arch" >/dev/null
 
 # Build our packages (arch/packages/*/PKGBUILD) with makepkg in a fresh builder container into the local repo
-# .build/arch/repo/ (unsigned until release signing). Local sources come from desktop/ and branding/, staged by file name.
+# .build/arch/repo/ (unsigned until release signing). Local sources come from desktop/, branding/ and installer/
+# (never its target/), staged by file name; the installer's crate is packed into stackific-installer-crate.tar.
 # SELinux (Fedora, as in the Mac's runner VM) hides bind mounts from containers unless labelling is off; without
 # SELinux it is a no-op. The --privileged ISO build has labelling off already.
 packages: builder
@@ -21,14 +22,20 @@ packages: builder
   podman run --rm --security-opt label=disable \
     --volume "{{ justfile_directory() }}/arch/packages:/packages:ro" \
     --volume "{{ justfile_directory() }}/desktop:/desktop:ro" --volume "{{ justfile_directory() }}/branding:/branding:ro" \
-    --volume "{{ repo }}:/repo" \
+    --volume "{{ justfile_directory() }}/installer:/installer:ro" --volume "{{ repo }}:/repo" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
     {{ builder }} bash -c 'set -euo pipefail
       for p in /packages/*/PKGBUILD; do
         b=/home/build/pkg/$(basename "$(dirname "$p")")
         mkdir -p "$b"
         cp "$p" "$b/"
-        for f in $(source "$p"; echo "${source[@]}"); do find /desktop /branding -type f -name "$f" -exec cp -t "$b" {} +; done
+        for f in $(source "$p"; echo "${source[@]}"); do
+          find /desktop /branding /installer -path /installer/target -prune -o -type f -name "$f" -exec cp -t "$b" {} +
+        done
+        if [ "$(basename "$b")" = stackific-installer ]; then
+          tar -C /installer --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
+            -cf "$b/stackific-installer-crate.tar" Cargo.toml Cargo.lock src fixtures
+        fi
         chown -R build "$b"
         (cd "$b" && runuser -u build -- makepkg --nodeps)
         cp "$b"/*.pkg.tar.* /repo/
@@ -47,27 +54,81 @@ iso version="0.0.0-dev": packages
   rm -f "{{ out }}/$name.iso" "{{ out }}/$name.packages.txt"
   # mkarchiso runs as `build` with its work dir inside the container, so --rm discards it and every build starts fresh.
   # Container root (the host user) then moves the outputs to /out, so the host user owns them.
+  # The installer is on the x86_64 image only until task 018, so aarch64 leaves out the boot menu's Install entry and
+  # the live user's desktop shortcut.
   podman run --rm --privileged \
     --volume "{{ justfile_directory() }}/arch/iso:/profile:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
     --env STACKIFIC_VERSION="$1" --env NAME="$name" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
-    {{ builder }} bash -c 'runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /profile \
+    {{ builder }} bash -c 'cp -r /profile /home/build/profile \
+      && { [ "$(uname -m)" = x86_64 ] || rm /home/build/profile/efiboot/loader/entries/02-stackific-install.conf \
+        /home/build/profile/airootfs/home/live/Desktop/stackific-installer.desktop; } \
+      && runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /home/build/profile \
       && install -m644 "/home/build/out/$NAME.iso" /out/ \
       && install -m644 /home/build/work/iso/arch/pkglist.{{ arch() }}.txt "/out/$NAME.packages.txt"'
   mib=$(( $(stat -c %s "{{ out }}/$name.iso") / 1048576 ))
   [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
 
-# Boot-test stackific-<version>-arch-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with tests/vm/arch.sh,
-# the checks both Arch images pass); leaves serial.log, screen.png and greeter.png
+# Boot-test stackific-<version>-arch-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with
+# tests/vm/arch-<arch>.sh when the architecture has its own checks, else tests/vm/arch.sh, the checks both Arch images
+# pass); leaves serial.log, screen.png and greeter.png, and on x86_64 plasma.png
 # podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs. SELinux also keeps
 # containers off /dev/vhost-vsock unless labelling is off (see packages).
 [positional-arguments]
 test version="0.0.0-dev": builder
+  #!/usr/bin/env bash
+  set -euo pipefail
+  checks=arch.sh
+  [ ! -f "{{ justfile_directory() }}/tests/vm/arch-{{ arch() }}.sh" ] || checks="arch-{{ arch() }}.sh"
   podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
     --security-opt label=disable \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
-    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-{{ arch() }}.iso" /out /tests/arch.sh
+    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-{{ arch() }}.iso" /out "/tests/$checks"
+
+# Test the installer on stackific-<version>-arch-<arch>.iso: the boot menu's entries (read with bsdtar, never a
+# mount), then one boot with a fresh 64 GiB raw disk (tests/vm/boot.sh with tests/vm/install.sh: the console path, an
+# erase and a free-space install, unattended), then the free-space install's ESP, read from the image with minfo
+# (mtools). The disk image is removed after a pass and kept after a failure.
+[positional-arguments]
+test-install version="0.0.0-dev": builder
+  #!/usr/bin/env bash
+  set -euo pipefail
+  podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
+    --security-opt label=disable \
+    --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
+    --env ISO="/out/stackific-$1-arch-{{ arch() }}.iso" --env STACKIFIC_TEST_DISK=/out/install-test.img \
+    {{ builder }} bash -c 'set -euo pipefail
+      entry() { bsdtar -xOf "$ISO" "loader/$1" | grep -qx -- "$2" || { echo "FAIL: loader/$1 has no line /$2/" >&2; exit 1; }; }
+      entry entries/01-stackific-linux.conf "title   Try Stackific OS ({{ arch() }}, UEFI)"
+      entry entries/02-stackific-install.conf "title   Install Stackific OS ({{ arch() }}, UEFI)"
+      entry entries/02-stackific-install.conf "options .* systemd.unit=stackific-installer.target"
+      entry loader.conf "default 01-stackific-linux.conf"
+      echo "ok: the boot menu has Try (the default) and Install"
+      rm -f "$STACKIFIC_TEST_DISK" /out/esp-offset
+      qemu-img create -q -f raw "$STACKIFIC_TEST_DISK" 64G
+      /tests/boot.sh "$ISO" /out /tests/install.sh
+      minfo -i "$STACKIFIC_TEST_DISK@@$(cat /out/esp-offset)" | grep -q "FAT32" || { echo "FAIL: no FAT32 at the ESP offset" >&2; exit 1; }
+      echo "ok: the free-space install'"'"'s ESP is FAT32"
+      rm -f "$STACKIFIC_TEST_DISK"'
+
+# Screenshots of the installer's screens for the prompt trail: one boot of stackific-<version>-arch-<arch>.iso with a
+# fresh 64 GiB disk (tests/vm/boot.sh with tests/vm/screens.sh), the real installer driven by key presses on the
+# desktop and on the console. The PNGs land in .build/arch/<arch>/screens/, for `just site screenshot`. Not part of CI.
+[positional-arguments]
+screenshots version="0.0.0-dev": builder
+  #!/usr/bin/env bash
+  set -euo pipefail
+  podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
+    --security-opt label=disable \
+    --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
+    --env ISO="/out/stackific-$1-arch-{{ arch() }}.iso" --env STACKIFIC_TEST_DISK=/out/screens-test.img \
+    {{ builder }} bash -c 'set -euo pipefail
+      rm -rf /out/screens "$STACKIFIC_TEST_DISK"
+      qemu-img create -q -f raw "$STACKIFIC_TEST_DISK" 64G
+      /tests/boot.sh "$ISO" /out /tests/screens.sh
+      rm -f "$STACKIFIC_TEST_DISK"
+      ls /out/screens'
 
 # Check the host prerequisites image builds need: rootless podman, and read-write /dev/kvm and /dev/vhost-vsock
 check:

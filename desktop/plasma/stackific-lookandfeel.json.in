@@ -1,0 +1,16 @@
+{
+    "KPackageStructure": "Plasma/LookAndFeel",
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "${NAME}"
+            }
+        ],
+        "Description": "Breeze with the ${NAME} wallpaper",
+        "Id": "org.${ID}.desktop",
+        "License": "Apache-2.0",
+        "Name": "${NAME}",
+        "Website": "${HOME_URL}"
+    },
+    "X-Plasma-APIVersion": "2"
+}

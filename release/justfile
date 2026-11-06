@@ -12,6 +12,37 @@ mod gh '../just/gh/mod.just'
 pr-version sha: gh::install
   @"{{ gh }}" api "repos/{owner}/{repo}/commits/$1/pulls" --jq '.[0].number // empty | "0.0.0-pr.\(.)"'
 
+# Which images the commits <before>..<sha> changed, as GitHub Actions outputs: `<base>_<arch>=true|false` for each image,
+# then `any=`. An image counts as changed when a file it is built or tested from changed; when <before> is not in the
+# history (a first push, a force push), every image does.
+# shortcut: a run that a newer push cancels never builds its own changes; rerun `images` for that commit when it matters.
+[positional-arguments]
+changed before sha:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cd "{{ justfile_directory() }}"
+  all=false
+  if git cat-file -e "$1^{commit}" 2>/dev/null; then mapfile -t files < <(git diff --name-only "$1" "$2"); else all=true; files=(); fi
+  common='branding/ desktop/ tests/vm/boot.sh tests/vm/stackific-test-shell.service .github/workflows/images.yml'
+  arch="$common arch/Containerfile arch/justfile arch/vars.just arch/packages/ arch/iso/airootfs/ arch/iso/efiboot/ arch/iso/pacman.conf arch/iso/profiledef.sh tests/vm/arch.sh"
+  fedora="$common fedora/ tests/vm/fedora.sh"
+  declare -A paths=(
+    [arch_x86_64]="$arch arch/iso/packages.x86_64 installer/ tests/vm/install.sh tests/vm/arch-x86_64.sh"
+    [arch_aarch64]="$arch arch/iso/packages.aarch64 tests/vm/arch-aarch64.sh"
+    [fedora_x86_64]="$fedora tests/vm/fedora-x86_64.sh"
+    [fedora_aarch64]="$fedora tests/vm/fedora-aarch64.sh"
+  )
+  any=false
+  for image in arch_x86_64 arch_aarch64 fedora_x86_64 fedora_aarch64; do
+    hit=$all
+    for f in ${files[@]+"${files[@]}"}; do
+      for p in ${paths[$image]}; do [[ $f == "$p"* ]] && hit=true; done
+    done
+    echo "$image=$hit"
+    [ "$hit" = false ] || any=true
+  done
+  echo "any=$any"
+
 # A test build (0.0.0-pr.<n>) replaces an earlier one for the same pull request; any other version must be new,
 # because a released version never changes.
 # Open the draft release v<version> at commit <sha>, its notes opening with release/notes.md

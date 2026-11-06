@@ -1,0 +1,24 @@
+┌ Stackific OS installer ───────────────────────────────────────────── Welcome ┐
+│                                                                              │
+│  Install Stackific OS on this computer.                                      │
+│                                                                              │
+│  It goes into a drive's free space, next to what is already there, or onto   │
+│  a whole drive, which it erases first.                                       │
+│                                                                              │
+│  You pick a keyboard layout, a timezone, your user, the drive and how to use │
+│  it. Nothing is written until you confirm on the last screen.                │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Enter start · Esc quit ──────────────────────────────────────────────────────┘

@@ -25,6 +25,7 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
 - `just site dev` serves the site at `localhost:4321`.
 - `just arch iso` builds the Arch live ISO for the host's architecture into `.build/arch/<arch>/`: x86_64 on a Linux PC, aarch64 in the Mac's runner VM. `just arch test` boots it under QEMU and checks it. See [arch-iso.md](arch-iso.md); [checks.md](checks.md) lists the checks.
 - `just arch packages` builds our Arch packages into `.build/arch/repo/` (`just arch iso` runs it first).
+- `just installer test`, `just installer lint` and `just installer demo` test, lint and show the installer on any machine, with the Rust toolchain `just setup` puts in `.tools/rust/`; `just arch test-install` installs it in a VM. See [installer.md](installer.md).
 - `just lefthook all` runs every pre-commit check on every tracked file.
 - Distro work runs through `/s-task <ask>`, then `/s-build <task>`. See [AGENTS.md](../AGENTS.md).
 

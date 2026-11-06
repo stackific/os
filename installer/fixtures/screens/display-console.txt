@@ -1,0 +1,24 @@
+┌ Stackific OS installer ───────────────────────────────────────────── Display ┐
+│                                                                              │
+│  Make this easy to read. Changes show at once.                               │
+│                                                                              │
+│  > Text size     < Large  16 × 32 >                                          │
+│    Motion        < Reduced >                                                 │
+│    Contrast      < Standard >                                                │
+│                                                                              │
+│  Text size was picked for this 3840 × 2160 screen. Sizes that leave less     │
+│  than 80 × 24 characters are not offered.                                    │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Up/Down choose · Left/Right change · Enter next · Esc try the live desktop ──┘

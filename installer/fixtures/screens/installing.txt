@@ -1,0 +1,24 @@
+┌ Stackific OS installer ────────────────────────────────────────── Installing ┐
+│                                                                              │
+│  Installing Stackific OS on /dev/nvme0n1                                     │
+│                                                                              │
+│  ✓ Create the partitions                                                     │
+│  ✓ Format them                                                               │
+│  ✓ Prepare the system partition                                              │
+│  ▸ Copy the system           ███████████████▏░░░░░░░░░░░░░   52%             │
+│    Set the keyboard, timezone and computer name                              │
+│    Create your user                                                          │
+│    Remove the live session's settings                                        │
+│                                                                              │
+│  Do not turn the computer off.                                               │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Ctrl+C stop ─────────────────────────────────────────────────────────────────┘

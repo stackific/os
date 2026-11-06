@@ -1,0 +1,24 @@
+┌ Stackific OS installer ──────────────────────────────────────── 3 of 6 · You ┐
+│                                                                              │
+│  Your user, an administrator of this computer                                │
+│                                                                              │
+│    Your name        Ada Lovelace                                             │
+│    User name        ada                                                      │
+│    Password         ••••••••                                                 │
+│    Confirm          •••••••▏                                                 │
+│    Computer name    stackific                                                │
+│                                                                              │
+│  ✗ The passwords do not match yet.                                           │
+│                                                                              │
+│                                                                              │
+│  User name: lowercase letters, digits, - and _, starting with a letter.      │
+│  Computer name: lowercase letters, digits and -, up to 63.                   │
+│  Typed with the live session's layout (us).                                  │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Tab next field · Esc back ───────────────────────────────────────────────────┘

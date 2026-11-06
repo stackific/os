@@ -1,0 +1,55 @@
+# Stackific OS installer for Arch: the Rust program from installer/, its launcher (rendered from branding.env) and the
+# console path's target and service. `just arch packages` stages the launcher template, the units and branding.env
+# next to this file by name, and packs the crate (Cargo.toml, Cargo.lock, src/, fixtures/) into
+# stackific-installer-crate.tar. The crate is one tar, not its files one by one, because makepkg takes local files
+# only (no directories) and a checksum per source file would change with every code change; the recipe builds the tar
+# from this repo's own tree on every run, so its checksum is SKIP. The fixtures are there for check().
+# The installer removes this package (and the dependencies only it needed) from the system it installs.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-installer
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS installer: into a drive'"'"'s free space or onto a whole drive, from the live desktop or the boot menu'
+arch=('x86_64' 'aarch64')
+url='https://os.stackific.com'
+license=('Apache-2.0')
+depends=('btrfs-progs' 'dosfstools' 'e2fsprogs' 'foot' 'kbd' 'rsync' 'shadow' 'systemd' 'util-linux' 'xkeyboard-config'
+         'stackific-release')
+makedepends=('cargo' 'gettext')
+options=('!debug')
+source=('stackific-installer-crate.tar' 'branding.env' 'stackific-installer.desktop.in' 'stackific-installer.target'
+        'stackific-installer-console.service')
+sha256sums=('SKIP'
+            '985affad12bfb221a563ef41d9a31b9b0b7fe0c103f4ce6be7ddd68c3a849759'
+            'ba79693ed7705e263a973221b1dbf3e715af45cf139371f55dcfc83fda00457f'
+            'b11481026d369248127c9b3409959d6d91dd4ae0fd9cccc6c741f415700154d1'
+            'ed976779526e8f499933e9605521d21edc05836f05d5369117976c86cd15609b')
+
+# Fetch the locked crates once, so build() and check() run offline (Arch's Rust package guidelines)
+prepare() {
+  cargo fetch --locked --target "$(rustc -vV | sed -n 's/host: //p')"
+}
+
+# Build the installer, and render the launcher with the name and icon from branding.env
+build() {
+  CARGO_TARGET_DIR=target cargo build --frozen --release
+  set -a
+  # shellcheck source=/dev/null # staged next to this file at build time
+  . ./branding.env
+  set +a
+  # shellcheck disable=SC2016 # envsubst takes the variable names literally
+  envsubst '$NAME $ID' <stackific-installer.desktop.in >stackific-installer.desktop
+}
+
+# The unit, navigation and snapshot tests
+check() {
+  CARGO_TARGET_DIR=target cargo test --frozen
+}
+
+# The program, the launcher, and the console path's target and service
+package() {
+  install -Dm755 target/release/stackific-installer "$pkgdir/usr/bin/stackific-installer"
+  install -Dm644 -t "$pkgdir/usr/share/applications" stackific-installer.desktop
+  install -Dm644 -t "$pkgdir/usr/lib/systemd/system" stackific-installer.target stackific-installer-console.service
+}

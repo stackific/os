@@ -52,6 +52,7 @@ jobs:
           just-version: 1.59.0
       - run: just arch iso "$VERSION"
       - run: just arch test "$VERSION"
+      - run: just arch test-install "$VERSION"
       - run: just release upload "$VERSION" arch x86_64
         env:
           GH_TOKEN: ${{ github.token }}

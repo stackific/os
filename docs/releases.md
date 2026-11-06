@@ -46,6 +46,6 @@ The words "Fedora" and "Remix" are never split, a mark always modifies a noun ("
 
 ## Test releases
 
-After each merge to `main`, the `images` workflow builds and boot-tests every image. `just release pr-version <sha>` finds the pull request that merged the commit, and the images become the prerelease `v0.0.0-pr.<n>`, titled "Test build for #<n>". A rerun replaces it. A commit that no pull request merged is built and tested but not published.
+After each merge to `main`, the `images` workflow builds and boot-tests the images whose files the push changed. `just release changed <before> <sha>` decides, image by image, from the paths each one is built and tested from (an Arch-only change skips both Fedora images, an `arch/iso/packages.aarch64` change skips x86_64, a docs-only change builds nothing); when `<before>` is not in the history, every image is built. `just release pr-version <sha>` finds the pull request that merged the commit, and the images built become the prerelease `v0.0.0-pr.<n>`, titled "Test build for #<n>". A rerun replaces it. A commit that no pull request merged is built and tested but not published, and a push that changed no image makes no test release. A run that a newer push cancels never builds its own changes: rerun `images` for that commit when they matter.
 
 Test releases are not releases: they are unsigned, and a later cleanup may delete them.

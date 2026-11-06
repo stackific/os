@@ -24,14 +24,14 @@ Actually, do not read it, point your coding AI agent to [llm.txt](https://os.sta
 
 Every release ships four live ISOs with the same branding, defaults and live session:
 
-| ISO | Built from | Desktops |
+| ISO | First desktop | Second desktop |
 | --- | --- | --- |
-| `stackific-<version>-arch-x86_64.iso` | Based on Arch Linux | MangoWM with Noctalia, KDE Plasma |
-| `stackific-<version>-arch-aarch64.iso` | Based on Arch Linux ARM | MangoWM with Noctalia, KDE Plasma |
-| `stackific-<version>-fedora-x86_64.iso` | Fedora Remix | MangoWM with Noctalia, GNOME |
-| `stackific-<version>-fedora-aarch64.iso` | Fedora Remix | MangoWM with Noctalia, GNOME |
+| `stackific-<version>-arch-x86_64.iso` | MangoWM | KDE Plasma |
+| `stackific-<version>-arch-aarch64.iso` | MangoWM | KDE Plasma |
+| `stackific-<version>-fedora-x86_64.iso` | MangoWM | GNOME |
+| `stackific-<version>-fedora-aarch64.iso` | MangoWM | GNOME |
 
-Each one boots from a USB stick in UEFI mode, logs in to the MangoWM desktop with the Noctalia shell, and lets you switch to the second desktop, in case you like the traditional GNOME/KDE.
+Each one boots from a USB stick in UEFI mode, logs in to the MangoWM desktop, and lets you switch to the second desktop, in case you like the traditional GNOME/KDE.
 
 ## Status
 
@@ -43,10 +43,4 @@ Try it: check the [system requirements](https://os.stackific.com/docs/user/syste
 
 The repo is the foundation. [AGENTS.md](AGENTS.md) holds the rules every change follows, and [docs/setup.md](docs/setup.md) sets up a machine to build and test the images. Distro work runs in two steps: `/s-task` turns an ask into a self-contained task, and `/s-build` builds it, reviews it and writes its Prompt Trail entry.
 
-## Trademarks
-
-The Fedora Remix images contain modified Fedora® packages and software that the Fedora Project does not provide. They are not provided or supported by the Fedora Project. Official, unmodified Fedora releases are available at https://fedoraproject.org/.
-
-Stackific OS is not affiliated with or endorsed by Arch Linux, Arch Linux ARM, the Fedora Project or Red Hat.
-
-Fedora and Fedora Remix are trademarks or registered trademarks of Red Hat, Inc., or its subsidiaries in the United States and other countries.
+<sub>Stackific OS is not affiliated with or endorsed by Arch Linux, Arch Linux ARM, the Fedora Project or Red Hat.</sub>

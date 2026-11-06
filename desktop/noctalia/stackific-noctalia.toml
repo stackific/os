@@ -2,9 +2,12 @@
 # user's ~/.config/noctalia/00-stackific.toml (from /etc/skel) includes this file; package updates then reach them.
 # Settings picked in Noctalia's own UI go to ~/.local/state/noctalia/settings.toml, which loads last and wins.
 
-# No first-run setup wizard: the live image would show it on every boot
+# No first-run setup wizard: the live image would show it on every boot.
+# Noctalia's own polkit agent, off by default: MangoWM sessions have no other, so apps that ask polkit (Disks, run0)
+# get their password prompt from it. Plasma starts its own agent instead (polkit-kde-agent).
 [shell]
 setup_wizard_enabled = false
+polkit_agent = true
 
 # The wallpaper picker browses the shipped paintings (package stackific-artwork)
 [wallpaper]

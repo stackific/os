@@ -1,0 +1,24 @@
+┌ Stackific OS installer ─────────────────────────────────── 1 of 6 · Keyboard ┐
+│                                                                              │
+│  Keyboard layout for the installed system                                    │
+│                                                                              │
+│  Search: germ▏                                                               │
+│                                                                              │
+│  ▶ de      German                                                            │
+│    at      German (Austria)                                                  │
+│    ch      German (Switzerland)                                              │
+│                                                                              │
+│  3 matches                                                                   │
+│                                                                              │
+│                                                                              │
+│  It takes effect on the installed system. Here, you keep typing with the     │
+│  live session's layout (us).                                                 │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ ↑↓ choose · type to search · Enter next · Esc back ──────────────────────────┘

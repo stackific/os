@@ -7,7 +7,7 @@
 
 Name: stackific-desktop
 Version: 0.2.0
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter shows our look
 License: Apache-2.0
 URL: https://os.stackific.com

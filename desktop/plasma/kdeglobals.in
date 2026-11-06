@@ -1,0 +1,3 @@
+# Stackific OS for Plasma: our look and feel, Breeze with our wallpaper (package stackific-desktop)
+[KDE]
+LookAndFeelPackage=org.${ID}.desktop

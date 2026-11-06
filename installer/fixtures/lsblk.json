@@ -1,0 +1,142 @@
+{
+  "blockdevices": [
+    {
+      "name": "loop0",
+      "path": "/dev/loop0",
+      "type": "loop",
+      "size": 1410981888,
+      "ro": false,
+      "tran": null,
+      "model": null,
+      "fstype": "squashfs",
+      "label": null,
+      "start": null,
+      "mountpoints": [
+        "/run/archiso/airootfs"
+      ]
+    },
+    {
+      "name": "nvme0n1",
+      "path": "/dev/nvme0n1",
+      "type": "disk",
+      "size": 1000204886016,
+      "ro": false,
+      "tran": "nvme",
+      "model": "Samsung SSD 990 PRO 1TB",
+      "fstype": null,
+      "label": null,
+      "start": null,
+      "mountpoints": [],
+      "children": [
+        {
+          "name": "nvme0n1p1",
+          "path": "/dev/nvme0n1p1",
+          "type": "part",
+          "size": 272629760,
+          "ro": false,
+          "tran": null,
+          "model": null,
+          "fstype": "vfat",
+          "label": "SYSTEM",
+          "start": 2048,
+          "mountpoints": []
+        },
+        {
+          "name": "nvme0n1p2",
+          "path": "/dev/nvme0n1p2",
+          "type": "part",
+          "size": 16777216,
+          "ro": false,
+          "tran": null,
+          "model": null,
+          "fstype": null,
+          "label": null,
+          "start": 534528,
+          "mountpoints": []
+        },
+        {
+          "name": "nvme0n1p3",
+          "path": "/dev/nvme0n1p3",
+          "type": "part",
+          "size": 871064666112,
+          "ro": false,
+          "tran": null,
+          "model": null,
+          "fstype": "ntfs",
+          "label": "Windows",
+          "start": 567296,
+          "mountpoints": []
+        }
+      ]
+    },
+    {
+      "name": "sda",
+      "path": "/dev/sda",
+      "type": "disk",
+      "size": 500107862016,
+      "ro": false,
+      "tran": "sata",
+      "model": "CT500MX500SSD1",
+      "fstype": null,
+      "label": null,
+      "start": null,
+      "mountpoints": []
+    },
+    {
+      "name": "sdb",
+      "path": "/dev/sdb",
+      "type": "disk",
+      "size": 15376000000,
+      "ro": false,
+      "tran": "usb",
+      "model": "SanDisk 3.2Gen1",
+      "fstype": null,
+      "label": null,
+      "start": null,
+      "mountpoints": [],
+      "children": [
+        {
+          "name": "sdb1",
+          "path": "/dev/sdb1",
+          "type": "part",
+          "size": 1570766848,
+          "ro": false,
+          "tran": null,
+          "model": null,
+          "fstype": "iso9660",
+          "label": "STACKIFIC_202611",
+          "start": 0,
+          "mountpoints": [
+            "/run/archiso/bootmnt"
+          ]
+        },
+        {
+          "name": "sdb2",
+          "path": "/dev/sdb2",
+          "type": "part",
+          "size": 15728640,
+          "ro": false,
+          "tran": null,
+          "model": null,
+          "fstype": "vfat",
+          "label": "ARCHISO_EFI",
+          "start": 3067904,
+          "mountpoints": []
+        }
+      ]
+    },
+    {
+      "name": "sdc",
+      "path": "/dev/sdc",
+      "type": "disk",
+      "size": 32017047552,
+      "ro": false,
+      "tran": "usb",
+      "model": "Ultra USB 3.0",
+      "fstype": null,
+      "label": null,
+      "start": null,
+      "mountpoints": []
+    }
+  ]
+}

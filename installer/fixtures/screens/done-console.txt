@@ -1,0 +1,24 @@
+┌ Stackific OS installer ──────────────────────────────────────────────── Done ┐
+│                                                                              │
+│  Stackific OS is on /dev/nvme0n1.                                            │
+│                                                                              │
+│  The boot loader is not in this build yet, so the drive does not start on    │
+│  its own. Keep using the live session; a later build adds the boot loader.   │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Enter open the live desktop ─────────────────────────────────────────────────┘

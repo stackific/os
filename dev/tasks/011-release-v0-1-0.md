@@ -1,6 +1,6 @@
 # 011: Release v0.1.0, the live preview, labelled the way Arch's and Fedora's trademark rules allow
 
-- [ ] Done
+- [x] Done
 
 Base: both
 

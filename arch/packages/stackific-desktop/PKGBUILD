@@ -3,12 +3,14 @@
 # Noctalia reads no system-wide config, so its defaults reach each user through an include file in /etc/skel.
 # noctalia-greeter reads /var/lib/noctalia-greeter/greeter.toml, which a tmpfiles line links to our defaults, and takes
 # its logo from the asset folder that stackific-greeter.sh names: ours, with stackific-release's icon and its own fonts.
+# Plasma, Arch's second desktop, gets our wallpaper through our look-and-feel package (Breeze with our wallpaper), which
+# /etc/xdg/kdeglobals selects; Plasma's own defaults would show its wallpaper. Fedora's GNOME gets its own later.
 # shellcheck disable=SC2034,SC2154
 
 pkgname=stackific-desktop
 pkgver=0.2.0
-pkgrel=1
-pkgdesc='Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter shows our look, and MangoWM also starts on software rendering'
+pkgrel=3
+pkgdesc='Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter and Plasma show our look, and MangoWM also starts on software rendering'
 arch=('any')
 url='https://os.stackific.com'
 license=('Apache-2.0')
@@ -16,19 +18,24 @@ depends=('mangowm' 'noctalia' 'noctalia-greeter' 'systemd' 'stackific-artwork' '
 makedepends=('gettext')
 options=('!debug' '!strip')
 backup=('etc/profile.d/stackific-wlroots.sh' 'etc/profile.d/stackific-greeter.sh'
-        'etc/skel/.config/noctalia/00-stackific.toml')
+        'etc/skel/.config/noctalia/00-stackific.toml' 'etc/xdg/kdeglobals')
 source=('stackific-noctalia.service' 'stackific-wlroots.sh' 'stackific-noctalia.toml' '00-stackific.toml'
-        'branding.env' 'stackific-greeter.toml.in' 'stackific-greeter.conf' 'stackific-greeter.sh')
+        'branding.env' 'stackific-greeter.toml.in' 'stackific-greeter.conf' 'stackific-greeter.sh'
+        'stackific-wallpaper.json.in' 'stackific-lookandfeel.json.in' 'stackific-lookandfeel-defaults.in' 'kdeglobals.in')
 sha256sums=('d3bdf2b78fb86bdb7b57c3928640d72275165055c66b5da7d8f1b02bb83af0a5'
             'a4f8c72e11c79d753efe80780d5efbc9778be340bd51b3b81fecf0b4c0c71171'
-            'd40d3a90f806be1c9de82e02c22178d651ed23eb57841a6942a52ca5f8a4d11f'
+            'ff9b3e4f951d97e9f2d2c3168bf7a6938c698e377f9d0c546fc1fe996a6fb2bb'
             'cbf51e8ce45ed3089c768646c3232736799732a659111d9c8820d1e03b195503'
             '985affad12bfb221a563ef41d9a31b9b0b7fe0c103f4ce6be7ddd68c3a849759'
             '42563e03b28e8291ad599782efc717eb214cbc63b75ac572fb1991ab0425ff1b'
             'd095d70104907d420a0dccdf8536e68f41e7d6cfbb7601b8868a67e2f089932a'
-            'eb28f7fd2801cb0470f84acad8d1b43d9511043b6759b888b6ecccd84f526d5f')
+            'eb28f7fd2801cb0470f84acad8d1b43d9511043b6759b888b6ecccd84f526d5f'
+            '9fb93b21d45f4765ac5d8bd95dd3b7c4fdd37b646a3c52f6c6328e7b348b5112'
+            'f6334b3b058be1dc8f6e27c22327203836dcfe0cd3a08ec7dd305d6d74b58034'
+            '635006f6e399b60510c3f61ce237cdfe3294e10f63a8f43366825d38eb14de41'
+            '513ed81824eec9bc3cc5f771759d013be2997b042c361060add253026686c288')
 
-# Render the greeter's defaults with the accent from branding.env
+# Render the greeter's defaults with the accent, and Plasma's look and feel with the name, ID and site, from branding.env
 build() {
   set -a
   # shellcheck source=/dev/null # staged next to this file at build time
@@ -36,12 +43,19 @@ build() {
   set +a
   # shellcheck disable=SC2016 # envsubst takes the variable name literally
   envsubst '$ACCENT' <stackific-greeter.toml.in >stackific-greeter.toml
+  for f in stackific-wallpaper.json stackific-lookandfeel.json stackific-lookandfeel-defaults kdeglobals; do
+    # shellcheck disable=SC2016 # envsubst takes the variable names literally
+    envsubst '$NAME $ID $HOME_URL' <"$f.in" >"$f"
+  done
 }
 
 # Install the unit, wanted by mango-session.target for every user, the profile.d script, Noctalia's defaults with the
 # per-user file that includes them, the greeter's defaults with the tmpfiles line that links them, and the greeter's
-# asset folder: our logo (stackific-release's icon) and the greeter's own fonts, both as links
+# asset folder: our logo (stackific-release's icon) and the greeter's own fonts, both as links; and for Plasma, our
+# wallpaper as a Plasma wallpaper package (stackific-artwork's painting, linked), our look and feel, and kdeglobals
 package() {
+  # shellcheck source=/dev/null # staged next to this file at build time
+  . ./branding.env
   install -Dm644 -t "$pkgdir/usr/lib/systemd/user" stackific-noctalia.service
   install -d "$pkgdir/usr/lib/systemd/user/mango-session.target.wants"
   ln -s ../stackific-noctalia.service "$pkgdir/usr/lib/systemd/user/mango-session.target.wants/stackific-noctalia.service"
@@ -54,4 +68,11 @@ package() {
   install -d "$pkgdir/usr/share/stackific/greeter-assets"
   ln -s /usr/share/icons/hicolor/scalable/apps/stackific.svg "$pkgdir/usr/share/stackific/greeter-assets/noctalia.svg"
   ln -s /usr/share/noctalia-greeter/assets/fonts "$pkgdir/usr/share/stackific/greeter-assets/fonts"
+  local wall="$pkgdir/usr/share/wallpapers/$ID" laf="$pkgdir/usr/share/plasma/look-and-feel/org.$ID.desktop"
+  install -Dm644 stackific-wallpaper.json "$wall/metadata.json"
+  install -d "$wall/contents/images"
+  ln -s /usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg "$wall/contents/images/3872x2592.jpg"
+  install -Dm644 stackific-lookandfeel.json "$laf/metadata.json"
+  install -Dm644 stackific-lookandfeel-defaults "$laf/contents/defaults"
+  install -Dm644 kdeglobals "$pkgdir/etc/xdg/kdeglobals"
 }

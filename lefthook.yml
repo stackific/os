@@ -25,6 +25,13 @@ pre-commit:
     workflows:
       glob: ".github/workflows/*.{yml,yaml}"
       run: just actionlint lint
+    # The installer: formatting and clippy, then its unit, navigation and snapshot tests
+    installer-lint:
+      glob: "installer/**"
+      run: just installer lint
+    installer-test:
+      glob: "installer/**"
+      run: just installer test
     # Task files, review records and prompt-trail entries follow their templates and point at each other
     dev:
       glob: "{dev/**,site/src/content/docs/prompt-trail/**}"
