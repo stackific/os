@@ -1,22 +1,24 @@
 ```text
-                             ▄
-                              █▄
-                               ██
-                                ██▄             ▄▀▀▀  ▄           █   ▀ ▄▀▀ ▀        ▄▀▀▄ ▄▀▀▀
-                                 ███             ▀▀▄ ▀█▀ ▄▀▀█ ▄▀▀ █▄▀ █ █▀  █ ▄▀▀    █  █  ▀▀▄
-                                  ▀██▄          ▄▄▄▀  █▄ ▀▄▄█ ▀▄▄ █▀▄ █ █   █ ▀▄▄    ▀▄▄▀ ▄▄▄▀
-                                   ▀███
-                       ▄▄▄▄▄▄▄▄▄▄▄▄▄████▄
-    ▄▄▄▄▄█████████████████████████████████
+                           ▄
+                            █▄
+                             ██
+                              ██▄             ▄▀▀▀  ▄           █   ▀ ▄▀▀ ▀        ▄▀▀▄ ▄▀▀▀
+                               ███             ▀▀▄ ▀█▀ ▄▀▀█ ▄▀▀ █▄▀ █ █▀  █ ▄▀▀    █  █  ▀▀▄
+                                ▀██▄          ▄▄▄▀  █▄ ▀▄▄█ ▀▄▄ █▀▄ █ █   █ ▀▄▄    ▀▄▄▀ ▄▄▄▀
+                                 ▀███
+                     ▄▄▄▄▄▄▄▄▄▄▄▄▄████▄
+  ▄▄▄▄▄█████████████████████████████████
 ```
 
 # Stackific OS
 
-**An Open Prompt: the most vibe-codable OS foundation for making your own Linux.**
+**The first "Open Prompt" vibe-codable OS foundation for making your own Linux desktop.**
 
 [Download](https://github.com/stackific/os/releases/latest) · [Docs](https://os.stackific.com/docs/) · [Prompt Trail](https://os.stackific.com/docs/prompt-trail/) · [Make your own](docs/setup.md)
 
-Stackific OS is a Linux distribution built in the open from prompts. Every image, package, default and test started as a written prompt with the result it had to meet, and every one of those prompts is published in the [Prompt Trail](https://os.stackific.com/docs/prompt-trail/). Read how it was made, fork it, change a prompt, and let a coding agent build your own Linux on the same foundation.
+Stackific OS is a Linux distribution built in the open from prompts. Every image, package, default and test started as a written prompt with the result it had to meet, and every one of those prompts is published in the [Prompt Trail](https://os.stackific.com/docs/prompt-trail/). Read how it was made, fork it, change a prompt, and build your own desktop.
+
+Actually, do not read it, point your coding AI agent to [llm.txt](https://os.stackific.com/llms.txt) and it build your own Linux on the same foundation.
 
 ## Four images, one version
 
@@ -29,7 +31,7 @@ Every release ships four live ISOs with the same branding, defaults and live ses
 | `stackific-<version>-fedora-x86_64.iso` | Fedora Remix | MangoWM with Noctalia, GNOME |
 | `stackific-<version>-fedora-aarch64.iso` | Fedora Remix | MangoWM with Noctalia, GNOME |
 
-Each one boots from a USB stick in UEFI mode, logs in to the MangoWM desktop with the Noctalia shell, and lets you switch to the second desktop.
+Each one boots from a USB stick in UEFI mode, logs in to the MangoWM desktop with the Noctalia shell, and lets you switch to the second desktop, in case you like the traditional GNOME/KDE.
 
 ## Status
 
