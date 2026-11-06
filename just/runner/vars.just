@@ -12,3 +12,12 @@ runner_dir := justfile_directory() / ".tools" / "actions-runner"
 
 # The Lima VM that hosts the runner on a Mac
 runner_vm := "stackific-runner"
+
+# Its OS: Fedora Cloud for aarch64, pinned by the SHA-256 from Fedora's signed CHECKSUM file. The VM's Fedora release
+# must be the Fedora images' release: kiwi labels the image as rootless container root, which may set only SELinux
+# contexts the VM's own policy knows. Lima's template:fedora follows Lima's release, not ours. `just doctor` checks it.
+# The path is under /pub/ on Fedora's mirror redirector, then on Fedora's own server: Lima tries them in order, because
+# the redirector sometimes picks a dead mirror.
+runner_vm_fedora := "45"
+runner_vm_image := "fedora/linux/releases/" + runner_vm_fedora + "/Cloud/aarch64/images/Fedora-Cloud-Base-Generic-" + runner_vm_fedora + "-1.4.aarch64.qcow2"
+runner_vm_digest := "sha256:1632acc8bc14d45b6c9596a0acc71b070d3748d1abdcf1a519be5c983bb0286c"

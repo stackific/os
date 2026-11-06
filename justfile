@@ -14,7 +14,8 @@ mod gitleaks 'just/gitleaks/mod.just'
 mod shellcheck 'just/shellcheck/mod.just'
 mod actionlint 'just/actionlint/mod.just'
 
-# GitHub: the gh CLI, and the self-hosted runner for the images workflow (`just runner setup`, CI machines only)
+# GitHub: the gh CLI, and the self-hosted runner for the images workflow (`just runner setup`, CI machines only), whose
+# Mac VM `just setup` also makes for image builds
 mod gh 'just/gh/mod.just'
 mod runner 'just/runner/mod.just'
 
@@ -38,13 +39,14 @@ default:
   @just --list --list-submodules
 
 # graphify comes last among the agent tools: its project install rewrites .claude/settings.json after the plugin installs.
+# runner::vm makes or starts the Mac's Fedora VM for image builds (a no-op on Linux); it registers no runner.
 # Install every tool this repo needs (host prerequisites: README.md), then run doctor
-setup: uv::install rtk::install go::install serena::install claude::plugins graphify::install gitleaks::install shellcheck::install actionlint::install gh::install site::install lefthook::hooks doctor
+setup: uv::install rtk::install go::install serena::install claude::plugins graphify::install gitleaks::install shellcheck::install actionlint::install gh::install site::install lefthook::hooks runner::vm doctor
 
 # Check every tool's pinned version and wiring, and the host prerequisites setup cannot install
 doctor:
   #!/usr/bin/env bash
   set -uo pipefail
   rc=0
-  for m in uv rtk go serena claude graphify lefthook arch fedora; do "{{ just_executable() }}" --quiet "$m::check" || rc=1; done
+  for m in uv rtk go serena claude graphify lefthook arch fedora runner; do "{{ just_executable() }}" --quiet "$m::check" || rc=1; done
   exit "$rc"
