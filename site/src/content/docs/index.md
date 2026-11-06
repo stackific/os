@@ -3,9 +3,9 @@ title: Welcome to Stackific OS
 description: What Stackific OS is and where its docs live.
 ---
 
-Stackific OS is a Linux distribution on two bases, Arch Linux and Fedora 45, each for x86_64 and aarch64. Every release ships four live ISOs with one version.
+Stackific OS is a Linux distribution. Every release ships four live ISOs with one version: two based on Arch Linux (x86_64) and Arch Linux ARM (aarch64), and two Fedora Remix images (x86_64 and aarch64), built from Fedora® 45 packages.
 
-Every image runs the MangoWM compositor with the Noctalia shell, plus KDE Plasma on Arch and GNOME on Fedora. It boots with Limine from its own EFI partition and installs alongside another OS or on a whole drive.
+Every image runs the MangoWM compositor with the Noctalia shell, plus KDE Plasma on the images based on Arch Linux and Arch Linux ARM, and GNOME on the Fedora Remix images. Version 0.1.0 is a live preview; the installer comes later. [Installation](/docs/user/installation/#about-the-bases) has the notes on the bases.
 
-- **User Guide:** how to get, try and install Stackific OS, from the first release on.
+- **User Guide:** what a machine needs, and how to get and try Stackific OS.
 - **Prompt Trail:** every step of the build, with the prompt that produced it.

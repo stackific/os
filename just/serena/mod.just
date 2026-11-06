@@ -2,7 +2,6 @@
 # Its config for this repo is .serena/project.yml; local overrides go in the untracked .serena/project.local.yml.
 
 import '../uv/vars.just'
-import '../go/vars.just'
 import 'vars.just'
 
 [private]
@@ -11,9 +10,6 @@ mod uv '../uv/mod.just'
 # Install the pinned Serena (no-op when present)
 install: uv::install
   @{{ uv_tool_install }} serena-agent=={{ serena_version }}
-
-# Serena's Go language server: the pinned Go and gopls come first on PATH in every recipe here
-export PATH := go_dir / "bin" + ":" + gopls_dir / "bin" + ":" + env("PATH")
 
 # Serve Serena over MCP on stdio for this repo (launched by .mcp.json)
 mcp:

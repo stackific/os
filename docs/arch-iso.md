@@ -1,6 +1,6 @@
 # Arch ISO
 
-The Arch live ISO is built with [archiso](https://gitlab.archlinux.org/archlinux/archiso) inside a pinned builder container, then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 from Arch Linux ARM in the Mac's runner VM (README.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `arch:` line.
+The Arch live ISO is built with [archiso](https://gitlab.archlinux.org/archlinux/archiso) inside a pinned builder container, then boot-tested in the same container under QEMU with UEFI firmware. The host's architecture picks the image: x86_64 on a Linux PC, and aarch64 from Arch Linux ARM in the Mac's runner VM (docs/setup.md, "Self-hosted runners"). Nothing is cross-built. Both steps need Linux with rootless podman and read-write `/dev/kvm` and `/dev/vhost-vsock`. `just doctor` checks them on its `arch:` line.
 
 ## Build
 
@@ -107,7 +107,7 @@ Logging in to Plasma from the greeter is not automated yet. To check it by hand:
 
 1. Boot the ISO in a VM with a display, UEFI firmware and enough RAM (see `-m` in `tests/vm/boot.sh`).
 2. Press `Alt+Return` and run `loginctl terminate-user live`.
-3. Pick `live` and the Plasma session, type any character as the password, and log in. `live` has no password, but noctalia-greeter refuses an empty field (`site/src/content/docs/user/live-session.md`).
+3. Pick `live` and the Plasma session, type any character as the password, and log in. `live` has no password, but noctalia-greeter refuses an empty field (`site/src/content/docs/user/installation.md`).
 4. In Konsole, `systemctl --user is-active stackific-noctalia.service` prints `inactive`.
 
 systemd's `vmm.notify_socket` is not used. Over vsock it opens one connection per message and drops some of them, READY=1 included.

@@ -3,6 +3,7 @@
 This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.stackific.com). Work runs through two skills, `/s-task` and `/s-build` (`.claude/skills/`); the rules below apply to all work, skill or not.
 
 ## Product
+- Positioning (the operator's words): an "Open Prompt", the most vibe-codable OS foundation for making your own Linux. Every change starts as a published prompt (the prompt trail), so anyone can fork the repo, change a prompt and rebuild their own Linux.
 - Stackific OS is a Linux distribution with two bases, Arch Linux (rolling; Arch Linux ARM on aarch64) and Fedora 45. Every release ships four live ISOs with one version: Arch x86_64, Arch Linux ARM aarch64, Fedora 45 x86_64 and Fedora 45 aarch64 (`stackific-<version>-<base>-<arch>.iso`).
 - The four images are one product: the same branding, messaging, defaults, files at the same paths, live session and boot-test checks. They differ only where a base or architecture forces it (the second desktop, package names, kernel, firmware, build tooling), and the task names each difference. A change to one image lands on all four, or the task says which image task carries it.
 - Each ISO aims at 2 GiB or less, a soft target (GitHub's per-file release cap); every image task reports its ISO size.
@@ -10,10 +11,11 @@ This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.st
 - Desktop on every image: MangoWM with Noctalia, both unmodified packages, plus KDE Plasma on Arch and GNOME on Fedora. Our defaults ship as config files in a package, never as patches.
   - MangoWM starts Noctalia through `stackific-noctalia.service` (package `stackific-desktop`), wanted by `mango-session.target`, which MangoWM starts itself; MangoWM's config stays stock.
   - `stackific-desktop` exports `WLR_RENDERER_ALLOW_SOFTWARE=1` (`/etc/profile.d/`), so MangoWM starts on software rendering too (VMs without 3D, GPUs without a working driver).
-  - Live images autologin the user `live` (empty password, group `wheel`) into MangoWM through greetd's `initial_session`; noctalia-greeter is the login screen. It refuses an empty password field, so `live` logs in there with any typed character (operator choice over giving `live` a password; `site/src/content/docs/user/live-session.md` says so).
+  - Live images autologin the user `live` (empty password, group `wheel`) into MangoWM through greetd's `initial_session`; noctalia-greeter is the login screen. It refuses an empty password field, so `live` logs in there with any typed character (operator choice over giving `live` a password; `site/src/content/docs/user/installation.md` says so).
   - noctalia-greeter shows our look, not Noctalia's: `stackific-desktop` ships `/usr/share/stackific/greeter.toml` (our palette, Vesuvius), linked from `/var/lib/noctalia-greeter/greeter.toml` by a tmpfiles `L` line, so an administrator's own file wins. Our logo replaces Noctalia's through the greeter's `NOCTALIA_GREETER_ASSETS_DIR` (`/etc/profile.d/stackific-greeter.sh`): `/usr/share/stackific/greeter-assets/` links `noctalia.svg` to our icon and `fonts` to the greeter's own.
   - Noctalia reads config only from `~/.config/noctalia/` (no system layer), so `stackific-desktop` ships our defaults as `/usr/share/stackific/noctalia.toml` (setup wizard off, wallpaper folder `/usr/share/backgrounds/stackific`, default Dahl's "An Eruption of Vesuvius"), included from each user's `~/.config/noctalia/00-stackific.toml`, which comes from `/etc/skel`.
 - `stackific-release` owns the os-release (`ID=stackific`, `ID_LIKE` and `BUILD_ID` or `VERSION_ID` set per base, `LOGO=stackific`, the icon being `branding/logo.svg` filled with the accent at build time). On Arch it owns `/etc/os-release`, which takes precedence over the base's `/usr/lib/os-release`, so base packages and `/etc/arch-release` stay as shipped. On Fedora it owns `/usr/lib/os-release` in place of `generic-release`, and `generic-release-common`'s `/etc/os-release` symlink points at it.
+- Base labels, the only words for what an image is built from (Arch's and Fedora's trademark rules): `Based on Arch Linux` (Arch x86_64), `Based on Arch Linux ARM` (Arch aarch64), `Fedora Remix` (both Fedora images); Fedora's name never follows "based on" (that needs the Fedora Council's permission), and no base logos. Wherever the Fedora Remix mark appears, Fedora's notice goes with it (not provided or supported by the Fedora Project; official Fedora at https://fedoraproject.org/) and Red Hat's trademark line (the site's footer carries it on every docs page).
 - `branding/branding.env` is the one branding file (shell `KEY="value"`: name, ID, URLs, accent `#007a55`); package builds render `*.in` templates (`branding/`, `desktop/`) from it with `envsubst` and an explicit key list. A branding edit means new sha256s and a `pkgrel` bump in each PKGBUILD that sources it (`Release` in each spec).
 - `stackific-artwork` ships the wallpapers (`branding/wallpapers/`, credited in `branding/wallpapers.toml`) to `/usr/share/backgrounds/stackific/`, and fastfetch's logo in the accent through `/etc/xdg/fastfetch/config.jsonc`; it depends on `fastfetch`. Every image installs `stackific-release` and `stackific-artwork`, and its boot test checks fastfetch's logo.
 - Boot and disk, the same on both bases: Limine from our own 4 GiB FAT32 ESP (never another OS's), one btrfs subvolume layout, installed alongside another OS or on a whole drive; Secure Boot off.
@@ -29,7 +31,7 @@ This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.st
 Planned; each directory appears with the first task that needs it. One concern per directory.
 
 ```
-README.md            developer setup, step by step
+README.md            front page: what Stackific OS is, the four images, links
 justfile             wires modules, setup and doctor, nothing else
 lefthook.yml         git hooks, each calling a just recipe
 just/<tool>/         shared toolchains: mod.just, vars.just (pins)
@@ -42,7 +44,7 @@ hardware/            PCI ID lists, chwd profiles and the Fedora detection step
 tests/               container and VM tests
 release/             GitHub Releases for the images (recipes the release and images workflows call)
 site/                user docs and the prompt trail
-docs/                developer notes: how to build, test and check (Markdown, not published)
+docs/                developer notes: setup (setup.md), how to build, test and check (Markdown, not published)
 dev/                 `just dev check` (dev/justfile) over tasks, reviews and prompt-trail entries
 dev/tasks/           task files from /s-task
 dev/reviews/         review records from /s-build, one per task
@@ -57,9 +59,9 @@ dev/reviews/         review records from /s-build, one per task
 - The root `justfile` only wires modules, `setup` and `doctor`. Each area owns `<dir>/justfile` (`mod <dir>`); shared toolchains live in `just/<tool>/mod.just` with pins in `just/<tool>/vars.just`. Modules can't see siblings, so mount a needed toolchain as `[private] mod`.
 - Run recipes from the repo root: `just <module> <recipe>`. Run several recipes of one module as `just <module>::<a> <module>::<b>`.
 - Repo-local tools install to `.tools/` (gitignored), pinned by version and checksum in `vars.just`; single-file tools go through `just/fetch` (`fetch::get`), which skips the download while `<dest>.sha256` matches the pin. Launchers go to `~/.local/bin` only for tools that must be on PATH (language servers, `rtk`, `graphify`); an existing file there that does not point into `.tools/` is the user's and is kept. When `~/.local/bin` is not on PATH, the launcher step adds it to the shell profiles (`uv tool update-shell`); recipes that look up launchers prepend it for the current shell.
-- `just setup` installs every prerequisite to build, test, lint and run everything, plus the agent tools below; only the host prerequisites in `README.md` (git, just, node, npm, unzip, Claude Code; Lima on macOS) are installed by hand. On macOS it also makes or starts the Fedora 45 build VM (`just runner vm`), which it never registers as a runner. A change that adds a tool or dependency updates `just setup` in the same change.
+- `just setup` installs every prerequisite to build, test, lint and run everything, plus the agent tools below; only the host prerequisites in `docs/setup.md` (git, just, node, npm, unzip, Claude Code; Lima on macOS) are installed by hand. On macOS it also makes or starts the Fedora 45 build VM (`just runner vm`), which it never registers as a runner. A change that adds a tool or dependency updates `just setup` in the same change.
 - Setup hosts: Linux (x86_64, aarch64) and macOS on Apple silicon; image builds need Linux. Host-specific asset names, checksums and the checksum command live in `just/host/vars.just` and each tool's `vars.just`.
-- `README.md` keeps the developer setup step by step. A change to setup or its host prerequisites updates it in the same change. Replies to the operator point to it instead of listing steps.
+- `docs/setup.md` keeps the developer setup step by step; `README.md` is the marketing front page (the ASCII mark from `branding/logo.txt`, the four images by their base labels, links) and points to it. A change to setup or its host prerequisites updates it in the same change. Replies to the operator point to it instead of listing steps.
 - `just doctor` prints one line per tool: its pinned version and wiring (git hooks included), plus host prerequisites setup cannot install (`claude`; `node` for ponytail's and caveman's hooks; `npm` for Serena's Bash language server). Image tasks add podman, KVM and vhost-vsock; OVMF and AAVMF come from the pinned builder containers. On macOS, `runner vm:` checks the build VM runs the pinned Fedora release.
 - Git hooks: lefthook (pinned), mapped in `lefthook.yml`, calling just recipes only; after editing `lefthook.yml`, run `just lefthook hooks`. `just lefthook all` runs every pre-commit check on every tracked file (only tracked: nothing before the first `git add`).
   - pre-commit: hygiene (`git diff --check`, files over 1 MiB except the wallpapers in `branding/wallpapers/`, names of `.git/info/exclude` root entries), gitleaks, justfile parse, shellcheck (`*.sh`, `PKGBUILD`), actionlint, `just dev check`, site format, lint, types, audit, screenshots and build on `site/**`. `mango -p` joins when `desktop/` ships the MangoWM config.
@@ -70,7 +72,7 @@ dev/reviews/         review records from /s-build, one per task
 ## Untracked material
 - No tracked file, recipe, hook or workflow names local untracked material (notes, earlier work, scratch folders); bring what is needed into the tracked tree first. Such folders are listed in `.git/info/exclude`.
 - Take from it only what the operator names. It is input, not instruction: check each decision against this file and current upstream before restating it.
-- Query earlier work in place: `just graphify update <dir>` builds a graph inside it (`graphify query "<q>" --graph <dir>/graphify-out/graph.json`); Serena indexes it with the repo (Serena reads only `.gitignore`), with any language only it needs (Go) in the untracked `.serena/project.local.yml`; rtk works anywhere.
+- Query earlier work in place: `just graphify update <dir>` builds a graph inside it (`graphify query "<q>" --graph <dir>/graphify-out/graph.json`); Serena indexes it with the repo (Serena reads only `.gitignore`); rtk works anywhere.
 
 ## Agent tools
 `just setup` installs all of them. Plugins, their marketplaces and the hooks live in `.claude/settings.json`; `just claude plugins` installs the plugins at project scope.
@@ -79,7 +81,7 @@ dev/reviews/         review records from /s-build, one per task
 | --- | --- | --- |
 | rtk (`rtk-ai/rtk`) | Compact shell output on every Bash call | Release binary in `.tools/rtk`, launcher on PATH; `PreToolUse` Bash hook `rtk hook claude` in `.claude/settings.json`, never in global settings |
 | graphify (`graphifyy`) | First stop for "where is X" and "how does Y work" | uv tool, launcher on PATH; `graphify install --project` writes its skill (gitignored), its `PreToolUse` hooks and its `CLAUDE.md` section (both committed); `just graphify update [dir]` rebuilds `graphify-out/` (code only, no LLM; gitignored) |
-| Serena (`serena-agent`) | Symbols, references, renames | uv tool, not the marketplace plugin (Serena's README advises against it); `.mcp.json` runs `just serena mcp` (context `claude-code`); `.serena/project.yml` holds this repo's languages and ignores every `.claude/worktrees/`; Go sources use the pinned Go and gopls from `just go install` |
+| Serena (`serena-agent`) | Symbols, references, renames | uv tool, not the marketplace plugin (Serena's README advises against it); `.mcp.json` runs `just serena mcp` (context `claude-code`); `.serena/project.yml` holds this repo's languages and ignores every `.claude/worktrees/` |
 | caveman | Short replies, fewer output tokens | Plugin `caveman@caveman`, marketplace `JuliusBrussee/caveman` |
 | ponytail | Least-code rules on every change; `/ponytail-review` inside `/s-build` | Plugin `ponytail@ponytail`, marketplace `DietrichGebert/ponytail` |
 | context7 | Versioned library and tool docs | Plugin `context7@claude-plugins-official` |
@@ -89,15 +91,15 @@ dev/reviews/         review records from /s-build, one per task
 | claude-md-management | Keeping this file current | Plugin `claude-md-management@claude-plugins-official` |
 
 - **Every session** uses rtk, caveman, ponytail, context7, Serena and graphify. Plugins and MCP servers load at session start, so restart Claude Code after `just setup`.
-- **Pins** (checked 2026-11-04), in `just/<tool>/vars.just`: rtk 1.1.0, graphify 0.9.102, Serena 2.1.0, uv 0.13.5 with Python 3.13, Go 1.27.3, gopls v0.24.0, Bun 1.4.4, lefthook 2.2.2, gitleaks 8.30.1, shellcheck 0.11.0, actionlint 1.7.12, gh 2.103.3, Actions runner 2.338.2 (first install only; it updates itself). Marketplaces are pinned by `ref` in `.claude/settings.json`: caveman v4.0.1, ponytail v5.3.3. Site packages are pinned in `site/package.json` and `site/bun.lock`; CI actions by commit SHA.
+- **Pins** (checked 2026-11-04), in `just/<tool>/vars.just`: rtk 1.1.0, graphify 0.9.102, Serena 2.1.0, uv 0.13.5 with Python 3.13, Bun 1.4.4, lefthook 2.2.2, gitleaks 8.30.1, shellcheck 0.11.0, actionlint 1.7.12, gh 2.103.3, Actions runner 2.338.2 (first install only; it updates itself). Marketplaces are pinned by `ref` in `.claude/settings.json`: caveman v4.0.1, ponytail v5.3.3. Site packages are pinned in `site/package.json` and `site/bun.lock`; CI actions by commit SHA.
 - **LSP plugins** join with their language: `pyright-lsp` (with `pyright-langserver` in `just setup`) arrives with the first Python code. No `typescript-lsp`: the site's few TypeScript files are covered by `astro check`.
-- **Other tools** (rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`README.md`).
+- **Other tools** (rclone) join `just setup` with the first task that needs them; podman for image builds is a host prerequisite (`docs/setup.md`).
 - **When to use what:** graphify, then Serena, for this repo and earlier work; context7 for library APIs. rtk wraps shell output on its own.
-- **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. `just claude plugins` skips a marketplace that the operator's user or managed settings list from another source (Claude Code refuses it) and says so. Serena's "Go is not installed" means its server started before `just go install`: reconnect it with `/mcp`. In the Mac's Fedora runner VM, SELinux keeps unprivileged containers off bind mounts and `/dev/vhost-vsock` (`just arch packages` and `just arch test` run with `--security-opt label=disable`); pacman's Landlock sandbox fails in unprivileged rootless podman (`podman build` steps use `--disable-sandbox`).
+- **Gotchas:** rtk reshapes output (summaries, hidden lines), so run `rtk bypass <cmd>` where a script parses it. In auto mode, a command rtk's hook rewrote can come back unreviewed: send it again unchanged, once. `just claude plugins` skips a marketplace that the operator's user or managed settings list from another source (Claude Code refuses it) and says so. In the Mac's Fedora runner VM, SELinux keeps unprivileged containers off bind mounts and `/dev/vhost-vsock` (`just arch packages` and `just arch test` run with `--security-opt label=disable`); pacman's Landlock sandbox fails in unprivileged rootless podman (`podman build` steps use `--disable-sandbox`).
 
 ## Site
 - `site/`: Astro with Starlight docs at `/docs` (`src/content.config.ts` prefixes ids with `docs/`); marketing pages in `src/pages/` at `/`. Bun only, never npm. ESLint, Prettier and `astro check`. English only, no i18n: UI strings live in the components; `src/content/i18n/en.json` is `{}` only because Starlight's core always reads that collection, and Astro warns when it is missing. Recipes in `site/justfile`.
-  - It publishes `llms.txt` (`starlight-llms-txt`) and a `.md` twin of every docs page (`src/pages/[...slug].md.ts`).
+  - It publishes `llms.txt` (`starlight-llms-txt`; `llms-small.txt` leaves out the prompt trail) and a `.md` twin of every docs page (`src/pages/[...slug].md.ts`).
   - Fonts and colours come from the branding file.
   - Sidebar groups: User Guide (`user/`) and Prompt Trail (`prompt-trail/`); add a group to `astro.config.mjs` with its first page. The site carries no developer guide.
 - Prompt trail: one entry per task PR, written from `.claude/skills/s-build/entry-template.md`. A task on both bases goes to `site/src/content/docs/prompt-trail/<NNN>-<slug>.md`; a single-base task goes under `prompt-trail/arch/` or `prompt-trail/fedora/`, labelled Arch and Fedora by `src/routeData.ts`. Frontmatter `pr:` and `task:` draw the links under the title.
@@ -135,6 +137,7 @@ dev/reviews/         review records from /s-build, one per task
   - today: all four images, the x86_64 ones on the PC and the aarch64 ones on the Mac, unsigned; signing joins when it exists (`just release create`, `upload`, `publish`: a draft until every image is attached);
   - an ISO over 2 GiB goes to Cloudflare R2 instead and the release links it: secrets `R2_ACCOUNT_ID`, `R2_ACCESS_KEY_ID`, `R2_SECRET_ACCESS_KEY`, variable `R2_BUCKET` (the bucket name, such as `stackific-os`). Wired only once an ISO needs it.
   - A released version never changes.
+- `release/notes.md` opens the notes of every release and test build; GitHub's generated notes start at the newest full release (`--notes-start-tag`), because GitHub would otherwise start them at the newest test build.
 - Secrets are never printed and never committed; gitleaks runs in pre-commit and in `check`.
 
 ## Tests

@@ -74,8 +74,8 @@ check:
   #!/usr/bin/env bash
   set -euo pipefail
   if [ "{{ os() }}" = macos ]; then echo "arch: skipped (image builds need Linux)"; exit 0; fi
-  v=$(podman --version 2>/dev/null) || { echo "arch: podman missing (README.md, host prerequisites)"; exit 1; }
+  v=$(podman --version 2>/dev/null) || { echo "arch: podman missing (docs/setup.md, host prerequisites)"; exit 1; }
   for d in /dev/kvm /dev/vhost-vsock; do
-    [ -r "$d" ] && [ -w "$d" ] || { echo "arch: $d is not read-write for $USER (README.md, host prerequisites)"; exit 1; }
+    [ -r "$d" ] && [ -w "$d" ] || { echo "arch: $d is not read-write for $USER (docs/setup.md, host prerequisites)"; exit 1; }
   done
   echo "arch: ok (podman ${v##* }, /dev/kvm and /dev/vhost-vsock read-write)"

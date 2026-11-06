@@ -23,7 +23,8 @@ export default defineConfig({
       plugins: [
         // Generates /llms.txt, /llms-full.txt and /llms-small.txt for LLMs.
         // Per-page Markdown comes from src/pages/[...slug].md.ts.
-        starlightLlmsTxt(),
+        // llms-small.txt keeps only the user guide: the prompt trail grows with every task PR.
+        starlightLlmsTxt({ exclude: ['docs/prompt-trail', 'docs/prompt-trail/**'] }),
         // Docs images (prompt-trail screenshots) open full size in a dialog on click, alt text as the caption.
         // Astro's built-in astro:assets already resizes them and serves WebP, since entries reference them relatively.
         starlightImageZoom(),
@@ -41,6 +42,8 @@ export default defineConfig({
         ThemeSelect: './src/components/starlight/ThemeSelect.astro',
         // English only, so the language selector's slot holds a GitHub link to the repository instead.
         LanguageSelect: './src/components/starlight/LanguageSelect.astro',
+        // Adds Red Hat's trademark line under every docs page, as Fedora's trademark guidelines ask.
+        Footer: './src/components/starlight/Footer.astro',
       },
       // Relabels the prompt trail's per-base groups (src/routeData.ts).
       routeMiddleware: './src/routeData.ts',

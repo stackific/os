@@ -14,24 +14,29 @@ pr-version sha: gh::install
 
 # A test build (0.0.0-pr.<n>) replaces an earlier one for the same pull request; any other version must be new,
 # because a released version never changes.
-# Open the draft release v<version> at commit <sha>
+# Open the draft release v<version> at commit <sha>, its notes opening with release/notes.md
 [positional-arguments]
 create version sha: gh::install
   #!/usr/bin/env bash
   set -euo pipefail
   [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must be semver, got '$1'" >&2; exit 1; }
   tag="v$1"
+  notes=$(<"{{ justfile_directory() }}/release/notes.md")
   if [[ $1 =~ ^0\.0\.0-pr\.([0-9]+)$ ]]; then
     pr=${BASH_REMATCH[1]}
     if "{{ gh }}" release view "$tag" >/dev/null 2>&1; then "{{ gh }}" release delete "$tag" --cleanup-tag --yes; fi
     flags=(--prerelease --title "Test build for #$pr"
-      --notes "Test build of the images after pull request #$pr merged: built and boot-tested, unsigned. Not a release.")
+      --notes "Test build of the images after pull request #$pr merged: built and boot-tested, unsigned. Not a release."$'\n\n'"$notes")
   else
     if "{{ gh }}" release view "$tag" >/dev/null 2>&1 || "{{ gh }}" api "repos/{owner}/{repo}/git/ref/tags/$tag" >/dev/null 2>&1; then
       echo "release: $tag exists (a released version never changes; delete a leftover draft by hand)" >&2
       exit 1
     fi
-    flags=(--title "Stackific OS $1" --generate-notes)
+    flags=(--title "Stackific OS $1" --notes "$notes")
+    # GitHub would start generated notes at the newest test build, so they start at the newest full release.
+    # The first release has none to start from; its notes link the prompt trail instead.
+    last=$("{{ gh }}" release list --exclude-drafts --exclude-pre-releases --limit 1 --json tagName --jq '.[0].tagName // empty')
+    [[ -z $last ]] || flags+=(--generate-notes --notes-start-tag "$last")
     [[ $1 != *-* ]] || flags+=(--prerelease)
   fi
   "{{ gh }}" release create "$tag" --draft --target "$2" "${flags[@]}"
