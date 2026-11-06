@@ -1,0 +1,7 @@
+ Stackific OS installer
+
+ Make the window bigger or the text smaller
+ (Ctrl and −): the installer needs 80 × 24.
+ It is 60 × 18 now.
+
+ Ctrl+C quits.

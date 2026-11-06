@@ -1,0 +1,24 @@
+┌ Stackific OS installer ─────────────────────────────────── 2 of 6 · Timezone ┐
+│                                                                              │
+│  Timezone for the installed system                                           │
+│                                                                              │
+│  Search: berl▏                                                               │
+│                                                                              │
+│  ▶ Europe/Berlin                                                             │
+│                                                                              │
+│  1 match                                                                     │
+│                                                                              │
+│                                                                              │
+│  An empty search lists every timezone, UTC first.                            │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ ↑↓ choose · type to search · Enter next · Esc back ──────────────────────────┘

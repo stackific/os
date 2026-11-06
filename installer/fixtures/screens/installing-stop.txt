@@ -1,0 +1,24 @@
+┌ Stackific OS installer ────────────────────────────────────────── Installing ┐
+│                                                                              │
+│  Installing Stackific OS on /dev/nvme0n1                                     │
+│                                                                              │
+│  ✓ Create ┌ Stop the install? ──────────────────────────────────┐            │
+│  ✓ Format │                                                     │            │
+│  ✓ Prepare│  The new partitions stay on /dev/nvme0n1, partly    │            │
+│  ▸ Copy th│  written. Nothing else on the drive changes.        │            │
+│    Set the│                                                     │            │
+│    Create └ Enter stop · Esc keep installing ───────────────────┘            │
+│    Remove the live session's settings                                        │
+│                                                                              │
+│  Do not turn the computer off.                                               │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Ctrl+C stop ─────────────────────────────────────────────────────────────────┘

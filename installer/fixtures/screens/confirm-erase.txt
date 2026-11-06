@@ -1,0 +1,24 @@
+┌ Stackific OS installer ──────────────────────────────────── 6 of 6 · Confirm ┐
+│                                                                              │
+│  Erase /dev/nvme0n1 (Samsung SSD 990 PRO 1TB, 931.5 GiB)?                    │
+│                                                                              │
+│  Now on it, all erased:                                                      │
+│    nvme0n1p1     260.0 MiB   vfat    SYSTEM                                  │
+│    nvme0n1p2      16.0 MiB                                                   │
+│    nvme0n1p3     811.2 GiB   ntfs    Windows                                 │
+│                                                                              │
+│  After the install:                                                          │
+│    1               4.0 GiB   FAT32   Stackific OS boot                       │
+│    2             927.5 GiB   btrfs   Stackific OS                            │
+│                                                                              │
+│  Keyboard de (German) · Timezone Europe/Berlin                               │
+│  User Ada Lovelace (ada), administrator · Computer stackific                 │
+│                                                                              │
+│  Type nvme0n1 to erase it:  nvme0n1▏                                         │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Enter install · Esc back ────────────────────────────────────────────────────┘

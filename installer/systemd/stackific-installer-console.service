@@ -1,0 +1,17 @@
+# The installer on tty1, as root, for the boot menu's Install entry (stackific-installer.target). However it ends,
+# the live desktop starts next: ExecStopPost isolates graphical.target, which brings the greeter.
+[Unit]
+Description=Stackific OS installer on tty1
+Conflicts=getty@tty1.service
+After=getty@tty1.service systemd-user-sessions.service
+
+[Service]
+ExecStart=/usr/bin/stackific-installer --console
+# Leaving before the confirmation (3) and stopping the install (130) are the user's choices, not failures
+SuccessExitStatus=3 130
+StandardInput=tty
+StandardOutput=tty
+TTYPath=/dev/tty1
+TTYReset=yes
+TTYVHangup=yes
+ExecStopPost=/usr/bin/systemctl --no-block isolate graphical.target

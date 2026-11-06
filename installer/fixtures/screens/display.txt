@@ -1,0 +1,24 @@
+┌ Stackific OS installer ───────────────────────────────────────────── Display ┐
+│                                                                              │
+│  Make this easy to read. Changes show at once.                               │
+│                                                                              │
+│    Text size     Ctrl and + bigger, Ctrl and − smaller                       │
+│  ▶ Motion        ◀ Full ▶                                                    │
+│    Contrast      ◀ Standard ▶                                                │
+│                                                                              │
+│  The text opened at the same physical size on every screen, from a 13-inch   │
+│  laptop to an ultrawide monitor.                                             │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ ↑↓ choose · ←→ change · Enter next · Esc quit ───────────────────────────────┘

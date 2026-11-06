@@ -1,0 +1,28 @@
+# Installer module: builds, tests, lints and demos stackific-installer (installer/, Rust with a ratatui text
+# interface) with the pinned toolchain from just/rust. The images build it with their base's own Rust package.
+
+import '../just/rust/vars.just'
+
+[private]
+mod rust '../just/rust/mod.just'
+
+manifest := justfile_directory() / "installer" / "Cargo.toml"
+
+# Build the installer (debug) into installer/target/
+build: rust::install
+  @{{ rust_env }} "{{ cargo }}" build --locked --manifest-path "{{ manifest }}"
+
+# Walk every screen against fixture drives and a simulated install: no root, no disk. Extra flags pass through
+# (`just installer demo --slow` runs all motion ten times slower)
+[positional-arguments]
+demo *flags: rust::install
+  @{{ rust_env }} "{{ cargo }}" run --quiet --locked --manifest-path "{{ manifest }}" -- --demo "$@"
+
+# Run the unit, navigation and snapshot tests
+test: rust::install
+  @{{ rust_env }} "{{ cargo }}" test --quiet --locked --manifest-path "{{ manifest }}"
+
+# Check formatting and lint with clippy, warnings as errors
+lint: rust::install
+  @{{ rust_env }} "{{ cargo }}" fmt --check --manifest-path "{{ manifest }}"
+  @{{ rust_env }} "{{ cargo }}" clippy --quiet --all-targets --locked --manifest-path "{{ manifest }}" -- -D warnings

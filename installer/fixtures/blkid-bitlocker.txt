@@ -1,0 +1,3 @@
+DEVNAME=/dev/nvme0n1p3
+TYPE=BitLocker
+USAGE=crypto

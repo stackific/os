@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Install ${NAME}
+Comment=Install ${NAME} on this computer
+Icon=${ID}
+Categories=System;
+Keywords=install;installer;disk;drive;
+Terminal=false
+Exec=foot --app-id=stackific-installer --window-size-chars=100x30 --font=monospace:size=11 --override=dpi-aware=yes run0 stackific-installer

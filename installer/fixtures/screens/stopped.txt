@@ -1,0 +1,24 @@
+┌ Stackific OS installer ───────────────────────────────────────────── Stopped ┐
+│                                                                              │
+│  The install stopped: mkfs.btrfs /dev/nvme0n1p5 failed (exit 1).             │
+│                                                                              │
+│  Only the new partitions on /dev/nvme0n1 are partly written. No other        │
+│  partition or drive was touched.                                             │
+│                                                                              │
+│  Details: /run/stackific-installer.log                                       │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ Enter quit ──────────────────────────────────────────────────────────────────┘

@@ -1,8 +1,9 @@
 # This file ignores only build output, setup output, IDE files and optional user files.
 # Personal patterns go in .git/info/exclude.
 
-## Build output (images)
+## Build output (images, the installer)
 /.build/
+/installer/target/
 
 ## Setup output (`just setup`)
 /.tools/

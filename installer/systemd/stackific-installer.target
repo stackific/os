@@ -1,0 +1,7 @@
+# The boot menu's Install entry boots here (systemd.unit=stackific-installer.target): the base system without the
+# greeter, and the installer on tty1. No packaged tool starts a program on tty1 from a boot entry, hence this target.
+[Unit]
+Description=Stackific OS installer on the console
+Requires=multi-user.target stackific-installer-console.service
+After=multi-user.target stackific-installer-console.service
+AllowIsolate=yes
