@@ -2,6 +2,8 @@
 
 This repo builds **Stackific OS** (os-release `ID=stackific`, site https://os.stackific.com). Work runs through two skills, `/s-task` and `/s-build` (`.claude/skills/`); the rules below apply to all work, skill or not.
 
+**First, every session:** check that each MCP server in `.mcp.json` and each plugin, MCP server and hook in `.claude/settings.json` loaded. Name any that did not, with its error, loudly in your first reply, before other work.
+
 ## Product
 - Positioning (the operator's words): an "Open Prompt", the most vibe-codable OS foundation for making your own Linux. Every change starts as a published prompt (the prompt trail), so anyone can fork the repo, change a prompt and rebuild their own Linux.
 - Stackific OS is a Linux distribution with two bases, Arch Linux (rolling; Arch Linux ARM on aarch64) and Fedora 45. Every release ships four live ISOs with one version: Arch x86_64, Arch Linux ARM aarch64, Fedora 45 x86_64 and Fedora 45 aarch64 (`stackific-<version>-<base>-<arch>.iso`).
@@ -110,6 +112,7 @@ dev/reviews/         review records from /s-build, one per task
 - Screenshots: `site/src/assets/prompt-trail/<NNN>/<name>.webp`, shown only by their own entry and made with `just site screenshot <raw.png> <out.webp>` (WebP, longest side 1600 px or less, 300 KB or less, metadata stripped).
   - `just site screenshots-check` (pre-commit) enforces it.
   - Site pages are never screenshotted.
+  - Every screen a task builds or changes appears in its entry as a real screenshot, never as a text drawing; `just arch screenshots` captures the installer's in a VM.
 - Docs entry: every task adds or updates the docs its change needs: user docs in `site/src/content/docs/user/` for what users see, developer notes in `docs/` for how to build and test it.
 
 ## Builds
