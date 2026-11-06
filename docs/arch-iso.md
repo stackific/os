@@ -75,7 +75,7 @@ To change a file in `desktop/` or `branding/`, update its `sha256sums` entry in 
 
 The ISO boots to a desktop. greetd (`arch/iso/airootfs/etc/greetd/config.toml`) logs the user `live` into MangoWM with no prompt, and MangoWM starts Noctalia, which shows Dahl's "An Eruption of Vesuvius" and no setup wizard (our defaults, above). `fastfetch` in a terminal prints our logo in emerald. In MangoWM's stock config, `Alt+Return` opens foot and `Alt+space` opens rofi.
 
-The app launcher has "Install Stackific OS" (the installer in foot, through run0) and "Disks" (GNOME Disks, `gnome-disk-utility`), the partition editor, with `ntfs-3g` and `ntfsprogs` for NTFS. Disks runs as the user and asks polkit for each change: in MangoWM, Noctalia's own polkit agent answers (`polkit_agent = true` in our defaults), in Plasma `polkit-kde-agent`. `breeze-gtk` and `kde-gtk-config` give GTK apps such as Disks Plasma's look. The boot menu has "Try Stackific OS" (the default) and "Install Stackific OS", which boots to the installer on tty1 without the greeter; on aarch64 `just arch iso` leaves the Install entry out until task 018.
+The app launcher has "Install Stackific OS" (the installer in foot, through run0), which Plasma's desktop also shows as a shortcut (`arch/iso/airootfs/home/live/Desktop/`, a link to the launcher, which mkarchiso gives to `live` with `/etc/skel`; the install removes it with `/home/live`), and "Disks" (GNOME Disks, `gnome-disk-utility`), the partition editor, with `ntfs-3g` and `ntfsprogs` for NTFS. Disks runs as the user and asks polkit for each change: in MangoWM, Noctalia's own polkit agent answers (`polkit_agent = true` in our defaults), in Plasma `polkit-kde-agent`. `breeze-gtk` and `kde-gtk-config` give GTK apps such as Disks Plasma's look. The boot menu has "Try Stackific OS" (the default) and "Install Stackific OS", which boots to the installer on tty1 without the greeter; on aarch64 `just arch iso` leaves the Install entry and the desktop shortcut out until task 018.
 
 Known, for later: in a VM without 3D (software rendering), MangoWM can leave stale regions on screen after small redraws, such as typing in a terminal or in rofi; what the apps draw is right (task 012's screenshot run). `WLR_SCENE_DEBUG_DAMAGE=rerender` (wlroots' scene setting, which scenefx keeps) re-renders every frame, but slowed the 2-CPU test VM until key presses arrived seconds late; `just arch screenshots` switches workspace away and back before each shot instead. A later task finds a fix for the live image.
 
@@ -99,14 +99,14 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 - NetworkManager is running;
 - a wrong token gets no shell.
 
-`boot.sh` then sources the Arch checks, `tests/vm/arch.sh`, which `just arch test` passes as its third argument on both architectures:
+`boot.sh` then sources the image's check file, which `just arch test` passes as its third argument: `tests/vm/arch-<arch>.sh` when the architecture has one, else `tests/vm/arch.sh`, the Arch checks both architectures pass. `tests/vm/arch-x86_64.sh` runs `arch.sh` first, then the x86_64-only checks below. `arch.sh` checks:
 
 - `/etc/os-release` reads `ID=stackific`, `ID_LIKE=arch`, `BUILD_ID=rolling`, `PRETTY_NAME="Stackific OS"`, `LOGO=stackific` and mkarchiso's `IMAGE_ID=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; pacman says `stackific-release` owns `/etc/os-release` and `filesystem` owns `/etc/arch-release` and `/usr/lib/os-release`; `/usr/lib/os-release` has no `IMAGE_` lines; the `stackific` icon is filled `#007a55`;
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
 - the MangoWM and Plasma session files are present;
 - the ten wallpapers are installed, `live`'s `00-stackific.toml` matches `/etc/skel`'s, and `noctalia config export merged` (as `live`) shows the wizard off, the wallpaper folder and the default wallpaper;
 - `fastfetch --pipe false` (as `live`) prints the logo's last line in the accent colour;
-- the installer's launcher has its name and `Exec=` line; Disks, its launcher and `ntfsresize` are installed; Breeze's GTK theme and `kde-gtk-config` are installed.
+- on x86_64 only (`arch-x86_64.sh`): the installer's launcher has its name and `Exec=` line; Disks, its launcher and `ntfsresize` are installed; Breeze's GTK theme and `kde-gtk-config` are installed; `live`'s `~/Desktop` holds the installer's shortcut; then greetd logs `live` into Plasma, and the test saves `plasma.png`, the desktop with the shortcut.
 
 It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`. It also saves `serial.log` to `.build/arch/<arch>/`, then powers the VM off. On failure it prints the end of the serial log.
 

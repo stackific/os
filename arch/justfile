@@ -54,13 +54,15 @@ iso version="0.0.0-dev": packages
   rm -f "{{ out }}/$name.iso" "{{ out }}/$name.packages.txt"
   # mkarchiso runs as `build` with its work dir inside the container, so --rm discards it and every build starts fresh.
   # Container root (the host user) then moves the outputs to /out, so the host user owns them.
-  # The installer is on the x86_64 image only until task 018, so aarch64 leaves out the boot menu's Install entry.
+  # The installer is on the x86_64 image only until task 018, so aarch64 leaves out the boot menu's Install entry and
+  # the live user's desktop shortcut.
   podman run --rm --privileged \
     --volume "{{ justfile_directory() }}/arch/iso:/profile:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
     --env STACKIFIC_VERSION="$1" --env NAME="$name" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
     {{ builder }} bash -c 'cp -r /profile /home/build/profile \
-      && { [ "$(uname -m)" = x86_64 ] || rm /home/build/profile/efiboot/loader/entries/02-stackific-install.conf; } \
+      && { [ "$(uname -m)" = x86_64 ] || rm /home/build/profile/efiboot/loader/entries/02-stackific-install.conf \
+        /home/build/profile/airootfs/home/live/Desktop/stackific-installer.desktop; } \
       && runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /home/build/profile \
       && install -m644 "/home/build/out/$NAME.iso" /out/ \
       && install -m644 /home/build/work/iso/arch/pkglist.{{ arch() }}.txt "/out/$NAME.packages.txt"'
@@ -68,16 +70,21 @@ iso version="0.0.0-dev": packages
   [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
 
-# Boot-test stackific-<version>-arch-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with tests/vm/arch.sh,
-# the checks both Arch images pass); leaves serial.log, screen.png and greeter.png
+# Boot-test stackific-<version>-arch-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with
+# tests/vm/arch-<arch>.sh when the architecture has its own checks, else tests/vm/arch.sh, the checks both Arch images
+# pass); leaves serial.log, screen.png and greeter.png, and on x86_64 plasma.png
 # podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs. SELinux also keeps
 # containers off /dev/vhost-vsock unless labelling is off (see packages).
 [positional-arguments]
 test version="0.0.0-dev": builder
+  #!/usr/bin/env bash
+  set -euo pipefail
+  checks=arch.sh
+  [ ! -f "{{ justfile_directory() }}/tests/vm/arch-{{ arch() }}.sh" ] || checks="arch-{{ arch() }}.sh"
   podman run --rm --device /dev/kvm --device /dev/vhost-vsock --security-opt seccomp=unconfined \
     --security-opt label=disable \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
-    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-{{ arch() }}.iso" /out /tests/arch.sh
+    {{ builder }} /tests/boot.sh "/out/stackific-$1-arch-{{ arch() }}.iso" /out "/tests/$checks"
 
 # Test the installer on stackific-<version>-arch-<arch>.iso: the boot menu's entries (read with bsdtar, never a
 # mount), then one boot with a fresh 64 GiB raw disk (tests/vm/boot.sh with tests/vm/install.sh: the console path, an

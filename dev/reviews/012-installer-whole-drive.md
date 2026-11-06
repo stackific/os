@@ -45,3 +45,18 @@ Tests after the fixes: `just arch screenshots` passed and every shot shows the i
 ## Round 4
 Reviewed: round 3's change again: the shot wait and repaint, the recipe, the entry's images, alt texts and captions.
 Verdict: Looks good. Ship.
+
+## Round 5
+Reviewed: the operator's follow-up after the PR opened (2026-11-06): a desktop shortcut for the installer on Plasma. The change: `arch/iso/airootfs/home/live/Desktop/stackific-installer.desktop`, `just arch iso` and `just arch test`, `tests/vm/arch.sh` and the new `tests/vm/arch-x86_64.sh`, the docs, `AGENTS.md`, the task file and the entry.
+Verdict: fix 1 and 2 first.
+
+| # | Group | Finding | Where | Status | Resolution |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Must fix | Plasma's desktop had no shortcut to the installer | `arch/iso/airootfs/home/live/` | fixed | A link in `live`'s `~/Desktop` to the launcher (mkarchiso merges `/etc/skel` into the home and gives it to `live`; Plasma trusts a desktop file whose real path is in the system's applications; the install removes it with `/home/live`); aarch64 drops it with the Install entry; `plasma.png` shows it |
+| 2 | Must fix | The launcher, Disks and GTK checks sat in `tests/vm/arch.sh`, which the aarch64 image runs too and fails, as it has neither the installer nor Disks until task 018 | `tests/vm/arch.sh` | fixed | They moved to `tests/vm/arch-x86_64.sh`, which sources `arch.sh` first; `just arch test` uses `tests/vm/arch-<arch>.sh` when it exists |
+
+Tests after the fixes: `just arch iso` (1543 MiB) and `just arch test` pass on x86_64, with the shortcut's link and owner checked and Plasma started; `just arch test-install` on that ISO passes, 86 checks. Shellcheck and the justfile parse pass.
+
+## Round 6
+Reviewed: round 5's change again.
+Verdict: Looks good. Ship.
