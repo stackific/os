@@ -5,7 +5,7 @@ sidebar:
   order: 2
 ---
 
-Stackific OS 0.1.0 is a live preview: there is no installer yet. Each ISO boots from a USB stick to MangoWM with Noctalia, with a second desktop to switch to. Nothing is written to your disk, and changes are gone after a reboot. Check the [system requirements](/docs/user/system-requirements/) first.
+Stackific OS 0.1.0 is a live preview: there is no installer yet. Each ISO boots from a USB stick to MangoWM, with a second desktop to switch to. Nothing is written to your disk, and changes are gone after a reboot. Check the [system requirements](/docs/user/system-requirements/) first.
 
 ## Pick an ISO
 
@@ -54,7 +54,7 @@ On macOS, find the stick with `diskutil list` (for example `/dev/disk4`), run `d
 
 ## The live session
 
-The live ISO logs you in as the user `live` with no prompt, and starts MangoWM with Noctalia. In MangoWM, `Alt+Return` opens a terminal and `Alt+space` opens the app launcher.
+The live ISO logs you in as the user `live` with no prompt, and starts MangoWM. In MangoWM, `Alt+Return` opens a terminal and `Alt+space` opens the app launcher.
 
 ### Switch to the second desktop
 
@@ -67,7 +67,8 @@ Each image has a second desktop: KDE Plasma on the images based on Arch Linux an
 ## Limits of this preview
 
 - The images are unsigned.
-- There is no installer yet.
+- Version 0.1.0 has no installer. Builds after it have an early installer on the `-arch-x86_64.iso`: "Install Stackific OS" in the app launcher and in the boot menu. The drive it installs to cannot start yet, because the boot loader comes later, so use it on a spare drive only.
+- To make free space or set up partitions first, open Disks from the app launcher. Shrinking Windows itself is safest from Windows' own Disk Management.
 - NVIDIA's own driver is not in the images yet.
 
 ## About the bases
