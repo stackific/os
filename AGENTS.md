@@ -132,7 +132,7 @@ dev/reviews/         review records from /s-build, one per task
 - GitHub-hosted Linux runners run checks and container tests.
 - The operator's Linux PC runs the self-hosted runner for x86_64 images and their VM tests (labels `self-hosted`, `Linux`, `X64`); `just runner setup` makes a machine a runner, never `just setup`.
 - The operator's Mac runs the self-hosted runner for aarch64 images in an arm64 Linux VM (labels `self-hosted`, `Linux`, `ARM64`); `just runner setup` on the Mac creates the VM (`just runner vm`) and runs itself inside it. The VM runs the Fedora images' release (Fedora 45, its Cloud image pinned in `just/runner/vars.just`), because the VM enforces SELinux and a rootless image build can set only the SELinux contexts the VM's own policy knows.
-- `images` runs only on push to `main` (never by hand) and publishes each merged pull request's images as the test release `v0.0.0-pr.<n>` (a prerelease, replaced on a rerun; not a release).
+- `images` runs only on push to `main` (never by hand), builds only the images whose files the push changed (`just release changed`; keep its path lists current when an image gains sources), and publishes those of a merged pull request as the test release `v0.0.0-pr.<n>` (a prerelease, replaced on a rerun; not a release); a push that changes no image builds nothing.
 - Self-hosted runners take only `push` to `main` and `workflow_dispatch`, never `pull_request`; `just runner register` makes every outside contributor's run wait for approval.
 - `release` runs only by hand (`workflow_dispatch`, input `version`):
   - refuses a version that is not semver;
