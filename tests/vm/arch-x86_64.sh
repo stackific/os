@@ -17,7 +17,11 @@ vm_until 'test -d /usr/share/themes/Breeze/gtk-3.0 && pacman -Q kde-gtk-config >
 vm_until 'readlink /home/live/Desktop/stackific-installer.desktop' \
   '^/usr/share/applications/stackific-installer.desktop$' 0
 vm_until 'stat -c %U /home/live/Desktop' '^live$' 0
-# Plasma with the shortcut: greetd logs `live` into Plasma once its run file is gone (arch.sh left the greeter up)
+# Plasma's look and feel: Breeze with our wallpaper (stackific-desktop), selected for every user in /etc/xdg/kdeglobals
+vm_until 'runuser -u live -- kreadconfig6 --file kdeglobals --group KDE --key LookAndFeelPackage' '^org\.stackific\.desktop$' 0
+vm_until "grep -A1 -x '\\[Wallpaper\\]' /usr/share/plasma/look-and-feel/org.stackific.desktop/contents/defaults | tail -1" '^Image=stackific$' 0
+vm_until 'readlink -f /usr/share/wallpapers/stackific/contents/images/3872x2592.jpg' '^/usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl\.jpg$' 0
+# Plasma with the shortcut and our wallpaper: greetd logs `live` into Plasma once its run file is gone (arch.sh left the greeter up)
 vm "sed -i 's|^command = \"mango\"|command = \"/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland\"|' /etc/greetd/config.toml && rm -f /run/greetd.run && systemctl restart greetd" >/dev/null
 vm_until 'pgrep -u live -x plasmashell >/dev/null && echo up' '^up$' 180
 sleep 30 # Plasma draws its desktop a while after plasmashell starts, on the VM's software renderer

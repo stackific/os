@@ -2,7 +2,7 @@
 # Screenshots of the installer's screens for the prompt trail: boot.sh sources this file with STACKIFIC_TEST_DISK
 # attached as /dev/vda, a blank 64 GiB raw image (`just arch screenshots`). It drives the real installer by key presses
 # and saves <out-dir>/screens/<name>.png on each screen:
-# 1. on the desktop, from MangoWM's launcher: every screen through a free-space install next to a Windows-like table,
+# 1. on the desktop, from Noctalia's launcher (Super+Space): every screen through a free-space install next to a Windows-like table,
 #    the stop dialog, and Done;
 # 2. on the desktop again: a terminal too small, then an erase stopped during the copy (Stopped);
 # 3. on the console, from the Install target: Display, Keyboard and an erase to Done.
@@ -53,10 +53,10 @@ shot() {
   echo "ok: $out/screens/$1.png"
 }
 
-# Open "Install Stackific OS" from MangoWM's launcher. run0 asks polkit, which lets `live` (in wheel, with an empty
-# password) through without a prompt, so the installer comes up by itself.
+# Open "Install Stackific OS" from Noctalia's launcher (Super+Space, `live`'s MangoWM config). run0 asks polkit, which
+# lets `live` (in wheel, with an empty password) through without a prompt, so the installer comes up by itself.
 open_installer() {
-  sendkey alt-spc
+  sendkey meta_l-spc
   sleep 3
   [ -z "$1" ] || screenshot "screens/$1"
   typ install

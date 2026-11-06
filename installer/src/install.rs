@@ -456,7 +456,7 @@ pub mod tests {
         let t = disk::TARGET;
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/home/tester/.config/mango/config.conf"))],
-            "source=/etc/mango/config.conf\nxkb_rules_layout=de\n"
+            "source=/etc/mango/config.conf\nbind=SUPER,space,spawn,noctalia msg panel-toggle launcher\nxkb_rules_layout=de\n"
         );
         assert_eq!(
             s.owners[&PathBuf::from(format!("{t}/home/tester/.config/mango/config.conf"))],

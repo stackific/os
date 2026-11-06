@@ -1,0 +1,12 @@
+{
+    "KPlugin": {
+        "Authors": [
+            {
+                "Name": "Johan Christian Dahl"
+            }
+        ],
+        "Id": "${ID}",
+        "License": "CC0-1.0",
+        "Name": "An Eruption of Vesuvius"
+    }
+}

@@ -71,7 +71,7 @@ installed_checks() {
   vm_until "grep -c '^tester:[\$]y[\$]' $r/etc/shadow" '^1$' 0
   vm_until "grep -c '^root:!' $r/etc/shadow" '^1$' 0
   vm_until "test -f $h/tester/.config/noctalia/00-stackific.toml && cat $h/tester/.config/mango/config.conf | paste -sd ' '" \
-    '^source=/etc/mango/config.conf xkb_rules_layout=de$' 0
+    '^source=/etc/mango/config.conf bind=SUPER,space,spawn,noctalia msg panel-toggle launcher xkb_rules_layout=de$' 0
   vm_until "stat -c %u $h/tester/.config/mango/config.conf $h/tester/.config/mango | paste -sd ' '" '^1000 1000$' 0
   # The system: computer name, timezone, console keymap, X11 layout, the live image's locale
   vm_until "cat $r/etc/hostname" '^stackific-test$' 0

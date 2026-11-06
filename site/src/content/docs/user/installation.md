@@ -54,7 +54,7 @@ On macOS, find the stick with `diskutil list` (for example `/dev/disk4`), run `d
 
 ## The live session
 
-The live ISO logs you in as the user `live` with no prompt, and starts MangoWM. In MangoWM, `Alt+Return` opens a terminal and `Alt+space` opens the app launcher.
+The live ISO logs you in as the user `live` with no prompt, and starts MangoWM. In MangoWM, `Alt+Return` opens a terminal, `Super+Space` opens the desktop's launcher, and `Alt+Space` opens rofi, the older one.
 
 ### Switch to the second desktop
 

@@ -60,3 +60,19 @@ Tests after the fixes: `just arch iso` (1543 MiB) and `just arch test` pass on x
 ## Round 6
 Reviewed: round 5's change again.
 Verdict: Looks good. Ship.
+
+## Round 7
+Reviewed: the operator's follow-ups (2026-11-06): Plasma showed its own wallpaper, not ours; MangoWM should open Noctalia's launcher on Super+Space, as on the operator's desktop; and the entry's launcher screenshot showed rofi, not Noctalia's launcher. The change: `desktop/plasma/`, `arch/packages/stackific-desktop/PKGBUILD`, `arch/iso/airootfs/home/live/.config/mango/config.conf`, the installer's MangoWM file, `tests/vm/arch.sh`, `tests/vm/arch-x86_64.sh`, `tests/vm/install.sh`, `tests/vm/screens.sh`, the docs, `AGENTS.md`, the task file and the entry.
+Verdict: fix 1, 2 and 3 first.
+
+| # | Group | Finding | Where | Status | Resolution |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Must fix | Plasma started on its own wallpaper ("Next"), not ours; nothing checked a second desktop's wallpaper | `arch/packages/stackific-desktop/PKGBUILD` | fixed | Our look-and-feel package `org.stackific.desktop` (Breeze's defaults with `[Wallpaper] Image=stackific`), a Plasma wallpaper package linking our painting, and `/etc/xdg/kdeglobals` selecting it, all rendered from the branding file; `arch-x86_64.sh` checks the selection, the defaults and the image link, and `plasma.png` shows the painting. GNOME's is in the plan for the Fedora installer task |
+| 2 | Must fix | Super+Space did nothing in MangoWM; the operator's desktop opens Noctalia's launcher there | `arch/iso/airootfs/home/live/.config/mango/config.conf`, `installer/src/system.rs` | fixed | `live`'s and each installed user's `~/.config/mango/config.conf` source the stock config and add `bind=SUPER,space,spawn,noctalia msg panel-toggle launcher`; `arch.sh` checks the file and takes `launcher.png`; `install.sh` checks the installed user's file |
+| 3 | Must fix | The entry's launcher screenshot showed rofi (MangoWM's stock Alt+Space), captioned as the launcher | `tests/vm/screens.sh` | fixed | The script opens the installer through Noctalia's launcher (Super+Space) |
+
+Tests after the fixes: `just installer test` (52) and `lint` pass; `just arch iso` (1543 MiB), `just arch test` and `just arch test-install` (86 checks) pass; `launcher.png` shows Noctalia's launcher with Disks and the installer, `plasma.png` shows Plasma on our painting with the shortcut; `just arch screenshots` retook the installer's screens through Noctalia's launcher.
+
+## Round 8
+Reviewed: round 7's change again.
+Verdict: Looks good. Ship.
