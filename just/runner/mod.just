@@ -76,7 +76,8 @@ remove: gh::login
 
 # Lima with nested virtualization needs Apple M3 or later and macOS 15 or later. 16 GiB of memory, because the Fedora
 # ISO build's work tmpfs (capped at half of it) peaks at 6763 MiB on aarch64. The VM mounts nothing from the Mac,
-# so jobs cannot see its files. It gets what the runner needs (git, just, podman, and libicu for the runner's .NET)
+# so jobs cannot see its files. It gets what the runner needs (git, just, podman, and libicu and openssl3-libs for the
+# runner's .NET, which loads libssl.so.3 or older, while Fedora 45's own OpenSSL is 4)
 # and the repo cloned to ~/os, where images build and `just runner setup` runs; both are no-ops once done.
 # `just setup` runs this on a Mac, so a developer can build images; it registers nothing (that is `just runner setup`).
 # On a Mac: create or start the arm64 Fedora VM that builds the aarch64 images and hosts the runner (pinned in vars.just)
@@ -93,7 +94,7 @@ vm:
       --set '.images = [{"location": "https://download.fedoraproject.org/pub/{{ runner_vm_image }}", "arch": "aarch64", "digest": "{{ runner_vm_digest }}"}, {"location": "https://dl.fedoraproject.org/pub/{{ runner_vm_image }}", "arch": "aarch64", "digest": "{{ runner_vm_digest }}"}]' \
       template:fedora
   fi
-  limactl shell --workdir / "{{ runner_vm }}" sudo dnf install -y --quiet git just podman libicu
+  limactl shell --workdir / "{{ runner_vm }}" sudo dnf install -y --quiet git just podman libicu openssl3-libs
   limactl shell --workdir / "{{ runner_vm }}" sh -c \
     '[ -d ~/os ] || git clone --quiet https://github.com/{{ runner_repo }}.git ~/os'
   echo "runner: VM up; open a shell in its clone with: limactl shell {{ runner_vm }}, then cd ~/os"

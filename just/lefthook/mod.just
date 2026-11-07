@@ -1,13 +1,17 @@
-# lefthook module: installs the pinned lefthook, wires the git hooks to just recipes (lefthook.yml at the repo root)
-# and holds the repo-wide checks those hooks run.
+# lefthook module: installs the pinned lefthook with a launcher on PATH, wires the git hooks to just recipes
+# (lefthook.yml at the repo root) and holds the repo-wide checks those hooks run. The hooks live in the shared .git/hooks
+# and name the binary of the checkout that wrote them; when that checkout is gone (a removed worktree), they find
+# lefthook on PATH instead, and without it they skip every check.
 
 import 'vars.just'
 
 [private]
 mod fetch '../fetch/mod.just'
+[private]
+mod launcher '../launcher/mod.just'
 
-# Install the pinned lefthook (no-op when present)
-install: (fetch::get "https://github.com/evilmartians/lefthook/releases/download/v" + lefthook_version + "/" + lefthook_asset lefthook_sha256 lefthook)
+# Install the pinned lefthook (no-op when present) and its launcher
+install: (fetch::get "https://github.com/evilmartians/lefthook/releases/download/v" + lefthook_version + "/" + lefthook_asset lefthook_sha256 lefthook) (launcher::write "lefthook" lefthook)
 
 # Install lefthook, then (re)write .git/hooks from lefthook.yml
 hooks: install
@@ -58,4 +62,7 @@ check:
   for h in pre-commit commit-msg; do
     grep -qs lefthook "$(git rev-parse --git-path "hooks/$h")" || { echo "lefthook: $h hook missing (just lefthook hooks)"; exit 1; }
   done
+  d="${XDG_BIN_HOME:-$HOME/.local/bin}"; case ":$PATH:" in *":$d:"*) ;; *) PATH="$d:$PATH" ;; esac # setup put it in the shell profiles; this shell may predate that
+  f=$(command -v lefthook) || { echo "lefthook: not on PATH, so hooks written by another checkout skip every check (just lefthook hooks; put ~/.local/bin on PATH)"; exit 1; }
+  grep -qs '/\.tools/' "$f" || { echo "lefthook: $f is not this repo's launcher (remove it, then just lefthook hooks)"; exit 1; }
   echo "lefthook: ok ({{ lefthook_version }}, hooks installed)"

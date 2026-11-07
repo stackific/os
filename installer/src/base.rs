@@ -14,6 +14,10 @@ pub trait Base: Send + Sync {
     fn live_medium(&self) -> &'static Path;
     /// The base's own live state in the copied root at `target`: files to remove, then commands to run.
     fn live_state(&self, target: &Path) -> (Vec<PathBuf>, Vec<Cmd>);
+    /// The commands that put the kernel and its initramfs on the ESP, mounted at the target's /boot.
+    fn initramfs(&self, target: &Path) -> Vec<Cmd>;
+    /// The kernel's and the initramfs' file names at the ESP's root, which Limine's entry names.
+    fn kernel_files(&self) -> (&'static str, &'static str);
 }
 
 /// Arch Linux (and Arch Linux ARM): archiso's live image.
@@ -44,6 +48,24 @@ impl Base for Arch {
             ]);
         (files, vec![pacman])
     }
+
+    /// mkinitcpio's own pacman-hook script, run in the target with every kernel on stdin, as pacman runs it when it
+    /// installs a kernel: it copies the kernel to /boot/vmlinuz-<pkgbase> and builds /boot/initramfs-<pkgbase>.img
+    /// from the preset (Arch's default: no fallback image) with Arch's default hooks. arch-chroot gives it /dev, /proc
+    /// and /sys, which the autodetect hook reads.
+    fn initramfs(&self, target: &Path) -> Vec<Cmd> {
+        vec![Cmd::new("arch-chroot").args([
+            &*target.to_string_lossy(),
+            "/usr/bin/bash",
+            "-c",
+            "printf '%s\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install",
+        ])]
+    }
+
+    /// The paths mkinitcpio's preset writes for the `linux` kernel; its pacman hooks keep them current on updates.
+    fn kernel_files(&self) -> (&'static str, &'static str) {
+        ("vmlinuz-linux", "initramfs-linux.img")
+    }
 }
 
 /// The base of the running system, from `ID_LIKE`.
@@ -71,6 +93,14 @@ mod tests {
         assert_eq!(
             cmds[0].line(),
             "pacman --sysroot=/t --remove --nosave --recursive --noconfirm stackific-installer"
+        );
+        assert_eq!(
+            base.initramfs(Path::new("/t"))[0].line(),
+            "arch-chroot /t /usr/bin/bash -c \"printf '%s\\\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install\""
+        );
+        assert_eq!(
+            base.kernel_files(),
+            ("vmlinuz-linux", "initramfs-linux.img")
         );
         assert!(detect(&OsRelease::parse("ID=stackific\nID_LIKE=fedora\n")).is_none());
     }

@@ -1,4 +1,4 @@
-//! Done: where the system went, and that the drive does not start on its own yet (the boot loader comes in task 013).
+//! Done: where the system went, and how to start it.
 
 use ratatui::crossterm::event::KeyCode;
 
@@ -27,7 +27,10 @@ pub fn draw(app: &App, c: &mut Canvas) {
         &format!("{} is on {device}.", app.env.os.name),
         app.look.title(),
     );
-    let text = "The boot loader is not in this build yet, so the drive does not start on its own. Keep using the live \
-                session; a later build adds the boot loader.";
-    c.prose(BODY_ROW, text, app.look.body());
+    let name = &app.env.os.name;
+    let text = format!(
+        "Remove the USB stick, then restart the computer to start {name}. If it starts something else, pick \"{name}\" \
+         in its boot menu."
+    );
+    c.prose(BODY_ROW, &text, app.look.body());
 }

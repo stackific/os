@@ -4,18 +4,19 @@
 # stackific-installer-crate.tar. The crate is one tar, not its files one by one, because makepkg takes local files
 # only (no directories) and a checksum per source file would change with every code change; the recipe builds the tar
 # from this repo's own tree on every run, so its checksum is SKIP. The fixtures are there for check().
-# The installer removes this package (and the dependencies only it needed) from the system it installs.
+# The installer removes this package (and the dependencies only it needed, such as arch-install-scripts) from the
+# system it installs; limine and efibootmgr stay, because stackific-boot needs them.
 # shellcheck disable=SC2034,SC2154
 
 pkgname=stackific-installer
 pkgver=0.1.0
-pkgrel=1
+pkgrel=2
 pkgdesc='Stackific OS installer: into a drive'"'"'s free space or onto a whole drive, from the live desktop or the boot menu'
 arch=('x86_64' 'aarch64')
 url='https://os.stackific.com'
 license=('Apache-2.0')
-depends=('btrfs-progs' 'dosfstools' 'e2fsprogs' 'foot' 'kbd' 'rsync' 'shadow' 'systemd' 'util-linux' 'xkeyboard-config'
-         'stackific-release')
+depends=('arch-install-scripts' 'btrfs-progs' 'dosfstools' 'e2fsprogs' 'efibootmgr' 'foot' 'kbd' 'limine' 'rsync' 'shadow'
+         'systemd' 'util-linux' 'xkeyboard-config' 'stackific-release')
 makedepends=('cargo' 'gettext')
 options=('!debug')
 source=('stackific-installer-crate.tar' 'branding.env' 'stackific-installer.desktop.in' 'stackific-installer.target'

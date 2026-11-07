@@ -1,0 +1,23 @@
+# Stackific OS boot files for Arch: keeps Limine on our EFI System Partition current. The installer copies
+# /usr/share/limine/BOOTX64.EFI to /boot/EFI/limine/ (the firmware entry's loader) and /boot/EFI/BOOT/ (the firmware's
+# fallback path) and writes /boot/limine.conf. The limine package ships no hook, so ours copies the program again after
+# every limine upgrade. Kernels need nothing here: mkinitcpio's own pacman hooks keep /boot/vmlinuz-linux and
+# /boot/initramfs-linux.img current, the paths limine.conf names. The hook is Arch-only, so it sits next to this file.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-boot
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS boot files: keeps Limine on the EFI System Partition current'
+arch=('any')
+url='https://os.stackific.com'
+license=('Apache-2.0')
+depends=('limine' 'efibootmgr')
+options=('!debug' '!strip')
+source=('stackific-limine.hook')
+sha256sums=('79fbedfa363eb6e04b7372dcdea99897e52fabcc64f1e59eb9fe31f28d82ca64')
+
+# The pacman hook
+package() {
+  install -Dm644 stackific-limine.hook "$pkgdir/usr/share/libalpm/hooks/stackific-limine.hook"
+}

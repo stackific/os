@@ -1,10 +1,12 @@
 {
   "mcpServers": {
     "serena": {
-      "command": "just",
+      "command": "serena",
       "args": [
-        "serena",
-        "mcp"
+        "start-mcp-server",
+        "--context",
+        "claude-code",
+        "--project-from-cwd"
       ]
     }
   }

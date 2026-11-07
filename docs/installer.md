@@ -1,8 +1,6 @@
 # Installer
 
-`stackific-installer` installs Stackific OS from a live session into a drive's free space, next to what is there, or onto a whole drive, which it erases. It is one Rust program for both bases, with a [ratatui](https://ratatui.rs) text interface and an unattended mode that reads the same answers from a TOML file. Its crate is `installer/`; the Arch package is `arch/packages/stackific-installer/`. Today it ships on the Arch x86_64 image only (task 012).
-
-The installed drive does not start on its own yet: Limine comes with task 013. Use it on a spare drive.
+`stackific-installer` installs Stackific OS from a live session into a drive's free space, next to what is there, or onto a whole drive, which it erases. It is one Rust program for both bases, with a [ratatui](https://ratatui.rs) text interface and an unattended mode that reads the same answers from a TOML file. Its crate is `installer/`; the Arch package is `arch/packages/stackific-installer/`. Today it ships on the Arch x86_64 image only (task 012). Since task 013 the installed drive starts on its own, through Limine from our ESP.
 
 ## Build, test, try
 
@@ -17,7 +15,7 @@ just installer build          # a debug build in installer/target/
 
 The recipes use the pinned toolchain from `just rust install` (Rust 1.99.1, rustup 1.29.3, in `.tools/rust/`), which `just setup` installs; `just doctor` prints its `rust:` line. The images build with their base's own `rust` package, the same release.
 
-The image tests are in [arch-iso.md](arch-iso.md): `just arch test` checks the launcher, Disks and Plasma's GTK integration in the live session, and `just arch test-install` runs real installs in a VM.
+The image tests are in [arch-iso.md](arch-iso.md): `just arch test` checks the launcher, Disks and Plasma's GTK integration in the live session, and `just arch test-install` runs real installs in a VM, then boots the last one from its disk alone with the install boot's firmware variables (`tests/vm/installed.sh`): the firmware entry, Limine's menu (`limine.png`), the kernel command line, the ESP's files, stackific-boot's hook (a reinstall of the pinned `limine` package, which the recipe copies onto the ESP with `mcopy`), the system settings, the login screen, and the keyboard layout in MangoWM (`mmsg get keyboardlayout`) and Plasma (`org.kde.KeyboardLayouts.getLayoutsList`).
 
 `just arch screenshots` (not in CI) boots the ISO with a blank 64 GiB disk and drives the real installer by key presses (`tests/vm/screens.sh`): from MangoWM's launcher through a free-space install, a terminal too small and a stopped erase, then on the console from the Install target through an erase. It saves a PNG of each screen in `.build/arch/<arch>/screens/`; `just site screenshot` turns them into the prompt trail's WebP files. Before each desktop shot it switches to workspace 2 and back (Ctrl+2, Ctrl+1), so MangoWM repaints the whole screen: on the VM's software renderer it can leave stale regions after small redraws. Then it waits until two dumps 2 s apart match.
 
@@ -52,8 +50,15 @@ The image tests are in [arch-iso.md](arch-iso.md): `just arch test` checks the l
 4. **Copy**: `rsync -aHAXx --numeric-ids --info=progress2 --no-inc-recursive --exclude=/boot/` from the live image's pristine root (Arch: `/run/archiso/airootfs`, the squashfs under the live overlay). `--no-inc-recursive` makes the overall percentage count the whole copy, so it only grows. `/boot` is empty in the live root and is the FAT ESP in the target, which takes no owners, ACLs or xattrs.
 5. **System**: `/etc/fstab` by UUID (twelve subvolume lines and `/boot`); `systemd-firstboot --root --force` for the timezone, the computer name and the console keymap (the first `kbd-model-map` line for the XKB layout with no variant, `us` when none); `/etc/X11/xorg.conf.d/00-keyboard.conf` in the format `localectl set-x11-keymap` writes.
 6. **User**: `userdel --root … --remove live` first, so ours gets uid 1000; `useradd --root … --create-home --groups wheel`; the password through `chpasswd --root …` on stdin (yescrypt on Arch); `usermod --root … --lock root`; and `~/.config/mango/config.conf` with `source=/etc/mango/config.conf` and `xkb_rules_layout=<layout>`, so MangoWM's stock config stays as packaged with our layout on top.
-7. **Live state**: `/etc/sysusers.d/stackific-live.conf` removed, and greetd's `[initial_session]` (the autologin) removed with every other line kept; then the base's own step. Arch removes `/etc/mkinitcpio.conf.d/archiso.conf` and runs `pacman --sysroot <target> -Rns stackific-installer`, so the installed system has no installer and no launcher. `/etc/machine-id` stays `uninitialized` (first boot), and the locale stays the live image's.
-8. **End**: `umount --recursive` of the target, whatever happened.
+7. **Live state**: `/etc/sysusers.d/stackific-live.conf` removed, and greetd's `[initial_session]` (the autologin) removed with every other line kept; then the base's own step. Arch removes `/etc/mkinitcpio.conf.d/archiso.conf` and runs `pacman --sysroot <target> -Rns stackific-installer`, so the installed system has no installer and no launcher; `limine` and `efibootmgr` stay, because the explicitly installed `stackific-boot` needs them. `/etc/machine-id` stays `uninitialized` (first boot), and the locale stays the live image's.
+8. **Boot loader**, after the live state so the initramfs is built without archiso's drop-in:
+   - The kernel and initramfs, per base (`Base::initramfs`). Arch runs mkinitcpio's own pacman-hook script in the target, `arch-chroot <target> /usr/share/libalpm/scripts/mkinitcpio install`, with every `usr/lib/modules/*/vmlinuz` on stdin, as pacman does when it installs a kernel: `/boot/vmlinuz-linux` and `/boot/initramfs-linux.img` on the ESP, from mkinitcpio's default preset (no fallback image) and default hooks (`systemd`, with the CPU's microcode prepended). From then on, mkinitcpio's pacman hooks keep both files current; no unified kernel image.
+   - Limine's program, `<target>/usr/share/limine/BOOTX64.EFI`, to `/boot/EFI/limine/BOOTX64.EFI` (the firmware entry's loader) and `/boot/EFI/BOOT/BOOTX64.EFI` (the firmware's fallback path, which starts the drive when its entry is lost). Both on our ESP only.
+   - `/boot/limine.conf`, the ESP's root, which Limine searches after its program's own folder, so one file serves both copies: `timeout: 3`, `interface_branding: <NAME>`, and one entry `/<NAME>` with `path: boot():/vmlinuz-linux`, `module_path: boot():/initramfs-linux.img` and `cmdline: root=UUID=<system partition> rootflags=subvol=/@ rw`. The paths are fixed, so a kernel update never rewrites it. Root is found through the fixed subvolume path `/@`; nothing sets the btrfs default subvolume.
+   - The firmware entry, last, so an earlier failure leaves none: `efibootmgr` lists the entries, and each one that starts `\EFI\limine\BOOTX64.EFI` from a partition GUID no present partition has (`lsblk --output PARTUUID`; an earlier install a reinstall wiped) is deleted; then `efibootmgr --create --disk <drive> --part <ESP's number> --label "<NAME>" --loader '\EFI\limine\BOOTX64.EFI'`, which puts it first in `BootOrder` and keeps every other entry after it. Nothing else writes NVRAM, at boot or on updates.
+9. **End**: `umount --recursive` of the target, whatever happened.
+
+`stackific-boot` (`arch/packages/stackific-boot/`, on the image and kept on installed systems) depends on `limine` and `efibootmgr` and ships one pacman hook, `/usr/share/libalpm/hooks/stackific-limine.hook`: after an upgrade or reinstall of `limine`, it copies `/usr/share/limine/BOOTX64.EFI` over both ESP copies, and does nothing where `/boot/EFI/limine/` is missing (the live session). The `limine` package ships no hook of its own.
 
 Each command and its output go to `/run/stackific-installer.log` on the screens and to stderr when unattended. stdin, which carries the password, is never logged.
 
@@ -94,7 +99,7 @@ Run it with `stackific-installer --config <file>` as root. Unknown keys are refu
 
 ## The Base interface
 
-`installer/src/base.rs` holds what differs per base, behind the `Base` trait: the live root (Arch: `/run/archiso/airootfs`), the live medium's mount point (Arch: `/run/archiso/bootmnt`), and the base's own live state (files to remove, commands to run). The installer picks the base from os-release's `ID_LIKE`. Task 013 adds the boot step (initramfs and Limine), task 014 a Fedora implementation and its packaging.
+`installer/src/base.rs` holds what differs per base, behind the `Base` trait: the live root (Arch: `/run/archiso/airootfs`), the live medium's mount point (Arch: `/run/archiso/bootmnt`), the base's own live state (files to remove, commands to run), the commands that put the kernel and its initramfs on the ESP, and their file names, which Limine's entry names. The installer picks the base from os-release's `ID_LIKE`. Task 014 adds a Fedora implementation and its packaging. Limine's program, `limine.conf` and the firmware entry are shared (`installer/src/boot.rs`).
 
 Every external command and file goes through the `Runner` trait (`installer/src/run.rs`): `Real` on a live system, `Fake` in the tests and the demo, which answers from rules and an in-memory file table and records any command it was not told to expect.
 
@@ -141,8 +146,10 @@ Dropped or narrowed from the guide, and why:
 
 ## Later
 
-- Task 013: Limine on the ESP, the initramfs, and the Done screen's text once the drive starts.
 - Task 014: the Fedora `Base`, its RPM and the Fedora images' launcher and boot entry; the crate stays unchanged.
 - Task 015: BitLocker with a typed confirmation and protector checks, OS detection, refusals of Intel RST RAID and BIOS-mode Windows, and the Windows entry in Limine.
 - Task 017: the Fedora images' Install boot entry.
-- Task 018: the installer on both aarch64 images (and the aarch64 boot entry `just arch iso` leaves out today).
+- Task 018: the installer on both aarch64 images (and the aarch64 boot entry `just arch iso` leaves out today), with Limine's `BOOTAA64.EFI`.
+- Re-create a lost firmware entry on updates; today the fallback path covers a whole-drive install, and the firmware's boot menu covers the rest.
+- Limine's menu in our look (a wallpaper and colours with enough contrast).
+- A free-space guard on the ESP once several kernels share it (`linux-lts`, task 019).
