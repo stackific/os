@@ -2,8 +2,8 @@
 │                                                                              │
 │  Stackific OS is on /dev/nvme0n1.                                            │
 │                                                                              │
-│  The boot loader is not in this build yet, so the drive does not start on    │
-│  its own. Keep using the live session; a later build adds the boot loader.   │
+│  Remove the USB stick, then restart the computer to start Stackific OS. If   │
+│  it starts something else, pick "Stackific OS" in its boot menu.             │
 │                                                                              │
 │                                                                              │
 │                                                                              │

@@ -10,8 +10,9 @@ builder:
     --tag {{ builder }} --file "{{ justfile_directory() }}/arch/Containerfile" "{{ justfile_directory() }}/arch" >/dev/null
 
 # Build our packages (arch/packages/*/PKGBUILD) with makepkg in a fresh builder container into the local repo
-# .build/arch/repo/ (unsigned until release signing). Local sources come from desktop/, branding/ and installer/
-# (never its target/), staged by file name; the installer's crate is packed into stackific-installer-crate.tar.
+# .build/arch/repo/ (unsigned until release signing). Local sources come from the package's own folder (an Arch-only
+# file), desktop/, branding/ and installer/ (never its target/), staged by file name; the installer's crate is packed
+# into stackific-installer-crate.tar.
 # SELinux (Fedora, as in the Mac's runner VM) hides bind mounts from containers unless labelling is off; without
 # SELinux it is a no-op. The --privileged ISO build has labelling off already.
 packages: builder
@@ -30,7 +31,8 @@ packages: builder
         mkdir -p "$b"
         cp "$p" "$b/"
         for f in $(source "$p"; echo "${source[@]}"); do
-          find /desktop /branding /installer -path /installer/target -prune -o -type f -name "$f" -exec cp -t "$b" {} +
+          find "$(dirname "$p")" /desktop /branding /installer -path /installer/target -prune -o -type f -name "$f" \
+            -exec cp -t "$b" {} +
         done
         if [ "$(basename "$b")" = stackific-installer ]; then
           tar -C /installer --sort=name --mtime="@$SOURCE_DATE_EPOCH" --owner=0 --group=0 --numeric-owner \
@@ -89,7 +91,10 @@ test version="0.0.0-dev": builder
 # Test the installer on stackific-<version>-arch-<arch>.iso: the boot menu's entries (read with bsdtar, never a
 # mount), then one boot with a fresh 64 GiB raw disk (tests/vm/boot.sh with tests/vm/install.sh: the console path, an
 # erase and a free-space install, unattended), then the free-space install's ESP, read from the image with minfo
-# (mtools). The disk image is removed after a pass and kept after a failure.
+# (mtools). Then the installed system boots from the disk alone, with the first boot's firmware variables
+# (tests/vm/installed.sh); mcopy puts the pinned limine package (the builder's mirror is the archive date) at its ESP's
+# root for the hook check. pacman's sandbox fails in rootless podman, so the download runs without it. The disk image is
+# removed after a pass and kept after a failure.
 [positional-arguments]
 test-install version="0.0.0-dev": builder
   #!/usr/bin/env bash
@@ -110,7 +115,11 @@ test-install version="0.0.0-dev": builder
       /tests/boot.sh "$ISO" /out /tests/install.sh
       minfo -i "$STACKIFIC_TEST_DISK@@$(cat /out/esp-offset)" | grep -q "FAT32" || { echo "FAIL: no FAT32 at the ESP offset" >&2; exit 1; }
       echo "ok: the free-space install'"'"'s ESP is FAT32"
-      rm -f "$STACKIFIC_TEST_DISK"'
+      rm -rf /out/pkg && mkdir /out/pkg
+      pacman -Sw --noconfirm --disable-sandbox --cachedir /out/pkg limine >/dev/null
+      mcopy -i "$STACKIFIC_TEST_DISK@@$(cat /out/esp-offset)" /out/pkg/limine-*.pkg.tar.zst ::/
+      OVMF_VARS=/out/vars.fd /tests/boot.sh - /out /tests/installed.sh
+      rm -rf "$STACKIFIC_TEST_DISK" /out/pkg'
 
 # Screenshots of the installer's screens for the prompt trail: one boot of stackific-<version>-arch-<arch>.iso with a
 # fresh 64 GiB disk (tests/vm/boot.sh with tests/vm/screens.sh), the real installer driven by key presses on the

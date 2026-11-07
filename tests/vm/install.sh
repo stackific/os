@@ -41,8 +41,8 @@ install_run() {
   vm_until "journalctl -u stackific-test-$1 --no-pager | grep -c -- '$password'" '^0$' 0
 }
 
-# The installed system on <esp> and <system>: labels, subvolumes, fstab, packages, the user, the system settings, and
-# no live state left
+# The installed system on <esp> and <system>: labels, subvolumes, fstab, packages, the user, the system settings, no
+# live state left, and the boot files on the ESP
 installed_checks() {
   local esp=$1 sys=$2
   vm_until "blkid -o value -s TYPE $esp" '^vfat$' 0
@@ -85,7 +85,14 @@ installed_checks() {
     '^ok$' 0
   vm_until "grep -c initial_session $r/etc/greetd/config.toml" '^0$' 0
   vm_until "grep -A2 '^\\[default_session\\]' $r/etc/greetd/config.toml | grep -cx 'command = \"/usr/bin/noctalia-greeter-session\"'" '^1$' 0
-  vm "umount /mnt/t" >/dev/null
+  # The ESP: the kernel, its initramfs, Limine's program at both paths, and limine.conf with this install's root
+  vm "mkdir -p /mnt/e && mount -o ro $esp /mnt/e" >/dev/null
+  vm_until 'cd /mnt/e && ls -d vmlinuz-linux initramfs-linux.img limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l' \
+    '^5$' 0
+  vm_until "cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/limine/BOOTX64.EFI && cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/BOOT/BOOTX64.EFI && echo same" \
+    '^same$' 0
+  vm_until "grep -cx '    cmdline: root=UUID=$uuid_sys rootflags=subvol=/@ rw' /mnt/e/limine.conf" '^1$' 0
+  vm "umount /mnt/e /mnt/t" >/dev/null
 }
 
 # 0. The console path: the Install entry's target runs the installer on tty1 without the greeter; Esc on Display
@@ -174,5 +181,7 @@ fi
 echo "ok: two new partitions fill the gap"
 vm_until "blkid -o value -s UUID /dev/vda1" "^$old_esp\$" 0
 vm_until 'blkid -o value -s LABEL /dev/vda1' '^SYSTEM$' 0
+# Nothing written to the Windows-like ESP: it stays as mkfs.fat left it, empty
+vm_until 'mkdir -p /mnt/w && mount -o ro /dev/vda1 /mnt/w && ls -A /mnt/w | wc -l; umount /mnt/w' '^0$' 0
 installed_checks "$(cut -d' ' -f1 <<<"$esp_line")" "$(cut -d' ' -f1 <<<"$sys_line")"
 echo $((esp_start * 512)) >"$out/esp-offset"

@@ -6,9 +6,12 @@
 # vmm.notify_socket is not used: over vsock it opens one connection per message and drops some, READY=1 included.
 # Usage: boot.sh <iso> <out-dir> <checks>. It runs the checks every image passes, then sources <checks>, the image's own
 # check file (tests/vm/<base>.sh, or tests/vm/<base>-<arch>.sh for checks only one architecture passes), which uses vm,
-# vm_until, screenshot and sendkey from here. Leaves <out-dir>/serial.log, and the screenshots the check file takes.
+# vm_until, screenshot and sendkey from here. Leaves <out-dir>/serial.log, <out-dir>/vars.fd (the firmware's variables
+# after the run, for a later boot through OVMF_VARS) and the screenshots the check file takes.
 # OVMF_CODE and OVMF_VARS name the raw firmware pair in the builder (AAVMF's on aarch64); the defaults are the Arch
 # builder's. STACKIFIC_TEST_DISK, when it names a raw image file, is attached as a virtio disk (/dev/vda in the guest).
+# <iso> `-` boots that disk alone, an installed system: then <out-dir>/limine.png is its boot menu, taken a second after
+# the firmware starts an entry (OVMF prints `BdsDxe: starting Boot#### "<label>"` on the serial console).
 set -euo pipefail
 
 iso=$1
@@ -98,16 +101,26 @@ cred systemd.unit-dropin.multi-user.target "$tmp/multi-user.conf"
 
 disk=()
 [ -z "${STACKIFIC_TEST_DISK:-}" ] || disk=(-drive "file=$STACKIFIC_TEST_DISK,format=raw,if=virtio")
+cdrom=(-cdrom "$iso")
+[ "$iso" != - ] || cdrom=()
 cp "$ovmf_vars" "$tmp/vars.fd"
-rm -f "$out/screen.png" "$out/greeter.png" "$out/serial.log"
+rm -f "$out/screen.png" "$out/greeter.png" "$out/limine.png" "$out/serial.log"
 "${machine[@]}" -cpu host -smp 2 -m 4096 \
   -drive "if=pflash,format=raw,readonly=on,file=$ovmf_code" \
   -drive "if=pflash,format=raw,file=$tmp/vars.fd" \
-  -cdrom "$iso" "${disk[@]}" -nic user,model=virtio-net-pci \
+  "${cdrom[@]}" "${disk[@]}" -nic user,model=virtio-net-pci \
   -device "vhost-vsock-pci,guest-cid=$cid" "${smbios[@]}" \
   -serial "file:$out/serial.log" -display none \
   -monitor "unix:$tmp/monitor,server=on,wait=off" &
 qemu=$!
+
+# An installed system's boot menu: Limine waits 3 s, so a shot a second after the firmware starts it catches the menu
+if [ "$iso" = - ]; then
+  for _ in $(seq 60); do grep -aq 'BdsDxe: starting Boot' "$out/serial.log" 2>/dev/null && break; sleep 1; done
+  grep -aq 'BdsDxe: starting Boot' "$out/serial.log" || fail "the firmware started no boot entry"
+  sleep 1
+  screenshot limine
+fi
 
 # The shell listens from multi-user.target on; --wait returns once boot has finished, in whatever state it reached
 vm_until 'systemctl is-system-running --wait' '^[a-z]+$' 300
@@ -126,4 +139,5 @@ source "$checks"
 vm 'systemctl poweroff' >/dev/null 2>&1 || true
 for _ in $(seq 60); do kill -0 "$qemu" 2>/dev/null || break; sleep 1; done
 kill -0 "$qemu" 2>/dev/null && fail "VM still running 60 s after poweroff"
+cp "$tmp/vars.fd" "$out/vars.fd"
 echo "PASS: $iso"

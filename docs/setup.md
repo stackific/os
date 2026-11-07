@@ -42,7 +42,15 @@ The runner runs every job as the user who set it up. The workflow never runs on 
 3. Run `just runner setup`. It installs the runner into `.tools/actions-runner/` and registers this PC with the labels `self-hosted`, `Linux` and `X64`. It then installs and starts the runner as a systemd service under your user, which asks for your sudo password once.
 4. Check that it is online: `just runner status` prints `<hostname> online busy=false self-hosted,Linux,X64`.
 
-The service starts at boot. To take the PC out of CI, run `just runner remove`.
+The service starts at boot. If `just runner status` shows the PC offline, restart the service (the runner's `svc.sh` names it after the repo and this machine's hostname), then check again:
+
+```sh
+sudo systemctl restart "actions.runner.stackific-os.$(hostname).service"
+just runner status
+journalctl -u "actions.runner.stackific-os.$(hostname).service" -e   # its log, when it stays offline
+```
+
+To take the PC out of CI, run `just runner remove`.
 
 ### Mac (aarch64 images)
 

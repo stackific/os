@@ -9,9 +9,9 @@
 │    Set the keyboard, timezone and computer name                              │
 │    Create your user                                                          │
 │    Remove the live session's settings                                        │
+│    Install the boot loader                                                   │
 │                                                                              │
 │  Do not turn the computer off.                                               │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

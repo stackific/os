@@ -1,4 +1,4 @@
-//! The install itself, after the confirmation: the seven steps the Installing screen lists, in order, each command
+//! The install itself, after the confirmation: the eight steps the Installing screen lists, in order, each command
 //! and its output logged (never stdin, which carries the password), then the target unmounted. The screens and the
 //! unattended run share it.
 
@@ -11,10 +11,10 @@ use crate::answers::{Answers, Mode};
 use crate::base::Base;
 use crate::os_release::OsRelease;
 use crate::run::{Cmd, Output, Runner};
-use crate::{copy, disk, system};
+use crate::{boot, copy, disk, system};
 
 /// The steps, as the Installing screen names them.
-pub const STEPS: [&str; 7] = [
+pub const STEPS: [&str; 8] = [
     "Create the partitions",
     "Format them",
     "Prepare the system partition",
@@ -22,6 +22,7 @@ pub const STEPS: [&str; 7] = [
     "Set the keyboard, timezone and computer name",
     "Create your user",
     "Remove the live session's settings",
+    "Install the boot loader",
 ];
 /// The step that reports a percentage.
 pub const COPY_STEP: usize = 3;
@@ -293,6 +294,32 @@ fn steps(
     for cmd in cmds {
         exec(run, log, &cmd)?;
     }
+
+    // After the live state, so the initramfs is built without archiso's mkinitcpio drop-in
+    step(7, report)?;
+    for cmd in plan.base.initramfs(target) {
+        exec(run, log, &cmd)?;
+    }
+    for cmd in boot::copy_program(target) {
+        exec(run, log, &cmd)?;
+    }
+    let (kernel, initramfs) = plan.base.kernel_files();
+    write(
+        run,
+        log,
+        &target.join(boot::CONF),
+        &boot::limine_conf(&plan.os.name, kernel, initramfs, &sys_uuid),
+        None,
+    )?;
+    // The firmware entry last, so a failure before it leaves none behind
+    let listing = exec(run, log, &boot::entries())?;
+    let present = exec(run, log, &boot::partuuids())?;
+    for num in boot::stale(&listing.stdout, &present.stdout) {
+        exec(run, log, &boot::delete(&num))?;
+    }
+    let part = boot::partition_number(&esp)
+        .ok_or_else(|| Failure::Other(format!("{esp} has no partition number")))?;
+    exec(run, log, &boot::create(dev, part, &plan.os.name))?;
     Ok(())
 }
 
@@ -378,7 +405,18 @@ pub mod tests {
         .on("useradd ", Output::ok(""))
         .on("chpasswd ", Output::ok(""))
         .on("usermod ", Output::ok(""))
-        .on("pacman --sysroot", Output::ok(""));
+        .on("pacman --sysroot", Output::ok(""))
+        .on("arch-chroot ", Output::ok(""))
+        .on("install -D ", Output::ok(""))
+        .on("efibootmgr --", Output::ok(""))
+        .on(
+            "efibootmgr",
+            Output::ok(include_str!("../fixtures/efibootmgr.txt")),
+        )
+        .on(
+            "lsblk --noheadings --list --output PARTUUID",
+            Output::ok("\n"),
+        );
         f.file(&format!("{t}/{}", system::KBD_MODEL_MAP), include_str!("../fixtures/kbd-model-map"))
             .file(&format!("{t}/etc/passwd"), "root:x:0:0::/root:/usr/bin/bash\ntester:x:1000:1000:Test User:/home/tester:/usr/bin/bash\n")
             .file(&format!("{t}/{}", system::GREETD), include_str!("../fixtures/greetd.toml"))
@@ -440,7 +478,7 @@ pub mod tests {
             seen.iter()
                 .filter(|p| matches!(p, Progress::Step(_)))
                 .count(),
-            7
+            8
         );
         assert!(seen.contains(&Progress::Percent(52)));
         let log = log.text();
@@ -476,6 +514,24 @@ pub mod tests {
         // `live` goes before our user, so ours gets uid 1000
         let pos = |p: &str| s.calls.iter().position(|c| c.starts_with(p)).unwrap();
         assert!(pos("userdel") < pos("useradd"));
+        // The boot loader after the live state (archiso's mkinitcpio drop-in gone), the firmware entry last: the
+        // fixture's entry on a partition lsblk no longer lists goes, ours is created on the ESP, partition 1
+        assert!(pos("pacman --sysroot") < pos("arch-chroot"));
+        assert!(pos("arch-chroot") < pos("install -D"));
+        assert_eq!(
+            s.files[&PathBuf::from(format!("{t}/boot/limine.conf"))],
+            boot::limine_conf(
+                "Stackific OS",
+                "vmlinuz-linux",
+                "initramfs-linux.img",
+                "1111-sys"
+            )
+        );
+        assert!(pos("efibootmgr --bootnum 0009 --delete-bootnum") < pos("efibootmgr --create"));
+        assert_eq!(
+            s.calls[s.calls.len() - 3],
+            r#"efibootmgr --create --disk /dev/vda --part 1 --label "Stackific OS" --loader \EFI\limine\BOOTX64.EFI"#
+        );
         assert_eq!(s.calls.last().unwrap(), &format!("umount --recursive {t}"));
     }
 
@@ -493,6 +549,7 @@ pub mod tests {
             f.calls("mkfs.fat"),
             ["mkfs.fat -F 32 -n STACKIFIC /dev/vda4"]
         );
+        assert!(f.calls("efibootmgr --create")[0].contains(" --part 4 "));
     }
 
     #[test]

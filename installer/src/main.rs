@@ -4,6 +4,7 @@
 
 mod answers;
 mod base;
+mod boot;
 mod copy;
 mod demo;
 mod disk;

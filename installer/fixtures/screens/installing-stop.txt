@@ -9,9 +9,9 @@
 │    Set the│                                                     │            │
 │    Create └ Enter stop · Esc keep installing ───────────────────┘            │
 │    Remove the live session's settings                                        │
+│    Install the boot loader                                                   │
 │                                                                              │
 │  Do not turn the computer off.                                               │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

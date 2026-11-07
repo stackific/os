@@ -109,9 +109,20 @@ pub fn fake(delay: Duration) -> Fake {
         "chpasswd ",
         "usermod ",
         "pacman --sysroot",
+        "arch-chroot ",
+        "install -D ",
+        "efibootmgr --",
     ] {
         f.on(ok, Output::ok(""));
     }
+    f.on(
+        "efibootmgr",
+        Output::ok(include_str!("../fixtures/efibootmgr.txt")),
+    )
+    .on(
+        "lsblk --noheadings --list --output PARTUUID",
+        Output::ok("\n"),
+    );
     f.file(EVDEV_LST, include_str!("../fixtures/evdev.lst"))
         .file(display::FB_SIZE, "3840,2160\n")
         .file("/run/archiso/airootfs/etc/passwd", "root:x:0:0::/root:/usr/bin/bash\nlive:x:1000:1000:Live user:/home/live:/usr/bin/bash\n")

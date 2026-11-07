@@ -64,10 +64,20 @@ Each image has a second desktop: KDE Plasma on the images based on Arch Linux an
 2. At the login screen, pick the user `live` and the session (Plasma or GNOME) in the list below the password field.
 3. Type any character as the password, and press Enter. `live` has no password, but the login screen does not accept an empty field.
 
+## Install it
+
+Builds after 0.1.0 have an installer on the `-arch-x86_64.iso`: "Install Stackific OS" in the app launcher, and in the boot menu next to "Try Stackific OS". It installs into a drive's free space, next to what is there, or onto a whole drive, which it erases.
+
+1. Open "Install Stackific OS" and follow its screens.
+2. At the end, remove the USB stick and restart the computer.
+3. The computer starts Stackific OS: its boot menu shows "Stackific OS" for 3 seconds, then the login screen. Log in as the user you made.
+
+If the computer starts something else, open the firmware's boot menu (often F12, F11, F8 or Esc at power-on) and pick "Stackific OS". The installer puts it first in the firmware's boot order, but a large Windows update can put Windows first again.
+
 ## Limits of this preview
 
 - The images are unsigned.
-- Version 0.1.0 has no installer. Builds after it have an early installer on the `-arch-x86_64.iso`: "Install Stackific OS" in the app launcher and in the boot menu. The drive it installs to cannot start yet, because the boot loader comes later, so use it on a spare drive only.
+- Version 0.1.0 has no installer. The installer in later builds is new: back up your data before you install next to another system.
 - To make free space or set up partitions first, open Disks from the app launcher. Shrinking Windows itself is safest from Windows' own Disk Management.
 - NVIDIA's own driver is not in the images yet.
 

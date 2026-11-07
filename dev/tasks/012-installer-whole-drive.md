@@ -1,6 +1,6 @@
 # 012: The installer, into free space or onto a whole drive, from the live desktop or the boot menu, on the Arch x86_64 image
 
-- [ ] Done
+- [x] Done
 
 Base: both
 
