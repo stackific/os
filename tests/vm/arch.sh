@@ -39,8 +39,10 @@ vm_until "runuser -u live -- fastfetch --pipe false | grep -F '▄▄▄▄▄�
 vm_until "runuser -u live -- fastfetch --pipe true | grep -c 'OS: Stackific OS'" '^1$' 0
 sleep 10 # Noctalia draws a few seconds after its unit is active, on the VM's software renderer
 screenshot screen
-# Super+Space opens the shell's launcher, from `live`'s MangoWM config, which sources the stock one
-vm_until "grep -cx -e 'source=/etc/mango/config.conf' -e 'bind=SUPER,space,spawn,noctalia msg panel-toggle launcher' /home/live/.config/mango/config.conf" '^2$' 0
+# Super+Space opens the shell's launcher, from `live`'s MangoWM config, which sources the stock one and, where present,
+# stackific-hardware's lighter effects
+vm_until "grep -cx -e 'source=/etc/mango/config.conf' -e 'source_optional=/run/stackific/mango-gpu.conf' \
+-e 'bind=SUPER,space,spawn,noctalia msg panel-toggle launcher' /home/live/.config/mango/config.conf" '^3$' 0
 sendkey meta_l-spc
 sleep 5
 screenshot launcher

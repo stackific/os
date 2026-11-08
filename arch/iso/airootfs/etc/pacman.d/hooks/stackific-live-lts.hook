@@ -1,0 +1,13 @@
+# The live image boots linux only. mkarchiso copies every /boot/vmlinuz-* and initramfs-*.img to the ISO (twice), so
+# this removes linux-lts's after mkinitcpio's own hook (90-mkinitcpio-install.hook sorts first) has made them.
+# Live-only: the installer removes this file, so installed systems keep linux-lts on the ESP.
+[Trigger]
+Type = Path
+Operation = Install
+Operation = Upgrade
+Target = usr/lib/modules/*/vmlinuz
+
+[Action]
+Description = Removing linux-lts from the live image's /boot...
+When = PostTransaction
+Exec = /usr/bin/rm -f /boot/vmlinuz-linux-lts /boot/initramfs-linux-lts.img

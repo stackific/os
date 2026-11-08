@@ -1,5 +1,6 @@
 base
 linux
+linux-lts
 linux-firmware
 amd-ucode
 intel-ucode
@@ -13,6 +14,10 @@ stackific-release
 stackific-artwork
 stackific-installer
 stackific-boot
+stackific-hardware
+nvidia-open
+nvidia-open-lts
+nvidia-utils
 mangowm
 noctalia
 greetd
