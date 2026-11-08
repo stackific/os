@@ -1,0 +1,12 @@
+#%PAM-1.0
+# greetd's logins on Stackific OS (Arch), from stackific-desktop: greetd's own lines (its /etc/pam.d/greetd), plus oo7's
+# module, which unlocks the user's Secret Service keyring with the login password. greetd uses this service through
+# `[general] service = "stackific-greetd"` in /etc/greetd/config.toml. Fedora's greetd file has these lines already.
+
+auth       required     pam_securetty.so
+auth       requisite    pam_nologin.so
+auth       include      system-local-login
+-auth      optional     pam_oo7.so
+account    include      system-local-login
+session    include      system-local-login
+-session   optional     pam_oo7.so auto_start
