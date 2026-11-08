@@ -2,7 +2,8 @@
 # Stackific OS (stackific-boot): keeps Limine's menu on our EFI System Partition current when kernel-install adds or
 # removes a kernel (kernel-install(8): `add KVER ENTRY_DIR KERNEL [INITRD...]`, `remove KVER ENTRY_DIR`). Fedora's
 # 50-dracut.install has written /boot/initramfs-KVER.img by then. This copies the kernel next to it and writes
-# limine.conf with one entry per kernel on the ESP, newest first, with the command line from /etc/kernel/cmdline.
+# limine.conf with one entry per kernel on the ESP, newest first, with the command line from /etc/kernel/cmdline, then
+# the Windows entries the installer wrote to /etc/kernel/limine-windows.conf, if any (Limine has no include).
 # Glue, because Limine reads no Boot Loader Spec entries and no Fedora or Terra package writes Limine entries.
 # It does nothing on a system the installer did not set up (the live image, or its build): no /etc/kernel/cmdline or no
 # Limine on the ESP.
@@ -40,5 +41,6 @@ conf="$boot/limine.conf"
     printf '\n/%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: %s\n' \
       "$title" "$kernel" "$kernel" "$cmdline"
   done
+  if [ -f /etc/kernel/limine-windows.conf ]; then cat /etc/kernel/limine-windows.conf; fi
 } >"$conf.new"
 mv "$conf.new" "$conf"
