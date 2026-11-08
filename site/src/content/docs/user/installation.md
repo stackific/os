@@ -70,7 +70,17 @@ Builds after 0.1.0 have an installer on both x86_64 ISOs, `-arch-x86_64.iso` and
 
 1. Open "Install Stackific OS" and follow its screens. It first asks to authenticate as an administrator. `live` has no password: in MangoWM, press Enter at the empty password prompt; in GNOME, choose Authenticate.
 2. At the end, remove the USB stick and restart the computer.
-3. The computer starts Stackific OS: its boot menu shows "Stackific OS" for 3 seconds, then the login screen. Log in as the user you made.
+3. The computer starts Stackific OS: its boot menu shows "Stackific OS" for 3 seconds, then it asks for your disk password, which is the password you chose in the installer. Type it and press Enter; the login screen follows. Log in as the user you made.
+
+### Encryption
+
+Every install encrypts the Stackific OS partition (LUKS2), and your password unlocks it at every start. That is why the installer refuses a password that is easy to guess. Encryption protects your files if the computer is lost or stolen. It does not protect against someone who changes the computer while you are away.
+
+- The prompt uses the keyboard layout you chose in the installer, but the installer itself reads your password with the US layout. If you chose another layout, use only letters, digits and symbols that sit on the same keys in both: on a German keyboard, for example, avoid y and z, which swap places.
+- If the password is refused at the prompt, check Caps Lock and the layout.
+- After three wrong tries, a screen says the system could not start. Press Enter to restart and try again.
+- Changing your login password later (`passwd`) does not change the disk password. To change the disk password, run `sudo cryptsetup luksChangeKey /dev/<partition>`, with the partition `lsblk` shows as `crypto_LUKS` (for example `nvme0n1p6`).
+- If you forget the disk password, the files on the partition cannot be recovered.
 
 On the Fedora Remix image, the installed system updates with `sudo dnf upgrade`. Each kernel update adds an entry to the boot menu: the newest kernel is "Stackific OS", and the two before it are listed below it by version, to start when the newest has a problem.
 
