@@ -5,8 +5,10 @@
 # nvidia-utils.conf and blacklists NVIDIA's modules instead: udev then loads nouveau. When such a card is also the only
 # display controller, MangoWM gets lighter effects (each user's config includes /run/stackific/mango-gpu.conf with
 # source_optional). With any NVIDIA display controller, greetd waits for udev to settle, so the session starts on the
-# loaded driver instead of on the firmware's framebuffer, which the driver takes over.
-# Our own glue: no Arch package picks between NVIDIA and nouveau at boot. STACKIFIC_ROOT prefixes every path, for tests.
+# loaded driver instead of on the firmware's framebuffer, which the driver takes over. Newer NVIDIA graphics run nouveau
+# too when the running kernel has no NVIDIA module (Fedora, after a kernel update with no matching kmod-nvidia).
+# Our own glue: no Arch or Fedora package picks between NVIDIA and nouveau at boot. STACKIFIC_ROOT prefixes every
+# path, for tests.
 set -euo pipefail
 
 out=${1:?usage: stackific-gpu-generator <normal-dir> [<early-dir> <late-dir>]}
@@ -26,12 +28,16 @@ for d in "$root"/sys/bus/pci/devices/*; do
   fi
 done
 
-if [ "$legacy" = 1 ] && [ "$modern" = 0 ]; then
+# NVIDIA's module for the running kernel: Arch's nvidia-open in extramodules/, Fedora's kmod-nvidia in extra/nvidia/
+module=$(find "$root/usr/lib/modules/$(uname -r)" -name 'nvidia.ko*' -print -quit 2>/dev/null || true)
+
+if { [ "$legacy" = 1 ] && [ "$modern" = 0 ]; } || { [ "$modern" = 1 ] && [ -z "$module" ]; }; then
   mkdir -p "$root/run/modprobe.d"
-  printf '%s\n' '# Written by stackific-gpu-generator: NVIDIA graphics older than Turing run nouveau' \
+  printf '%s\n' '# Written by stackific-gpu-generator: nouveau drives NVIDIA graphics older than Turing, or all' \
+    '# NVIDIA graphics when this kernel has no NVIDIA module' \
     'blacklist nvidia' 'blacklist nvidia_drm' 'blacklist nvidia_modeset' 'blacklist nvidia_uvm' \
     'blacklist nova_core' 'blacklist nova_drm' >"$root/run/modprobe.d/nvidia-utils.conf"
-  if [ "$other" = 0 ]; then
+  if [ "$legacy" = 1 ] && [ "$modern" = 0 ] && [ "$other" = 0 ]; then
     mkdir -p "$root/run/stackific"
     ln -sfn /usr/share/stackific/mango-low-effects.conf "$root/run/stackific/mango-gpu.conf"
   fi
