@@ -38,6 +38,8 @@
           "model": null,
           "fstype": "vfat",
           "label": "SYSTEM",
+          "parttype": "c12a7328-f81f-11d2-ba4b-00a0c93ec93b",
+          "partuuid": "6a1f0c3e-2b4d-4e5f-9a8b-7c6d5e4f3a2b",
           "start": 2048,
           "mountpoints": []
         },
@@ -62,8 +64,8 @@
           "ro": false,
           "tran": null,
           "model": null,
-          "fstype": "ntfs",
-          "label": "Windows",
+          "fstype": "BitLocker",
+          "label": null,
           "start": 567296,
           "mountpoints": []
         }

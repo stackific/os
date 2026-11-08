@@ -5,7 +5,7 @@
 │  Now on it, all erased:                                                      │
 │    nvme0n1p1     260.0 MiB   vfat    SYSTEM                                  │
 │    nvme0n1p2      16.0 MiB                                                   │
-│    nvme0n1p3     811.2 GiB   ntfs    Windows                                 │
+│    nvme0n1p3     811.2 GiB   BitLocker                                       │
 │                                                                              │
 │  After the install:                                                          │
 │    1               4.0 GiB   FAT32   Stackific OS boot                       │

@@ -53,6 +53,42 @@ pub fn limine_conf(name: &str, kernel: &str, initramfs: &str, root_uuid: &str) -
     )
 }
 
+/// Where a base whose kernel tools write `limine.conf` (Fedora) finds the Windows entries to add after its own: under
+/// the target, read by stackific-boot's kernel-install plugin each time it writes the file. Limine has no include.
+pub const WINDOWS_CONF: &str = "etc/kernel/limine-windows.conf";
+
+/// Limine's Windows entries (BT-05), after the system's: "Windows" restarts into the firmware's "Windows Boot Manager"
+/// (`efi_boot_entry` sets BootNext), so the firmware starts Windows itself and BitLocker's measurements do not change
+/// when Limine does; it is written only when the firmware has that entry, because Limine stops with an error when it
+/// cannot find it. "Windows, started directly" starts each Windows ESP's loader from Limine, for when the firmware
+/// entry is gone. Empty when no Windows was found.
+pub fn windows_entries(esps: &[String], firmware_entry: bool) -> String {
+    let mut text = String::new();
+    if esps.is_empty() {
+        return text;
+    }
+    if firmware_entry {
+        text.push_str(&format!(
+            "\n/Windows\n    protocol: efi_boot_entry\n    entry: {}\n    \
+             comment: Restarts into Windows through the firmware, so BitLocker does not ask for its key.\n",
+            crate::windows::ENTRY
+        ));
+    }
+    for (i, uuid) in esps.iter().enumerate() {
+        let n = if i == 0 {
+            String::new()
+        } else {
+            format!(" ({})", i + 1)
+        };
+        text.push_str(&format!(
+            "\n/Windows, started directly{n}\n    protocol: efi\n    path: guid({uuid}):/{}\n    \
+             comment: For when \"Windows\" fails. BitLocker may ask for its recovery key.\n",
+            crate::windows::LOADER
+        ));
+    }
+    text
+}
+
 /// Every partition's GUID, as `lsblk --noheadings --list --output PARTUUID` prints them.
 pub fn partuuids() -> Cmd {
     Cmd::new("lsblk").args(["--noheadings", "--list", "--output", "PARTUUID"])
@@ -129,6 +165,32 @@ mod tests {
             "timeout: 3\ninterface_branding: Stackific OS\n\n/Stackific OS\n    protocol: linux\n    \
              path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n    \
              cmdline: root=UUID=1111-sys rootflags=subvol=/@ rw\n"
+        );
+    }
+
+    #[test]
+    fn windows_entries_follow_the_firmware_entry_and_each_esp() {
+        assert_eq!(windows_entries(&[], true), "");
+        let one = ["6a1f0c3e-2b4d-4e5f-9a8b-7c6d5e4f3a2b".to_string()];
+        assert_eq!(
+            windows_entries(&one, true),
+            "\n/Windows\n    protocol: efi_boot_entry\n    entry: Windows Boot Manager\n    \
+             comment: Restarts into Windows through the firmware, so BitLocker does not ask for its key.\n\
+             \n/Windows, started directly\n    protocol: efi\n    \
+             path: guid(6a1f0c3e-2b4d-4e5f-9a8b-7c6d5e4f3a2b):/EFI/Microsoft/Boot/bootmgfw.efi\n    \
+             comment: For when \"Windows\" fails. BitLocker may ask for its recovery key.\n"
+        );
+        // Without the firmware entry, only the direct entry; a second ESP gets its own, numbered
+        let no_entry = windows_entries(&one, false);
+        assert!(
+            no_entry.starts_with("\n/Windows, started directly\n")
+                && !no_entry.contains("efi_boot_entry")
+        );
+        let two = windows_entries(&[one[0].clone(), "b".into()], true);
+        assert!(
+            two.contains(
+                "\n/Windows, started directly (2)\n    protocol: efi\n    path: guid(b):/"
+            )
         );
     }
 

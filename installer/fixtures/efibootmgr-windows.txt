@@ -1,0 +1,14 @@
+BootCurrent: 0002
+Timeout: 0 seconds
+BootOrder: 0009,000A,0000,0001,0002,0003,0004,0005,0006,0007,0008
+Boot0000* BootManagerMenuApp	FvVol(7cb8bdc9-f8eb-4f34-aaea-3ee4af6516a1)/FvFile(eec25bdc-67f2-4d95-b1d5-f81b2039d11d)
+Boot0001* EFI Firmware Setup	FvVol(7cb8bdc9-f8eb-4f34-aaea-3ee4af6516a1)/FvFile(462caa21-7614-4503-836e-8ab6f4662331)
+Boot0002* UEFI QEMU DVD-ROM QM00005 	PciRoot(0x0)/Pci(0x1f,0x2)/Sata(2,65535,0){auto_created_boot_option}
+Boot0003* UEFI Misc Device	PciRoot(0x0)/Pci(0x4,0x0){auto_created_boot_option}
+Boot0004* UEFI PXEv4 (MAC:525400123456)	PciRoot(0x0)/Pci(0x2,0x0)/MAC(525400123456,1)/IPv4(0.0.0.0,0,DHCP,0.0.0.0,0.0.0.0,0.0.0.0){auto_created_boot_option}
+Boot0005* UEFI PXEv6 (MAC:525400123456)	PciRoot(0x0)/Pci(0x2,0x0)/MAC(525400123456,1)/IPv6([::],0,Static,[::],[::],64){auto_created_boot_option}
+Boot0006* UEFI HTTPv4 (MAC:525400123456)	PciRoot(0x0)/Pci(0x2,0x0)/MAC(525400123456,1)/IPv4(0.0.0.0,0,DHCP,0.0.0.0,0.0.0.0,0.0.0.0)/Uri(){auto_created_boot_option}
+Boot0007* UEFI HTTPv6 (MAC:525400123456)	PciRoot(0x0)/Pci(0x2,0x0)/MAC(525400123456,1)/IPv6([::],0,Static,[::],[::],64)/Uri(){auto_created_boot_option}
+Boot0008* EFI Internal Shell	FvVol(7cb8bdc9-f8eb-4f34-aaea-3ee4af6516a1)/FvFile(7c04a583-9e3e-4f1c-ad65-e05268d0b4d1)
+Boot0009* Stackific OS	HD(1,GPT,bfbf146d-8565-4ff7-9b7c-ea072cf2ffce,0x800,0x800000)/\EFI\limine\BOOTX64.EFI
+Boot000A* Windows Boot Manager	HD(1,GPT,6A1F0C3E-2B4D-4E5F-9A8B-7C6D5E4F3A2B,0x800,0x82000)/\EFI\Microsoft\Boot\bootmgfw.efi

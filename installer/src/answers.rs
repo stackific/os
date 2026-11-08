@@ -35,7 +35,8 @@ pub struct Answers {
     pub user: UserAnswers,
 }
 
-/// `[disk]`: the drive, the mode, and for an erase the typed confirmation (the drive's kernel name).
+/// `[disk]`: the drive, the mode, for an erase the typed confirmation (the drive's kernel name), and with BitLocker
+/// on a drive that stays the BitLocker screen's typed confirmation (`bitlocker::PHRASE`).
 #[derive(Clone, Debug, Default, Deserialize, PartialEq)]
 #[serde(deny_unknown_fields)]
 pub struct DiskAnswers {
@@ -43,6 +44,8 @@ pub struct DiskAnswers {
     pub mode: Mode,
     #[serde(default)]
     pub erase: String,
+    #[serde(default)]
+    pub bitlocker: String,
 }
 
 /// `[system]`: an XKB layout code, a timezone and the computer name.
@@ -263,6 +266,13 @@ impl Answers {
         if self.disk.mode == Mode::Erase {
             check_erase(&self.disk.device, &self.disk.erase).map_err(|e| format!("erase: {e}"))?;
         }
+        // Whether BitLocker needs it is known only once the drives are read; a set value must be the phrase
+        if !self.disk.bitlocker.is_empty() && self.disk.bitlocker != crate::bitlocker::PHRASE {
+            return Err(format!(
+                "bitlocker: the confirmation must be {:?}",
+                crate::bitlocker::PHRASE
+            ));
+        }
         Ok(())
     }
 }
@@ -364,6 +374,11 @@ mod tests {
         let mut a = good();
         a.user.password.clear();
         assert!(a.check(&c).unwrap_err().starts_with("password:"));
+        let mut a = good();
+        a.disk.bitlocker = "yes".into();
+        assert!(a.check(&c).unwrap_err().starts_with("bitlocker:"));
+        a.disk.bitlocker = "I have my key".into();
+        assert_eq!(a.check(&c), Ok(()));
         assert!(Answers::from_toml("[disk]\ndevice = \"/dev/vda\"\nmode = \"wipe\"\n").is_err());
         assert!(
             Answers::from_toml(&format!(

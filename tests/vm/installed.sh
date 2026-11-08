@@ -4,7 +4,8 @@
 # tests/vm/install.sh's free-space install, which is the one on the disk. The firmware started our entry; Limine started
 # the kernel from our ESP with root on @; the boot files, the firmware entries and stackific-boot's hooks (the recipe put
 # the image's limine package, and on Fedora its kernel-core package, at the ESP's root); the system the installer set
-# up; and the keyboard layout in MangoWM and in the second desktop (Plasma, GNOME). Leaves limine.png (boot.sh),
+# up; the keyboard layout in MangoWM and in the second desktop (Plasma, GNOME); and, last, the fake Windows install.sh
+# left on partition 1 started through both of Limine's Windows entries, one restart each. Leaves limine.png (boot.sh),
 # installed.png (the login screen) and efibootmgr.txt.
 # shellcheck disable=SC2154 # out, vm, vm_until, fail and screenshot come from boot.sh, which sources this file
 
@@ -26,6 +27,9 @@ grep -q "^Boot$current\\* $name	" <<<"$entries" || fail "BootCurrent $current is
 [ "$(sed -n 's/^BootOrder: //p' <<<"$entries" | cut -d, -f1)" = "$current" ] || fail "\"$name\" is not first: $entries"
 [ "$(grep -c "^Boot[0-9A-F]\\{4\\}\\* $name	" <<<"$entries")" = 1 ] || fail "not one \"$name\" entry: $entries"
 echo "ok: one \"$name\" entry, first in the boot order, started this boot"
+second=$(sed -n 's/^BootOrder: //p' <<<"$entries" | cut -d, -f2)
+grep -q "^Boot$second\\* Windows Boot Manager	" <<<"$entries" || fail "Windows Boot Manager is not second: $entries"
+echo "ok: Windows Boot Manager is second"
 
 # Limine started the kernel with root on the @ subvolume; the btrfs default stays the top level
 uuid=$(vm 'findmnt -no UUID /' | tr -d '\r\n')
@@ -104,15 +108,19 @@ echo "ok: stackific-boot's hook restored Limine's program"
 # None of it touches the firmware entries.
 if [ "$like" = fedora ]; then
   entry() { printf '%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: root=UUID=%s rootflags=subvol=/@ rw' "$1" "$2" "$2" "$uuid"; }
+  # The Windows entries the installer left for the plugin, after the kernels' each time
+  win=$(vm 'cat /etc/kernel/limine-windows.conf')
+  grep -qx '    entry: Windows Boot Manager' <<<"$win" || fail "no Windows entries for the plugin: $win"
   one="timeout: 3
 interface_branding: $name
 
-/$(entry "$name" "$version")"
+/$(entry "$name" "$version")
+$win"
   [ "$(vm 'cat /boot/limine.conf')" = "$one" ] || fail "limine.conf after the install: $(vm 'cat /boot/limine.conf')"
   vm_until "kernel-install add 0.0.1-test /boot/vmlinuz-$version /boot/initramfs-$version.img && echo added" '^added$' 0
-  [ "$(vm 'cat /boot/limine.conf')" = "$one
-
-/$(entry "$name (0.0.1-test)" 0.0.1-test)" ] || fail "limine.conf with a second kernel: $(vm 'cat /boot/limine.conf')"
+  [ "$(vm 'cat /boot/limine.conf')" = "${one%"$win"}
+/$(entry "$name (0.0.1-test)" 0.0.1-test)
+$win" ] || fail "limine.conf with a second kernel: $(vm 'cat /boot/limine.conf')"
   vm_until 'kernel-install remove 0.0.1-test && ls /boot/*0.0.1-test* 2>/dev/null | wc -l' '^0$' 0
   [ "$(vm 'cat /boot/limine.conf')" = "$one" ] || fail "limine.conf after the removal: $(vm 'cat /boot/limine.conf')"
   vm "rm /boot/vmlinuz-$version" >/dev/null
@@ -154,3 +162,31 @@ else
     '^a\(sss\) [0-9]+ "de"' 60
   echo "ok: MangoWM and Plasma start with the installer's layout"
 fi
+
+# Limine's Windows entries start the fake Windows: a limine.conf beside its loader (Limine looks in its program's
+# folder first) starts this system's kernel from our ESP with a marker. "Windows" restarts into the firmware's Windows
+# Boot Manager entry (BootNext); "Windows, started directly" starts the loader from Limine. One restart each.
+esp_uuid=$(vm 'findmnt -no PARTUUID /boot' | tr -d '\r\n')
+vm "mkdir -p /mnt/w && mount /dev/vda1 /mnt/w && { printf 'timeout: 1\n\n/Fake Windows\n'; \
+  sed -n '/^    /{p;/^    cmdline: /q}' /boot/limine.conf | sed -e 's|boot():|guid($esp_uuid):|' \
+  -e '/^    cmdline: /s/\$/ stackific.test=windows/'; } >/mnt/w/EFI/Microsoft/Boot/limine.conf && umount /mnt/w" >/dev/null
+# Restart, wait for the firmware to start an entry, then pick Limine's entry <n> below the first: the first key stops
+# its 3 s countdown, so the wait polls often and the keys go a second after the firmware's line
+windows_boot() {
+  local seen keys=()
+  seen=$(grep -ac 'BdsDxe: starting Boot' "$out/serial.log")
+  vm 'systemctl reboot' >/dev/null 2>&1 || true
+  for _ in $(seq 600); do [ "$(grep -ac 'BdsDxe: starting Boot' "$out/serial.log")" -gt "$seen" ] && break; sleep 0.2; done
+  sleep 1
+  for _ in $(seq "$1"); do keys+=(down); done
+  sendkey "${keys[@]}" ret
+  vm_until 'cat /proc/cmdline' '(^| )stackific.test=windows$' 300
+}
+current() { vm efibootmgr | sed -n 's/^BootCurrent: //p'; }
+windows_boot 1
+grep -aq 'BdsDxe: starting Boot[0-9A-F]\{4\} "Windows Boot Manager"' "$out/serial.log" || fail "the firmware did not start Windows Boot Manager"
+vm efibootmgr | grep -q "^Boot$(current)\\* Windows Boot Manager	" || fail "BootCurrent is not Windows Boot Manager: $(vm efibootmgr)"
+echo "ok: \"Windows\" restarts into the firmware's Windows Boot Manager"
+windows_boot 2
+vm efibootmgr | grep -q "^Boot$(current)\\* $name	" || fail "BootCurrent is not \"$name\": $(vm efibootmgr)"
+echo "ok: \"Windows, started directly\" starts Windows' loader from Limine"

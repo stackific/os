@@ -1,12 +1,15 @@
 //! The drives the installer may use: whole disks from `lsblk --json`, their tables from `sfdisk --json` and
-//! `--verify`, the protective MBR from `sfdisk --label-nested dos`, BitLocker from `blkid -p`, and the largest
-//! 1 MiB-aligned gap. Each drive left out, and each free space that cannot be used, carries its reason.
+//! `--verify`, the protective MBR from `sfdisk --label-nested dos`, and the largest 1 MiB-aligned gap. Each drive left
+//! out, and each free space that cannot be used, carries its reason (IN-07's refusals among them).
 
 use std::path::Path;
 
 use serde::Deserialize;
 
 use crate::run::{Cmd, Runner};
+
+/// Why an Intel RST RAID member is left out (IN-07); the Drive screen adds how to switch.
+pub const RST_MEMBER: &str = "Intel RST RAID member: set storage mode to AHCI";
 
 /// The smallest gap, or drive, an install accepts (IN-06).
 pub const MIN_BYTES: u64 = 40 << 30;
@@ -27,6 +30,9 @@ pub struct Dev {
     pub model: Option<String>,
     pub fstype: Option<String>,
     pub label: Option<String>,
+    /// The partition's type: a GUID on GPT, a hex code such as `0x7` on MBR.
+    pub parttype: Option<String>,
+    pub partuuid: Option<String>,
     pub start: Option<u64>,
     /// The logical sector size, which sfdisk counts in.
     #[serde(rename = "log-sec", default)]
@@ -44,7 +50,7 @@ struct Lsblk {
 
 /// The lsblk columns the installer reads.
 pub const LSBLK_COLUMNS: &str =
-    "NAME,PATH,TYPE,SIZE,RO,TRAN,MODEL,FSTYPE,LABEL,START,LOG-SEC,MOUNTPOINTS";
+    "NAME,PATH,TYPE,SIZE,RO,TRAN,MODEL,FSTYPE,LABEL,PARTTYPE,PARTUUID,START,LOG-SEC,MOUNTPOINTS";
 
 /// Parses `lsblk --json --bytes --output …`.
 pub fn parse_lsblk(json: &str) -> Result<Vec<Dev>, String> {
@@ -193,7 +199,7 @@ fn mounts(dev: &Dev) -> Vec<String> {
 }
 
 /// Whether `path` is the device or one of its children.
-fn holds(dev: &Dev, path: &str) -> bool {
+pub fn holds(dev: &Dev, path: &str) -> bool {
     dev.path == path || dev.children.iter().any(|c| holds(c, path))
 }
 
@@ -206,6 +212,10 @@ pub fn exclusion(dev: &Dev, live: Option<&str>) -> Option<String> {
             "the drive"
         };
         return Some(format!("{what} this installer runs from"));
+    }
+    // Before the in-use checks: md may hold the member (IN-07)
+    if dev.fstype.as_deref() == Some("isw_raid_member") {
+        return Some(RST_MEMBER.into());
     }
     if dev.ro {
         return Some("read-only".into());
@@ -223,16 +233,38 @@ pub fn exclusion(dev: &Dev, live: Option<&str>) -> Option<String> {
     None
 }
 
+/// Why the free space on an MBR drive cannot be used when Windows is on it: such a Windows starts in legacy BIOS mode,
+/// which our UEFI-only Limine cannot start (IN-07).
+pub const BIOS_WINDOWS: &str = "BIOS-mode Windows: convert with MBR2GPT.EXE";
+
+/// Whether an MBR table holds Windows: a partition of type 07 that lsblk sees as NTFS or BitLocker.
+pub fn bios_windows(table: &PartTable, parts: &[Dev]) -> bool {
+    table.label == "dos"
+        && table.partitions.iter().any(|t| {
+            t.kind.trim_start_matches("0x") == "7"
+                && parts.iter().any(|p| {
+                    p.start
+                        .is_some_and(|s| s * 512 == t.start * table.sectorsize)
+                        && matches!(p.fstype.as_deref(), Some("ntfs" | "BitLocker"))
+                })
+        })
+}
+
 /// Whether the free space may take an install: a clean GPT (`sfdisk --verify` reports no error and warns about
-/// nothing), a protective MBR with only its `ee` entry, no BitLocker partition, and a gap of at least 40 GiB.
+/// nothing), a protective MBR with only its `ee` entry, and a gap of at least 40 GiB. BitLocker is confirmed on its
+/// own screen instead (`bitlocker.rs`). `bios_windows` names the reason on an MBR drive with Windows.
 pub fn free_space(
     table: &PartTable,
     verify: (&str, &str),
     nested: Option<&PartTable>,
-    bitlocker: bool,
+    bios_windows: bool,
 ) -> FreeSpace {
     if table.label != "gpt" {
-        return Err("no GPT partition table".into());
+        return Err(if bios_windows {
+            BIOS_WINDOWS.into()
+        } else {
+            "no GPT partition table".into()
+        });
     }
     let (out, err) = verify;
     let protective = nested.is_some_and(|n| {
@@ -240,9 +272,6 @@ pub fn free_space(
     });
     if !out.contains("No errors detected.") || !err.trim().is_empty() || !protective {
         return Err("the partition table needs repair".into());
-    }
-    if bitlocker {
-        return Err("BitLocker is on this drive".into());
     }
     match largest_gap(table) {
         Some(g) if g.bytes() >= MIN_BYTES => Ok(g),
@@ -309,7 +338,7 @@ pub fn probe(run: &dyn Runner, dev: Dev) -> Result<Drive, String> {
         .and_then(largest_gap);
     let free = match &table {
         None => Err("no partition table".into()),
-        Some(t) if t.label != "gpt" => free_space(t, ("", ""), None, false),
+        Some(t) if t.label != "gpt" => free_space(t, ("", ""), None, bios_windows(t, &parts)),
         Some(t) => {
             let verify = sfdisk(&["--verify"])?;
             let nested = sfdisk(&["--json", "--label-nested", "dos"])?;
@@ -318,19 +347,7 @@ pub fn probe(run: &dyn Runner, dev: Dev) -> Result<Drive, String> {
             } else {
                 None
             };
-            let mut bitlocker = false;
-            for p in &parts {
-                let probe = run
-                    .run(&Cmd::new("blkid").args(["-p", "-o", "export", &p.path]))
-                    .map_err(|e| e.to_string())?;
-                bitlocker |= probe.stdout.lines().any(|l| l == "TYPE=BitLocker");
-            }
-            free_space(
-                t,
-                (&verify.stdout, &verify.stderr),
-                nested.as_ref(),
-                bitlocker,
-            )
+            free_space(t, (&verify.stdout, &verify.stderr), nested.as_ref(), false)
         }
     };
     Ok(Drive {
@@ -345,6 +362,20 @@ pub fn probe(run: &dyn Runner, dev: Dev) -> Result<Drive, String> {
         table,
         gap,
         free,
+    })
+}
+
+/// Whether Intel RST hides NVMe drives from Linux: the ahci driver counts them in `remapped_nvme` (subiquity's
+/// `has_rst` check). Such drives cannot be listed, so the Drive screen says how to show them (IN-07).
+pub fn remapped_nvme(run: &dyn Runner) -> bool {
+    run.run(&Cmd::new("sh").args([
+        "-c",
+        "cat /sys/module/ahci/drivers/pci:ahci/*/remapped_nvme 2>/dev/null",
+    ]))
+    .is_ok_and(|o| {
+        o.stdout
+            .split_whitespace()
+            .any(|n| n.parse::<u32>().is_ok_and(|n| n > 0))
     })
 }
 
@@ -445,10 +476,8 @@ mod tests {
             free_space(&gpt, ok, Some(&hybrid), false),
             Err("the partition table needs repair".into())
         );
-        assert_eq!(
-            free_space(&gpt, ok, Some(&protective), true),
-            Err("BitLocker is on this drive".into())
-        );
+        // An MBR table with Windows names BIOS mode and MBR2GPT
+        assert_eq!(free_space(&mbr, ok, None, true), Err(BIOS_WINDOWS.into()));
     }
 
     #[test]
@@ -472,6 +501,10 @@ mod tests {
         assert_eq!(want("sde"), Some("in use, mounted at /mnt".into()));
         assert_eq!(want("sdf"), Some("in use as swap".into()));
         assert_eq!(want("vda"), None);
+        // An Intel RST RAID member is left out first, even while md holds it
+        let mut member = devs.iter().find(|d| d.name == "sde").unwrap().clone();
+        member.fstype = Some("isw_raid_member".into());
+        assert_eq!(exclusion(&member, None), Some(RST_MEMBER.into()));
         // zram is a disk to lsblk; rom and loop devices are not disks: scan skips all three
         assert!(devs.iter().any(|d| d.name == "zram0" && d.kind == "disk"));
         assert!(devs.iter().any(|d| d.kind == "rom") && devs.iter().any(|d| d.kind == "loop"));
@@ -508,7 +541,7 @@ mod tests {
     }
 
     #[test]
-    fn probe_reads_the_table_verify_and_bitlocker() {
+    fn probe_reads_the_table_and_verify() {
         use crate::run::{Fake, Output};
         let devs = parse_lsblk(include_str!("../fixtures/lsblk.json")).unwrap();
         let nvme = devs.iter().find(|d| d.name == "nvme0n1").unwrap().clone();
@@ -526,24 +559,12 @@ mod tests {
         .on(
             "sfdisk --json --label-nested dos /dev/nvme0n1",
             Output::ok(protective),
-        )
-        .on(
-            "blkid -p -o export /dev/nvme0n1p3",
-            Output::ok(include_str!("../fixtures/blkid-bitlocker.txt")),
-        )
-        .on("blkid -p", Output::fail(2, ""));
-        let d = probe(&f, nvme.clone()).unwrap();
-        assert_eq!(d.free, Err("BitLocker is on this drive".into()));
-        assert_eq!((d.gap.unwrap().bytes(), d.sector), (120 * GIB, 512));
-        // Without BitLocker the gap is usable
-        f.state().rules.insert(
-            0,
-            (
-                "blkid -p -o export /dev/nvme0n1p3".into(),
-                Output::ok("TYPE=ntfs\n"),
-            ),
         );
-        assert!(probe(&f, nvme.clone()).unwrap().free.is_ok());
+        // BitLocker on nvme0n1p3 no longer refuses the free space: its own screen confirms it
+        let d = probe(&f, nvme.clone()).unwrap();
+        assert_eq!(d.parts[2].fstype.as_deref(), Some("BitLocker"));
+        assert_eq!((d.gap.unwrap().bytes(), d.sector), (120 * GIB, 512));
+        assert!(d.free.is_ok());
         // No table: sfdisk fails, only an erase is possible, at lsblk's sector size
         let sda = devs.iter().find(|d| d.name == "sda").unwrap().clone();
         f.on(
@@ -562,16 +583,40 @@ mod tests {
         )
         .unwrap();
         assert_eq!((d.free, d.sector), (Err("no partition table".into()), 4096));
-        // An MBR table
-        let mbr = r#"{"partitiontable":{"label":"dos","sectorsize":512,"partitions":[{"start":2048,"size":9,"type":"7"}]}}"#;
+        // An MBR table: with Windows (type 7, NTFS or BitLocker at the same start) the reason names BIOS mode
+        let mbr = r#"{"partitiontable":{"label":"dos","sectorsize":512,"partitions":[{"start":567296,"size":9,"type":"7"}]}}"#;
         f.state()
             .rules
             .insert(0, ("sfdisk --json /dev/nvme0n1".into(), Output::ok(mbr)));
         assert_eq!(
-            probe(&f, nvme).unwrap().free,
+            probe(&f, nvme.clone()).unwrap().free,
+            Err(BIOS_WINDOWS.into())
+        );
+        let mut data = nvme.clone();
+        data.children[2].fstype = Some("exfat".into());
+        assert_eq!(
+            probe(&f, data).unwrap().free,
             Err("no GPT partition table".into())
         );
+
         assert!(f.state().unexpected.is_empty());
+    }
+
+    #[test]
+    fn remapped_nvme_counts_hidden_drives() {
+        use crate::run::{Fake, Output};
+        let f = Fake::default();
+        f.on("sh -c", Output::ok("0\n0\n"));
+        assert!(!remapped_nvme(&f));
+        f.state()
+            .rules
+            .insert(0, ("sh -c".into(), Output::ok("0\n2\n")));
+        assert!(remapped_nvme(&f));
+        // No ahci controller: cat finds nothing
+        f.state()
+            .rules
+            .insert(0, ("sh -c".into(), Output::fail(1, "")));
+        assert!(!remapped_nvme(&f));
     }
 
     #[test]

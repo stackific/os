@@ -2,12 +2,13 @@
 # does on Arch. The installer copies /usr/share/limine/BOOTX64.EFI to /boot/EFI/limine/ (the firmware entry's loader)
 # and /boot/EFI/BOOT/ (the firmware's fallback path) and writes /etc/kernel/cmdline, then runs kernel-install. Kernels:
 # kernel-install runs with layout=other on the ESP at /boot, Fedora's dracut plugin writes the initramfs, and our plugin
-# copies the kernel and writes limine.conf, on every kernel install and removal. Limine's program: the trigger copies it
+# copies the kernel and writes limine.conf, on every kernel install and removal, with the Windows entries the installer
+# left in /etc/kernel/limine-windows.conf after the kernels. Limine's program: the trigger copies it
 # again after every limine install or upgrade. The files are Fedora-only, so they sit next to this spec.
 
 Name: stackific-boot
 Version: 0.1.0
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Stackific OS boot files: keeps Limine and its menu on the EFI System Partition current
 License: Apache-2.0
 URL: https://os.stackific.com

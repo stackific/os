@@ -61,6 +61,7 @@ pub fn start(app: &mut App) {
         Ok(l) => (l, drive.sector),
         Err(_) => return,
     };
+    let windows = crate::boot::windows_entries(&app.windows.esps, app.windows.firmware_entry);
     let (state, tx) = State::idle(&answers.disk.device, answers.disk.mode);
     let stop = state.stop.clone();
     let (run, base, os, log) = (
@@ -77,6 +78,7 @@ pub fn start(app: &mut App) {
             layout,
             sector,
             target: TARGET.into(),
+            windows,
         };
         let progress = tx.clone();
         let r = install::install(

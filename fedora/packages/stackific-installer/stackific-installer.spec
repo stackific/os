@@ -8,7 +8,7 @@
 
 Name: stackific-installer
 Version: 0.1.0
-Release: 1%{?dist}
+Release: 2%{?dist}
 Summary: Stackific OS installer: into a drive's free space or onto a whole drive, from the live desktop or the boot menu
 License: Apache-2.0
 URL: https://os.stackific.com
@@ -23,6 +23,7 @@ BuildRequires: gettext-envsubst
 BuildRequires: rust
 BuildRequires: systemd-rpm-macros
 Requires: btrfs-progs
+Requires: cryptsetup
 Requires: dnf5
 Requires: dosfstools
 Requires: e2fsprogs

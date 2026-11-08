@@ -147,12 +147,80 @@ fn snapshots_of_the_answers_and_the_drive() {
     press(&mut a, KeyCode::Enter);
     snapshot(&mut a, "space");
     press(&mut a, KeyCode::Enter);
+    typ(&mut a, "I have my k");
+    snapshot(&mut a, "bitlocker");
+    typ(&mut a, "ey");
+    press(&mut a, KeyCode::Enter);
     snapshot(&mut a, "confirm-free-space");
+    press(&mut a, KeyCode::Esc);
+    assert_eq!(a.screen, Screen::BitLocker);
     press(&mut a, KeyCode::Esc);
     press(&mut a, KeyCode::Down);
     press(&mut a, KeyCode::Enter);
     typ(&mut a, "nvme0n1");
     snapshot(&mut a, "confirm-erase");
+}
+
+#[test]
+fn a_long_file_system_name_keeps_a_space_before_the_label() {
+    let row = super::space::part_row("vda3", 10 << 30, "BitLocker", "DESKTOP-NPM7RCA H: 7/4/2019");
+    assert!(
+        row.ends_with(" BitLocker DESKTOP-NPM7RCA H: 7/4/2019"),
+        "{row}"
+    );
+    assert!(
+        super::space::part_row("vda1", 100 << 20, "vfat", "SYSTEM").ends_with(" vfat    SYSTEM")
+    );
+}
+
+#[test]
+fn snapshots_of_bitlocker_without_a_key_and_of_rst() {
+    let (f, mut a) = start(false);
+    f.state().rules.insert(
+        0,
+        (
+            "cryptsetup bitlkDump".into(),
+            crate::run::Output::ok(include_str!("../../fixtures/bitlkdump-tpm-no-recovery.txt")),
+        ),
+    );
+    to_you(&mut a);
+    typ(&mut a, "h");
+    press(&mut a, KeyCode::Enter);
+    press(&mut a, KeyCode::Enter);
+    press(&mut a, KeyCode::Enter);
+    assert_eq!(a.screen, Screen::BitLocker);
+    // Enter waits for the phrase
+    press(&mut a, KeyCode::Enter);
+    assert_eq!(a.screen, Screen::BitLocker);
+    snapshot(&mut a, "bitlocker-no-key");
+    // An Intel RST member is left out with guidance; hidden NVMe drives get a line
+    let (f, mut a) = start(false);
+    let rst = include_str!("../../fixtures/lsblk.json").replacen(
+        r#""tran": "sata",
+      "model": "CT500MX500SSD1",
+      "fstype": null"#,
+        r#""tran": "sata",
+      "model": "CT500MX500SSD1",
+      "fstype": "isw_raid_member""#,
+        1,
+    );
+    assert_ne!(rst, include_str!("../../fixtures/lsblk.json"));
+    {
+        let mut s = f.state();
+        s.rules.insert(
+            0,
+            (
+                "lsblk --json --bytes --output NAME,PATH,TYPE,SIZE,RO".into(),
+                crate::run::Output::ok(&rst),
+            ),
+        );
+        s.rules
+            .insert(0, ("sh -c ".into(), crate::run::Output::ok("1\n")));
+    }
+    to_you(&mut a);
+    typ(&mut a, "h");
+    press(&mut a, KeyCode::Enter);
+    snapshot(&mut a, "drive-rst");
 }
 
 #[test]
@@ -290,7 +358,13 @@ fn install(a: &mut App, mode: Mode) {
     }
     press(a, KeyCode::Enter);
     if mode == Mode::Erase {
+        // The BitLocker volume is on the drive the erase removes: no BitLocker screen
+        assert_eq!(a.screen, Screen::Confirm);
         typ(a, "nvme0n1");
+    } else {
+        assert_eq!(a.screen, Screen::BitLocker);
+        typ(a, "I have my key");
+        press(a, KeyCode::Enter);
     }
     press(a, KeyCode::Enter);
     assert_eq!(a.screen, Screen::Installing);

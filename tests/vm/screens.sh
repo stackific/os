@@ -2,12 +2,14 @@
 # Screenshots of the installer's screens for the prompt trail: boot.sh sources this file with STACKIFIC_TEST_DISK
 # attached as /dev/vda, a blank 64 GiB raw image (`just arch screenshots`). It drives the real installer by key presses
 # and saves <out-dir>/screens/<name>.png on each screen:
-# 1. on the desktop, from Noctalia's launcher (Super+Space): every screen through a free-space install next to a Windows-like table,
-#    the stop dialog, and Done;
+# 0. on the desktop, from Noctalia's launcher (Super+Space): Drive with the disk an Intel RST RAID member (an imsm
+#    container mdadm makes in the guest);
+# 1. on the desktop: every screen through a free-space install next to a Windows-like table with a BitLocker volume
+#    (cryptsetup's test image, BITLK_IMAGES_URL) and a fake Windows loader, the stop dialog, and Done;
 # 2. on the desktop again: a terminal too small, then an erase stopped during the copy (Stopped);
 # 3. on the console, from the Install target: Display, Keyboard and an erase to Done.
 # The waits are for the processes (the kernel keeps 15 characters of a name: stackific-insta) and the log; the screens themselves are checked by eye (and by the snapshot tests).
-# shellcheck disable=SC2154 # out, vm, vm_until, fail, screenshot and sendkey come from boot.sh, which sources this file
+# shellcheck disable=SC2154 # out, vm, vm_until, vm_put, asset, fail, screenshot and sendkey come from boot.sh
 
 mkdir -p "$out/screens"
 log=/run/stackific-installer.log
@@ -80,7 +82,27 @@ wait_install() {
   vm_until 'findmnt /run/stackific-installer/target >/dev/null || echo unmounted' '^unmounted$' 300
 }
 
-# The disk: a Windows-like table with a large gap, as in tests/vm/install.sh
+# 0. Drive with the disk an Intel RST RAID member: left out, with the guidance below the list
+vm_until 'systemctl --user -M live@ is-active stackific-noctalia.service' '^active$' 120
+sleep 10
+# (one device needs --force; a VM's disk has no serial number, and no Intel platform)
+vm "IMSM_NO_PLATFORM=1 IMSM_DEVNAME_AS_SERIAL=1 mdadm --create /dev/md/imsm --metadata=imsm --raid-devices=1 --force \
+  --run /dev/vda 2>&1; udevadm settle"
+vm_until 'lsblk -dno FSTYPE /dev/vda' '^isw_raid_member$' 30
+open_installer launcher
+sendkey ret ret ret ret
+you 'Ada Lovelace' abcdefgh
+sendkey ret
+shot drive-rst
+sendkey ctrl-c
+vm_until 'pgrep -x stackific-insta || echo gone' '^gone$' 30
+vm 'mdadm --stop --scan; mdadm --zero-superblock /dev/vda; wipefs --all --quiet /dev/vda; udevadm settle' >/dev/null
+vm_until 'lsblk -dno FSTYPE /dev/vda; echo end' '^end$' 0
+
+# The disk: a Windows-like table with a large gap, as in tests/vm/install.sh, BitLocker on partition 3 and a fake
+# Windows loader with its firmware entry
+asset "$BITLK_IMAGES_URL" "$BITLK_IMAGES_SHA256" bitlk-images.tar.xz
+vm_put "$out/bitlk-images.tar.xz" /tmp/bitlk-images.tar.xz
 vm "sfdisk --quiet /dev/vda <<'EOF'
 label: gpt
 start=2048, size=204800, type=C12A7328-F81F-11D2-BA4B-00A0C93EC93B
@@ -88,13 +110,16 @@ start=206848, size=32768, type=E3C9E316-0B5C-4DB8-817D-F92DF00215AE
 start=4433920, size=20971520, type=EBD0A0A2-B9E5-4433-87C0-68B6B72699C7
 5: start=132118528, size=2097152, type=DE94BBA4-06D1-4D40-A16A-BFD50179D6AC
 EOF
-udevadm settle && mkfs.fat -F 32 -n SYSTEM /dev/vda1 >/dev/null && mkfs.ntfs --quick --label Windows /dev/vda3 >/dev/null" >/dev/null
-vm_until 'blkid -o value -s LABEL /dev/vda3' '^Windows$' 0
+udevadm settle && mkfs.fat -F 32 -n SYSTEM /dev/vda1 >/dev/null \
+  && tar -xJOf /tmp/bitlk-images.tar.xz bitlk-images/bitlk-aes-xts-128.img | dd of=/dev/vda3 bs=1M conv=fsync status=none \
+  && mkdir -p /mnt/w && mount /dev/vda1 /mnt/w && mkdir -p /mnt/w/EFI/Microsoft/Boot \
+  && cp /usr/share/limine/BOOTX64.EFI /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && umount /mnt/w \
+  && efibootmgr --quiet --create --disk /dev/vda --part 1 --label 'Windows Boot Manager' \
+  --loader '\\EFI\\Microsoft\\Boot\\bootmgfw.efi'" >/dev/null
+vm_until 'blkid -p -o value -s TYPE /dev/vda3' '^BitLocker$' 0
 
 # 1. The desktop: every screen, a free-space install
-vm_until 'systemctl --user -M live@ is-active stackific-noctalia.service' '^active$' 120
-sleep 10
-open_installer launcher
+open_installer ''
 shot display
 sendkey ret
 shot welcome
@@ -114,12 +139,17 @@ shot drive
 sendkey ret
 shot space
 sendkey ret
+typ 'I have my k'
+shot bitlocker
+typ ey
+sendkey ret
 shot confirm-free-space
-sendkey esc down ret
+sendkey esc esc down ret
 typ vda
 shot confirm-erase
 sendkey esc up ret
-sendkey ret
+typ 'I have my key'
+sendkey ret ret
 vm_until 'pgrep -x rsync >/dev/null && echo copying' '^copying$' 300
 sleep 20
 shot installing

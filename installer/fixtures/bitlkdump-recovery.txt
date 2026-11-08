@@ -1,0 +1,39 @@
+Info for BITLK device bitlk-aes-xts-128.img.
+Version:      	2
+GUID:         	8f595209-f5b9-49a0-85d4-cb8f80258c27
+Sector size:  	512 [bytes]
+Volume size:  	104857600 [bytes]
+Created:      	Thu Jul  4 03:01:55 2019
+Description:  	DESKTOP-NPM7RCA H: 7/4/2019
+Cipher name:  	aes
+Cipher mode:  	xts-plain64
+Cipher key:   	256 [bits]
+
+Keyslots:
+ 0: VMK
+	GUID:       	3e55195c-8811-4d9b-97b4-2b9e5f8f5384
+	Protection: 	VMK protected with passphrase
+	Salt:       	8d7637cc5d885d5ff4f748dbc8440d2e
+	Key data size:	44 [bytes]
+ 1: VMK
+	GUID:       	64311dea-4587-4029-924a-ba299647998e
+	Protection: 	VMK protected with recovery passphrase
+	Salt:       	2ba080989af9b50c203aaebd0b40d498
+	Key data size:	44 [bytes]
+ 2: FVEK
+	Key data size:	44 [bytes]
+
+Metadata segments:
+ 0: FVE metadata area
+	Offset: 	35213312 [bytes]
+	Size:   	65536 [bytes]
+ 1: FVE metadata area
+	Offset: 	46256128 [bytes]
+	Size:   	65536 [bytes]
+ 2: FVE metadata area
+	Offset: 	57909248 [bytes]
+	Size:   	65536 [bytes]
+ 3: Volume header
+	Offset: 	35278848 [bytes]
+	Size:   	8192 [bytes]
+	Cipher: 	aes-xts-plain64

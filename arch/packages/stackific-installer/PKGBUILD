@@ -10,12 +10,12 @@
 
 pkgname=stackific-installer
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc='Stackific OS installer: into a drive'"'"'s free space or onto a whole drive, from the live desktop or the boot menu'
 arch=('x86_64' 'aarch64')
 url='https://os.stackific.com'
 license=('Apache-2.0')
-depends=('arch-install-scripts' 'btrfs-progs' 'dosfstools' 'e2fsprogs' 'efibootmgr' 'foot' 'kbd' 'limine' 'rsync' 'shadow'
+depends=('arch-install-scripts' 'btrfs-progs' 'cryptsetup' 'dosfstools' 'e2fsprogs' 'efibootmgr' 'foot' 'kbd' 'limine' 'rsync' 'shadow'
          'systemd' 'util-linux' 'xkeyboard-config' 'stackific-release')
 makedepends=('cargo' 'gettext')
 options=('!debug')
