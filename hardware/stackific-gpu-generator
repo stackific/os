@@ -1,0 +1,45 @@
+#!/usr/bin/env bash
+# Picks the NVIDIA driver at every boot (systemd.generator(7)), live and installed, before udev's coldplug loads GPU
+# modules. nvidia-utils blacklists nouveau, and NVIDIA's open module drives only Turing and newer, so a machine whose
+# NVIDIA graphics are all older (their IDs in NVIDIA's legacy list) gets a /run/modprobe.d file that shadows
+# nvidia-utils.conf and blacklists NVIDIA's modules instead: udev then loads nouveau. When such a card is also the only
+# display controller, MangoWM gets lighter effects (each user's config includes /run/stackific/mango-gpu.conf with
+# source_optional). With any NVIDIA display controller, greetd waits for udev to settle, so the session starts on the
+# loaded driver instead of on the firmware's framebuffer, which the driver takes over.
+# Our own glue: no Arch package picks between NVIDIA and nouveau at boot. STACKIFIC_ROOT prefixes every path, for tests.
+set -euo pipefail
+
+out=${1:?usage: stackific-gpu-generator <normal-dir> [<early-dir> <late-dir>]}
+root=${STACKIFIC_ROOT:-}
+ids=$(grep -v '^#' "$root/usr/share/stackific/nvidia-legacy.ids")
+
+legacy=0 modern=0 other=0
+for d in "$root"/sys/bus/pci/devices/*; do
+  [ -r "$d/class" ] || continue
+  [[ $(<"$d/class") == 0x03* ]] || continue # display controllers only (VGA, 3D, other)
+  if [ "$(<"$d/vendor")" != 0x10de ]; then
+    other=1
+  elif grep -qw -- "$(sed 's/^0x//' "$d/device")" <<<"$ids"; then
+    legacy=1
+  else
+    modern=1
+  fi
+done
+
+if [ "$legacy" = 1 ] && [ "$modern" = 0 ]; then
+  mkdir -p "$root/run/modprobe.d"
+  printf '%s\n' '# Written by stackific-gpu-generator: NVIDIA graphics older than Turing run nouveau' \
+    'blacklist nvidia' 'blacklist nvidia_drm' 'blacklist nvidia_modeset' 'blacklist nvidia_uvm' \
+    'blacklist nova_core' 'blacklist nova_drm' >"$root/run/modprobe.d/nvidia-utils.conf"
+  if [ "$other" = 0 ]; then
+    mkdir -p "$root/run/stackific"
+    ln -sfn /usr/share/stackific/mango-low-effects.conf "$root/run/stackific/mango-gpu.conf"
+  fi
+fi
+
+if [ "$legacy" = 1 ] || [ "$modern" = 1 ]; then
+  mkdir -p "$out/greetd.service.d"
+  printf '%s\n' '# Written by stackific-gpu-generator: start the session once the NVIDIA or nouveau module has loaded' \
+    '[Unit]' 'Wants=systemd-udev-settle.service' 'After=systemd-udev-settle.service' \
+    >"$out/greetd.service.d/stackific-gpu.conf"
+fi

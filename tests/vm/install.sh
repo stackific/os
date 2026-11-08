@@ -104,7 +104,7 @@ installed_checks() {
   vm_until "grep -c '^tester:[\$]y[\$]' $r/etc/shadow" '^1$' 0
   vm_until "grep -c '^root:!' $r/etc/shadow" '^1$' 0
   vm_until "test -f $h/tester/.config/noctalia/00-stackific.toml && cat $h/tester/.config/mango/config.conf | paste -sd ' '" \
-    '^source=/etc/mango/config.conf bind=SUPER,space,spawn,noctalia msg panel-toggle launcher xkb_rules_layout=de$' 0
+    '^source=/etc/mango/config.conf source_optional=/run/stackific/mango-gpu.conf bind=SUPER,space,spawn,noctalia msg panel-toggle launcher xkb_rules_layout=de$' 0
   vm_until "stat -c %u $h/tester/.config/mango/config.conf $h/tester/.config/mango | paste -sd ' '" '^1000 1000$' 0
   # The system: computer name, timezone, console keymap, X11 layout, the live image's locale
   vm_until "cat $r/etc/hostname" '^stackific-test$' 0
@@ -120,12 +120,13 @@ installed_checks() {
   vm_until "grep -A2 '^\\[default_session\\]' $r/etc/greetd/config.toml | grep -cx 'command = \"/usr/bin/noctalia-greeter-session\"'" '^1$' 0
   # The ESP: the kernel, its initramfs, Limine's program at both paths, and limine.conf with this install's root
   vm "mkdir -p /mnt/e && mount -o ro $esp /mnt/e" >/dev/null
-  local kernel=vmlinuz-linux initramfs=initramfs-linux.img
-  [ "$efi" != BOOTAA64.EFI ] || kernel=Image # Arch Linux ARM's linux-aarch64 owns /boot/Image
+  # Arch x86_64 also boots linux-lts, the fallback kernel, from its own entry with the same command line
+  local kernel=vmlinuz-linux initramfs=initramfs-linux.img entries=2
+  [ "$efi" != BOOTAA64.EFI ] || kernel=Image entries=1 # Arch Linux ARM's linux-aarch64 owns /boot/Image
   if [ "$like" = fedora ]; then
     local version
     version=$(vm "ls $r/usr/lib/modules" | tr -d '\r\n')
-    kernel=vmlinuz-$version initramfs=initramfs-$version.img
+    kernel=vmlinuz-$version initramfs=initramfs-$version.img entries=1
   fi
   vm_until "cd /mnt/e && ls -d $kernel $initramfs limine.conf EFI/limine/$efi EFI/BOOT/$efi | wc -l" \
     '^5$' 0
@@ -133,7 +134,8 @@ installed_checks() {
     '^same$' 0
   # Fedora on aarch64 starts its zboot kernel as an EFI program, which loads the initramfs named first
   [ "$like$efi" != fedoraBOOTAA64.EFI ] || cmdline="initrd=\\$initramfs $cmdline"
-  vm_until "grep -cxF '    cmdline: $cmdline' /mnt/e/limine.conf" '^1$' 0
+  vm_until "grep -cxF '    cmdline: $cmdline' /mnt/e/limine.conf" \
+    "^$entries\$" 0
   vm "umount /mnt/e /mnt/t && cryptsetup close test-root" >/dev/null
 }
 

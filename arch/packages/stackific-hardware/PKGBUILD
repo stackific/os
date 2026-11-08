@@ -1,0 +1,28 @@
+# Stackific OS hardware support for Arch: picks the NVIDIA driver at every boot. The generator reads the display
+# controllers from sysfs and, where all NVIDIA graphics are older than Turing (NVIDIA's legacy list), loads nouveau
+# instead of NVIDIA's open module and gives MangoWM lighter effects; see hardware/stackific-gpu-generator. The NVIDIA
+# packages themselves (nvidia-open, nvidia-open-lts, nvidia-utils) come from the image's package list. The sources are
+# base-neutral files from hardware/, which `just arch packages` stages next to this file by name.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-hardware
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS hardware support: picks NVIDIA open modules or nouveau at every boot'
+arch=('any')
+url='https://os.stackific.com'
+license=('Apache-2.0')
+depends=('bash' 'systemd')
+options=('!debug' '!strip')
+source=('stackific-gpu-generator'
+        'nvidia-legacy.ids'
+        'mango-low-effects.conf')
+sha256sums=('3211dc199061e22e4201889e1141b7c4e7682a70c1443d5c3a89d7bdb5109f52'
+            '25da9a843ea7314f944c2fced2fb957bb6b344e71ff750dcfa9208e19af6abe4'
+            'e0a4907b7e6710bc2e839ae6d8a03251f2e6a44ec6cd8fb2613e0025e07729bb')
+
+# The generator, the legacy list it reads and the MangoWM include it links
+package() {
+  install -Dm755 stackific-gpu-generator "$pkgdir/usr/lib/systemd/system-generators/stackific-gpu-generator"
+  install -Dm644 -t "$pkgdir/usr/share/stackific" nvidia-legacy.ids mango-low-effects.conf
+}

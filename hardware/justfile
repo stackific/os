@@ -1,0 +1,50 @@
+# Hardware module: the GPU driver pick (stackific-gpu-generator) and its data, packaged as stackific-hardware.
+
+# Run stackific-gpu-generator against fake sysfs trees of recorded PCI sets (vendor:device:class) and compare what it
+# writes with what each set needs; prints one line per set
+test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cd "{{ justfile_directory() }}/hardware"
+  tmp=$(mktemp -d)
+  trap 'rm -rf "$tmp"' EXIT
+  rc=0
+  # check <name> <expected files, space-separated, sorted> <device>... : one fake root per set
+  check() {
+    local name=$1 want=$2 r="$tmp/$1" i=0 got
+    shift 2
+    mkdir -p "$r/usr/share/stackific" "$r/sys/bus/pci/devices" "$r/run" "$r/out"
+    cp nvidia-legacy.ids "$r/usr/share/stackific/"
+    for dev in "$@"; do
+      i=$((i + 1))
+      d="$r/sys/bus/pci/devices/0000:0$i:00.0"
+      mkdir -p "$d"
+      IFS=: read -r v p c <<<"$dev"
+      echo "0x$v" >"$d/vendor"; echo "0x$p" >"$d/device"; echo "0x$c" >"$d/class"
+    done
+    STACKIFIC_ROOT="$r" ./stackific-gpu-generator "$r/out" "$r/out" "$r/out"
+    got=$(cd "$r" && find run out \( -type f -o -type l \) | sort | paste -sd' ')
+    if [ "$got" = "$want" ]; then echo "ok: $name"; else echo "FAIL: $name: got '$got', want '$want'" >&2; rc=1; fi
+  }
+  redirect=run/modprobe.d/nvidia-utils.conf
+  mango=run/stackific/mango-gpu.conf
+  wait=out/greetd.service.d/stackific-gpu.conf
+  check turing-desktop "$wait" 10de:1e04:030000
+  check pascal-desktop "$wait $redirect $mango" 10de:1b80:030000
+  check mx150-with-intel "$wait $redirect" 8086:9b41:030000 10de:1d10:030200
+  check amd-alone "" 1002:73bf:030000
+  check intel-alone "" 8086:9b41:030000
+  check turing-laptop-with-amd "$wait" 1002:1638:030000 10de:1f99:030200
+  check pascal-and-turing "$wait" 10de:1b80:030000 10de:1e04:030000
+  check nvidia-audio-alone "" 10de:10f0:040300
+  check virtio-alone "" 1af4:1050:030000
+  check no-display ""
+  # The redirect blacklists NVIDIA's modules and nothing else, and the MangoWM link points at the packaged include
+  grep -qx 'blacklist nvidia' "$tmp/pascal-desktop/$redirect" && ! grep -q '^blacklist nouveau' "$tmp/pascal-desktop/$redirect" \
+    || { echo "FAIL: the redirect's text" >&2; rc=1; }
+  [ "$(readlink "$tmp/pascal-desktop/$mango")" = /usr/share/stackific/mango-low-effects.conf ] \
+    || { echo "FAIL: the MangoWM link's target" >&2; rc=1; }
+  # The list: NVIDIA's legacy tables in nvidia-utils 615.78.08 hold 879 IDs; MX150 is listed, MX450 and GTX 1650M not
+  n=$(grep -v '^#' nvidia-legacy.ids | tr -s ' \n' '\n' | grep -c .)
+  [ "$n" = 879 ] || { echo "FAIL: nvidia-legacy.ids has $n IDs, not 879" >&2; rc=1; }
+  exit "$rc"
