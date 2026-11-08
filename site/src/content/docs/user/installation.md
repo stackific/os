@@ -66,7 +66,7 @@ Each image has a second desktop: KDE Plasma on the images based on Arch Linux an
 
 ## Install it
 
-Builds after 0.1.0 have an installer on both x86_64 ISOs, `-arch-x86_64.iso` and `-fedora-x86_64.iso`: "Install Stackific OS" in the app launcher, first in GNOME's dash on the Fedora Remix image, and in the boot menu next to "Try Stackific OS". It installs into a drive's free space, next to what is there, or onto a whole drive, which it erases. The aarch64 ISOs get it later. To install next to Windows, read [Next to Windows](/docs/user/windows/) first: BitLocker needs its recovery key once Secure Boot is off.
+Builds after 0.1.0 have an installer on every ISO, x86_64 and aarch64: "Install Stackific OS" in the app launcher, first in GNOME's dash on the Fedora Remix images, and in the boot menu next to "Try Stackific OS". It installs into a drive's free space, next to what is there, or onto a whole drive, which it erases. To install next to Windows, read [Next to Windows](/docs/user/windows/) first: BitLocker needs its recovery key once Secure Boot is off.
 
 1. Open "Install Stackific OS" and follow its screens. It first asks to authenticate as an administrator. `live` has no password: in MangoWM, press Enter at the empty password prompt; in GNOME, choose Authenticate.
 2. At the end, remove the USB stick and restart the computer.

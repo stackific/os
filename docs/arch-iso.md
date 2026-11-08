@@ -64,7 +64,7 @@ For Plasma, Arch's second desktop, `stackific-desktop` also holds our wallpaper 
 
 `stackific-installer` is the installer ([installer.md](installer.md)), built from the Rust crate in `installer/` with Arch's `rust`, which the builder carries because makepkg runs with `--nodeps`. The recipe packs the crate (`Cargo.toml`, `Cargo.lock`, `src/`, `fixtures/`, never `target/`) into `stackific-installer-crate.tar` next to the PKGBUILD, which lists it with the checksum `SKIP`: makepkg takes no directories, and a checksum per file would change with every code change. `prepare()` fetches the locked crates, `build()` builds and renders the launcher, `check()` runs the tests. It installs `/usr/bin/stackific-installer`, the launcher `/usr/share/applications/stackific-installer.desktop`, and `stackific-installer.target` with `stackific-installer-console.service` for the boot menu's Install entry. It is on the x86_64 image only for now. It depends on `arch-install-scripts` (`arch-chroot`), `efibootmgr` and `limine` for the boot step.
 
-`stackific-boot` keeps Limine on an installed system's ESP current: it depends on `limine` and `efibootmgr`, and its pacman hook (`stackific-limine.hook`) copies `/usr/share/limine/BOOTX64.EFI` to `/boot/EFI/limine/` and `/boot/EFI/BOOT/` after every upgrade or reinstall of `limine`, and does nothing in the live session, which has no `/boot/EFI/limine/`. The image lists it explicitly, so the installer's `pacman -Rns stackific-installer` keeps it and its dependencies. x86_64 only until task 018.
+`stackific-boot` keeps Limine on an installed system's ESP current: it depends on `limine` and `efibootmgr`, and its pacman hook (`stackific-limine.hook`) copies `/usr/share/limine/BOOTX64.EFI` (on aarch64 `BOOTAA64.EFI`) to `/boot/EFI/limine/` and `/boot/EFI/BOOT/` after every upgrade or reinstall of `limine`, and does nothing in the live session, which has no `/boot/EFI/limine/`. The image lists it explicitly, so the installer's `pacman -Rns stackific-installer` keeps it and its dependencies.
 
 `stackific-release` makes the image identify as Stackific OS. It holds two files:
 
@@ -81,7 +81,7 @@ To change a file in `desktop/` or `branding/`, update its `sha256sums` entry in 
 
 The ISO boots to a desktop. greetd (`arch/iso/airootfs/etc/greetd/config.toml`) logs the user `live` into MangoWM with no prompt, and MangoWM starts Noctalia, which shows Dahl's "An Eruption of Vesuvius" and no setup wizard (our defaults, above). `fastfetch` in a terminal prints our logo in emerald. In MangoWM's stock config, `Alt+Return` opens foot and `Alt+space` opens rofi; `live`'s own `~/.config/mango/config.conf` (`arch/iso/airootfs/home/live/`) sources the stock config and adds `Super+Space` for Noctalia's launcher, as the installer does for installed users.
 
-The app launcher has "Install Stackific OS" (the installer in foot, through run0), which Plasma's desktop also shows as a shortcut (`arch/iso/airootfs/home/live/Desktop/`, a link to the launcher, which mkarchiso gives to `live` with `/etc/skel`; the install removes it with `/home/live`), and "Disks" (GNOME Disks, `gnome-disk-utility`), the partition editor, with `ntfs-3g` and `ntfsprogs` for NTFS. Disks runs as the user and asks polkit for each change: in MangoWM, Noctalia's own polkit agent answers (`polkit_agent = true` in our defaults), in Plasma `polkit-kde-agent`. `breeze-gtk` and `kde-gtk-config` give GTK apps such as Disks Plasma's look. The boot menu has "Try Stackific OS" (the default) and "Install Stackific OS", which boots to the installer on tty1 without the greeter; on aarch64 `just arch iso` leaves the Install entry and the desktop shortcut out until task 018.
+The app launcher has "Install Stackific OS" (the installer in foot, through run0), which Plasma's desktop also shows as a shortcut (`arch/iso/airootfs/home/live/Desktop/`, a link to the launcher, which mkarchiso gives to `live` with `/etc/skel`; the install removes it with `/home/live`), and "Disks" (GNOME Disks, `gnome-disk-utility`), the partition editor, with `ntfs-3g` and `ntfsprogs` for NTFS. Disks runs as the user and asks polkit for each change: in MangoWM, Noctalia's own polkit agent answers (`polkit_agent = true` in our defaults), in Plasma `polkit-kde-agent`. `breeze-gtk` and `kde-gtk-config` give GTK apps such as Disks Plasma's look. The boot menu has "Try Stackific OS" (the default) and "Install Stackific OS", which boots to the installer on tty1 without the greeter.
 
 Known, for later: in a VM without 3D (software rendering), MangoWM can leave stale regions on screen after small redraws, such as typing in a terminal or in rofi; what the apps draw is right (task 012's screenshot run). `WLR_SCENE_DEBUG_DAMAGE=rerender` (wlroots' scene setting, which scenefx keeps) re-renders every frame, but slowed the 2-CPU test VM until key presses arrived seconds late; `just arch screenshots` switches workspace away and back before each shot instead. A later task finds a fix for the live image.
 
@@ -105,14 +105,14 @@ Nothing from `tests/` is in the image, and the image has no sshd. The test waits
 - NetworkManager is running;
 - a wrong token gets no shell.
 
-`boot.sh` then sources the image's check file, which `just arch test` passes as its third argument: `tests/vm/arch-<arch>.sh` when the architecture has one, else `tests/vm/arch.sh`, the Arch checks both architectures pass. `tests/vm/arch-x86_64.sh` runs `arch.sh` first, then the x86_64-only checks below. `arch.sh` checks:
+`boot.sh` then sources the image's check file, which `just arch test` passes as its third argument: `tests/vm/arch-<arch>.sh` when the architecture has one (none has since task 018), else `tests/vm/arch.sh`, the Arch checks both architectures pass. `arch.sh` checks:
 
 - `/etc/os-release` reads `ID=stackific`, `ID_LIKE=arch`, `BUILD_ID=rolling`, `PRETTY_NAME="Stackific OS"`, `LOGO=stackific` and mkarchiso's `IMAGE_ID=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; pacman says `stackific-release` owns `/etc/os-release` and `filesystem` owns `/etc/arch-release` and `/usr/lib/os-release`; `/usr/lib/os-release` has no `IMAGE_` lines; the `stackific` icon is filled `#007a55`;
 - greetd is active, `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`;
 - the MangoWM and Plasma session files are present;
 - the ten wallpapers are installed, `live`'s `00-stackific.toml` matches `/etc/skel`'s, and `noctalia config export merged` (as `live`) shows the wizard off, the wallpaper folder and the default wallpaper;
 - `fastfetch --pipe false` (as `live`) prints the logo's last line in the accent colour;
-- on x86_64 only (`arch-x86_64.sh`): the installer's launcher has its name and `Exec=` line; Disks, its launcher and `ntfsresize` are installed; Breeze's GTK theme and `kde-gtk-config` are installed; `live`'s `~/Desktop` holds the installer's shortcut; then greetd logs `live` into Plasma, and the test saves `plasma.png`, the desktop with the shortcut.
+- the installer's launcher has its name and `Exec=` line; Disks, its launcher and `ntfsresize` are installed; Breeze's GTK theme and `kde-gtk-config` are installed; `live`'s `~/Desktop` holds the installer's shortcut; then greetd logs `live` into Plasma, and the test saves `plasma.png`, the desktop with the shortcut.
 
 It saves `screen.png` (the live desktop), and then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greeter`, and saves `greeter.png`. It also saves `serial.log` to `.build/arch/<arch>/`, then powers the VM off. On failure it prints the end of the serial log.
 
@@ -128,7 +128,7 @@ systemd's `vmm.notify_socket` is not used. Over vsock it opens one connection pe
 ## Install test
 
 ```sh
-just arch test-install        # x86_64; uses stackific-0.0.0-dev-arch-<arch>.iso
+just arch test-install        # uses stackific-0.0.0-dev-arch-<arch>.iso
 just arch test-install 1.2.3
 ```
 
@@ -141,7 +141,7 @@ It reads the boot menu from the ISO with bsdtar (Try is the default, Install add
 4. BitLocker's signature on partition 3 (the boot code's jump and `-FVE-FS-` at byte 3) refuses the free space with exit 2 and the table unchanged;
 5. a free-space install keeps the label ID and every old entry byte-identical, and puts two new partitions on the 1 MiB grid inside the large gap.
 
-After runs 2 and 5 it checks the installed system on its partitions: labels, the twelve subvolumes and NOCOW, fstab by UUID, `stackific-release` in and `stackific-installer` out, the user (uid 1000, `wheel`, yescrypt, root locked, its MangoWM file), the computer name, timezone and keymaps, no live state, and no password in the journal. Each check also mounts the ESP: `vmlinuz-linux`, `initramfs-linux.img`, `limine.conf` with that install's root UUID, and Limine's program at `EFI/limine/` and `EFI/BOOT/`, both equal to the package's. Before installed_checks of run 5, the Windows-like ESP is still empty. After the VM powers off, `minfo` reads the free-space install's ESP from the image as FAT32.
+After runs 2 and 5 it checks the installed system on its partitions: labels, the twelve subvolumes and NOCOW, fstab by UUID, `stackific-release` in and `stackific-installer` out, the user (uid 1000, `wheel`, yescrypt, root locked, its MangoWM file), the computer name, timezone and keymaps, no live state, and no password in the journal. Each check also mounts the ESP: `vmlinuz-linux` (aarch64: `Image`), `initramfs-linux.img`, `limine.conf` with that install's root UUID, and Limine's program at `EFI/limine/` and `EFI/BOOT/`, both equal to the package's. Before installed_checks of run 5, the Windows-like ESP is still empty. After the VM powers off, `minfo` reads the free-space install's ESP from the image as FAT32.
 
 Then the installed system boots from the disk alone (`boot.sh -`, no `-cdrom`), with the firmware variables the first boot left in `vars.fd`, so the entries the installs created are there. Before it, the recipe downloads the pinned `limine` package with `pacman -Sw` (the builder's mirror is the archive date; `--disable-sandbox`, as in rootless podman) and copies it to the ESP's root with `mcopy`. `boot.sh` saves `limine.png` a second after serial.log shows OVMF's `BdsDxe: starting Boot#### "Stackific OS"`, while Limine's menu waits its 3 seconds. `tests/vm/installed.sh` then checks:
 
@@ -156,7 +156,7 @@ The image and the package are removed after a pass.
 
 ## aarch64
 
-The aarch64 image is built and tested on aarch64 Linux: the `arch-aarch64` jobs of the `images` workflow (on merges to `main` and by hand) and of the `release` workflow run it on the Mac's runner VM, and upload it like the x86_64 images (`docs/releases.md`). It is the same desktop live ISO as x86_64, with the same branding, defaults, greeter and wallpapers. It shares the profile in `arch/iso/` and the checks in `tests/vm/arch.sh` with x86_64. Its package list, `packages.aarch64`, mirrors `packages.x86_64`: the same lines in the same order, except `linux-aarch64` for `linux`, no `amd-ucode` or `intel-ucode`, `archlinuxarm-keyring` after `linux-firmware`, and none of the x86_64-only lines tasks 012 and 013 added (the installer, `stackific-boot`, Disks and Plasma's GTK integration) until task 018. A change to one list makes the same change to the other. Arch Linux ARM's rofi is older than Arch's (1.7.5 against 2.0.0 on 2026-11-05); MangoWM's `Alt+space` binding, `rofi -show drun`, works with both.
+The aarch64 image is built and tested on aarch64 Linux: the `arch-aarch64` jobs of the `images` workflow (on merges to `main` and by hand) and of the `release` workflow run it on the Mac's runner VM, and upload it like the x86_64 images (`docs/releases.md`). It is the same desktop live ISO as x86_64, with the same branding, defaults, greeter and wallpapers. It shares the profile in `arch/iso/` and the checks in `tests/vm/arch.sh` with x86_64. Its package list, `packages.aarch64`, mirrors `packages.x86_64`: the same lines in the same order, except `linux-aarch64` for `linux`, no `amd-ucode` or `intel-ucode`, and `archlinuxarm-keyring` after `linux-firmware`. A change to one list makes the same change to the other. Arch Linux ARM's rofi is older than Arch's (1.7.5 against 2.0.0 on 2026-11-05); MangoWM's `Alt+space` binding, `rofi -show drun`, works with both.
 
 Where its parts come from:
 
@@ -166,7 +166,7 @@ Where its parts come from:
 
 What differs from x86_64:
 
-- Arch Linux ARM's kernel is `/boot/Image`, but mkarchiso and the boot entry take `vmlinuz-*`. The pacman hook `arch/iso/airootfs/etc/pacman.d/hooks/stackific-vmlinuz.hook` copies it to `/boot/vmlinuz-linux`. It is a copy, not a symlink, because mkarchiso sizes the ESP with `du`, which counts a symlink as the link itself.
+- Arch Linux ARM's kernel is `/boot/Image`, but mkarchiso and the boot entry take `vmlinuz-*`. The pacman hook `arch/iso/airootfs/etc/pacman.d/hooks/stackific-vmlinuz.hook` copies it to `/boot/vmlinuz-linux`. It is a copy, not a symlink, because mkarchiso sizes the ESP with `du`, which counts a symlink as the link itself. mkarchiso then empties the live root's `/boot`, so the installer takes the kernel from the ISO (`arch/boot/aarch64/vmlinuz-linux`) and installs it as `/boot/Image`, which Limine's `linux` protocol boots as is, and removes the hook from the installed system ([installer.md](installer.md), step 8).
 - The squashfs takes only the `arm64` BCJ filter (`profiledef.sh`). Arch Linux ARM's kernel cannot decode x86 BCJ blocks, which releng's `x86,arm64` could pick.
 - The boot entry names both serial consoles, `ttyS0` (x86_64) and `ttyAMA0` (aarch64). The kernel ignores the one the machine lacks.
 - Arch Linux ARM's makepkg writes `.pkg.tar.xz` instead of `.pkg.tar.zst`, so `just arch packages` takes either.

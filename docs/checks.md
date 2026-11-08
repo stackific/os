@@ -32,4 +32,4 @@ Every commit carries a DCO `Signed-off-by:` trailer (`git commit -s`): `just lef
 On a Linux host with podman and KVM, and in the `images` and `release` workflows on the self-hosted runners:
 
 - `just arch test`: boots the Arch ISO and checks the live session ([arch-iso.md](arch-iso.md)).
-- `just arch test-install` (Arch x86_64): the boot menu's entries, then the installer in a VM on a 64 GiB disk: the console path, a refused erase, an erase, a BitLocker refusal and a free-space install next to a Windows-like table, each installed system checked ([installer.md](installer.md)).
+- `just arch test-install` and `just fedora test-install`, on both architectures: the boot menu's entries, then the installer in a VM on a 64 GiB disk: the console path, a refused erase, an erase, a BitLocker refusal and a free-space install next to a Windows-like table, each installed system checked ([installer.md](installer.md)).
