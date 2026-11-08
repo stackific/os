@@ -1,6 +1,7 @@
 //! The text interface: the App holds every screen's state, turns key, mouse, focus and resize events into changes
 //! at once (no debounce, no wait), advances the springs only while something moves, and renders the centered frame.
 
+pub mod bitlocker;
 pub mod confirm;
 pub mod dialog;
 pub mod display;
@@ -63,6 +64,7 @@ pub enum Screen {
     You,
     Drive,
     Space,
+    BitLocker,
     Confirm,
     Installing,
     Done,
@@ -73,7 +75,7 @@ impl Screen {
     /// The position along the slide track.
     fn place(self) -> f64 {
         match self {
-            Screen::Done | Screen::Stopped => 9.0,
+            Screen::Done | Screen::Stopped => 10.0,
             s => s as u8 as f64,
         }
     }
@@ -88,6 +90,8 @@ impl Screen {
             Screen::You => (3, "You"),
             Screen::Drive => (4, "Drive"),
             Screen::Space => (5, "Space"),
+            // Still step 5: it confirms the drive's use
+            Screen::BitLocker => (5, "BitLocker"),
             Screen::Confirm => (6, "Confirm"),
             Screen::Installing => (0, "Installing"),
             Screen::Done => (0, "Done"),
@@ -127,7 +131,10 @@ pub struct App {
     pub you: you::State,
     pub drive: drive::State,
     pub space: space::State,
+    pub bitlocker: bitlocker::State,
     pub confirm: confirm::State,
+    /// Windows found when Confirm opened, for its line and Limine's entries.
+    pub windows: crate::windows::Windows,
     pub install: Option<installing::State>,
     pub dialog: Option<dialog::State>,
     pub outcome: Option<Result<(), Failure>>,
@@ -170,7 +177,9 @@ impl App {
             you,
             drive: drive::State::default(),
             space: space::State::default(),
+            bitlocker: bitlocker::State::default(),
             confirm: confirm::State::default(),
+            windows: crate::windows::Windows::default(),
             install: None,
             dialog: None,
             outcome: None,
@@ -194,6 +203,15 @@ impl App {
 
     /// Goes to `screen`; the camera glides there (or jumps, with Reduced motion).
     pub fn go(&mut self, screen: Screen) {
+        // BitLocker shows only with a volume on a drive the install keeps; otherwise it is passed in either direction
+        if screen == Screen::BitLocker && !bitlocker::enter(self) {
+            let past = if self.screen == Screen::Confirm {
+                Screen::Space
+            } else {
+                Screen::Confirm
+            };
+            return self.go(past);
+        }
         self.screen = screen;
         self.pressed = None;
         self.camera.retarget(screen.place() * theme::SLIDE_COLUMNS);
@@ -203,7 +221,14 @@ impl App {
         match screen {
             Screen::Drive => drive::rescan(self),
             Screen::Space => space::enter(self),
-            Screen::Confirm => self.confirm = confirm::State::default(),
+            Screen::Confirm => {
+                self.confirm = confirm::State::default();
+                let erased = (self.space.mode() == answers::Mode::Erase)
+                    .then(|| self.drive.selected().map(|d| d.path.clone()))
+                    .flatten();
+                self.windows =
+                    crate::windows::find(&*self.env.run, &self.drive.listed, erased.as_deref());
+            }
             Screen::Stopped => self.bell = true,
             _ => {}
         }
@@ -216,6 +241,7 @@ impl App {
             a.disk.device = d.path.clone();
             a.disk.erase = d.name.clone();
         }
+        a.disk.bitlocker = self.bitlocker.typed.clone();
         a.disk.mode = self.space.mode();
         a.system.keyboard = self
             .keyboard
@@ -298,6 +324,7 @@ impl App {
             Screen::You => you::key(self, code),
             Screen::Drive => drive::key(self, code, rows),
             Screen::Space => space::key(self, code, rows),
+            Screen::BitLocker => bitlocker::key(self, code),
             Screen::Confirm => confirm::key(self, code),
             Screen::Installing => Nav::Stay,
             Screen::Done | Screen::Stopped => {
@@ -324,7 +351,7 @@ impl App {
     fn navigate(&mut self, nav: Nav) {
         use Screen::*;
         let order = [
-            Display, Welcome, Keyboard, Timezone, You, Drive, Space, Confirm,
+            Display, Welcome, Keyboard, Timezone, You, Drive, Space, BitLocker, Confirm,
         ];
         let at = order.iter().position(|s| *s == self.screen);
         match (nav, at) {
@@ -456,6 +483,7 @@ impl App {
             Screen::You => you::actions(self),
             Screen::Drive => drive::actions(self),
             Screen::Space => space::actions(self),
+            Screen::BitLocker => bitlocker::actions(self),
             Screen::Confirm => confirm::actions(self),
             Screen::Installing => installing::actions(self),
             Screen::Done => done::actions(self),
@@ -513,6 +541,7 @@ impl App {
             Screen::You => you::draw(self, &mut c),
             Screen::Drive => drive::draw(self, &mut c),
             Screen::Space => space::draw(self, &mut c),
+            Screen::BitLocker => bitlocker::draw(self, &mut c),
             Screen::Confirm => confirm::draw(self, &mut c),
             Screen::Installing => installing::draw(self, &mut c),
             Screen::Done => done::draw(self, &mut c),

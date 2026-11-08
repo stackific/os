@@ -1,0 +1,45 @@
+Info for BITLK device bitlk-aes-xts-128-two-recovery.img.
+Version:      	2
+GUID:         	316a9dd0-5d5d-48fb-a2e8-0a02bb08701c
+Sector size:  	512 [bytes]
+Volume size:  	105906176 [bytes]
+Created:      	Sun Mar  9 05:06:10 2025
+Description:  	WIN11 New Volume 09/03/2025
+Cipher name:  	aes
+Cipher mode:  	xts-plain64
+Cipher key:   	256 [bits]
+
+Keyslots:
+ 0: VMK
+	GUID:       	2a9089bc-1e0f-4db4-ab28-323d58789d4b
+	Protection: 	VMK protected with passphrase
+	Salt:       	055ca76fbb2b829f8dc11fd3fe60ecfe
+	Key data size:	44 [bytes]
+ 1: VMK
+	GUID:       	e7e48bae-ff13-4f14-8222-971d469fae0d
+	Protection: 	VMK protected with recovery passphrase
+	Salt:       	3f532b4f5bd007527ed3d4d5e58f5393
+	Key data size:	44 [bytes]
+ 2: VMK
+	Name:       	DiskPassword
+	GUID:       	b7adc334-fe6d-4ae4-b5c4-1c1d0dbc335b
+	Protection: 	VMK protected with recovery passphrase
+	Salt:       	daf0a03122410757bcebe1048ce22437
+	Key data size:	44 [bytes]
+ 3: FVEK
+	Key data size:	44 [bytes]
+
+Metadata segments:
+ 0: FVE metadata area
+	Offset: 	35561472 [bytes]
+	Size:   	65536 [bytes]
+ 1: FVE metadata area
+	Offset: 	46370816 [bytes]
+	Size:   	65536 [bytes]
+ 2: FVE metadata area
+	Offset: 	58138624 [bytes]
+	Size:   	65536 [bytes]
+ 3: Volume header
+	Offset: 	35627008 [bytes]
+	Size:   	8192 [bytes]
+	Cipher: 	aes-xts-plain64

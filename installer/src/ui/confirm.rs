@@ -141,4 +141,12 @@ pub fn draw(app: &App, c: &mut Canvas) {
             look.body(),
         );
     }
+    if !app.windows.esps.is_empty() {
+        c.text(
+            r + 5,
+            LEFT,
+            "Limine's menu will also start Windows.",
+            look.body(),
+        );
+    }
 }

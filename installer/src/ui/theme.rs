@@ -42,8 +42,11 @@ pub const PART_NAME: u16 = 14;
 pub const PART_SIZE: usize = 9;
 pub const PART_FS: u16 = 31;
 pub const PART_LABEL: u16 = 39;
-/// Confirm: where the typed drive name starts.
+/// Confirm and BitLocker: where the typed confirmation starts.
 pub const TYPED: u16 = 30;
+/// BitLocker: the typed confirmation's row, with the key's address two rows above it; volumes end before this row.
+pub const BITLOCKER_TYPED: u16 = 20;
+pub const BITLOCKER_LAST: u16 = 17;
 /// Installing: the step label's width, the progress bar's width, and the percentage's (right-aligned).
 pub const STEP: u16 = 26;
 pub const BAR: u16 = 29;

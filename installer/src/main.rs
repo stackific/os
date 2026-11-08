@@ -4,6 +4,7 @@
 
 mod answers;
 mod base;
+mod bitlocker;
 mod boot;
 mod copy;
 mod demo;
@@ -14,6 +15,7 @@ mod os_release;
 mod run;
 mod system;
 mod ui;
+mod windows;
 
 use std::path::Path;
 use std::sync::Arc;
@@ -195,6 +197,13 @@ fn unattended(
         Ok(l) => l,
         Err(why) => return refuse(&format!("the free space on {device} cannot be used: {why}")),
     };
+    // BitLocker and Windows on every listed drive, except the one an erase removes
+    let erased = (answers.disk.mode == answers::Mode::Erase).then_some(device.as_str());
+    let volumes = bitlocker::scan(run, &listed, erased);
+    if !volumes.is_empty() && answers.disk.bitlocker != bitlocker::PHRASE {
+        return refuse(&bitlocker::refusal(&volumes));
+    }
+    let found = windows::find(run, &listed, erased);
     let plan = Plan {
         answers: &answers,
         os,
@@ -202,6 +211,7 @@ fn unattended(
         layout,
         sector: drive.sector,
         target: disk::TARGET.into(),
+        windows: boot::windows_entries(&found.esps, found.firmware_entry),
     };
     let log = Log::new(std::io::stderr());
     match install::install(run, &log, &plan, &mut |_| {}, &AtomicBool::new(false)) {

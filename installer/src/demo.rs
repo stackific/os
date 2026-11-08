@@ -66,8 +66,19 @@ pub fn fake(delay: Duration) -> Fake {
     .on("blkid -p -o export /dev/nvme0n1p2", Output::fail(2, ""))
     .on(
         "blkid -p -o export /dev/nvme0n1p3",
-        Output::ok("TYPE=ntfs\n"),
+        Output::ok(include_str!("../fixtures/blkid-bitlocker.txt")),
     )
+    // Windows 11's usual protectors: the TPM, and a recovery key
+    .on(
+        "cryptsetup bitlkDump /dev/nvme0n1p3",
+        Output::ok(
+            &include_str!("../fixtures/bitlkdump-recovery.txt")
+                .replace("VMK protected with passphrase", "VMK protected with TPM"),
+        ),
+    )
+    // Windows' loader on nvme0n1p1, found read-only; no NVMe hidden by Intel RST
+    .on("test -f ", Output::ok(""))
+    .on("sh -c ", Output::ok(""))
     .on(
         "timedatectl list-timezones",
         Output::ok(include_str!("../fixtures/timezones.txt")),
@@ -117,7 +128,7 @@ pub fn fake(delay: Duration) -> Fake {
     }
     f.on(
         "efibootmgr",
-        Output::ok(include_str!("../fixtures/efibootmgr.txt")),
+        Output::ok(include_str!("../fixtures/efibootmgr-windows.txt")),
     )
     .on(
         "lsblk --noheadings --list --output PARTUUID",

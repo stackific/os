@@ -85,6 +85,8 @@ pub struct Plan<'a> {
     pub layout: disk::Layout,
     pub sector: u64,
     pub target: PathBuf,
+    /// Limine's Windows entries (`boot::windows_entries`), empty when no Windows was found.
+    pub windows: String,
 }
 
 /// Runs one command, logs it and its output, and turns a non-zero exit into a Failure.
@@ -315,17 +317,23 @@ fn steps(
     for (path, text) in files {
         write(run, log, &path, &text, None)?;
     }
-    for cmd in cmds {
-        exec(run, log, &cmd)?;
-    }
-    if let Some((kernel, initramfs)) = plan.base.kernel_files() {
+    let kernel_files = plan.base.kernel_files();
+    // Where the base's kernel tools write limine.conf, they add the Windows entries from this file every time
+    if kernel_files.is_none() && !plan.windows.is_empty() {
         write(
             run,
             log,
-            &target.join(boot::CONF),
-            &boot::limine_conf(&plan.os.name, kernel, initramfs, &sys_uuid),
+            &target.join(boot::WINDOWS_CONF),
+            &plan.windows,
             None,
         )?;
+    }
+    for cmd in cmds {
+        exec(run, log, &cmd)?;
+    }
+    if let Some((kernel, initramfs)) = kernel_files {
+        let conf = boot::limine_conf(&plan.os.name, kernel, initramfs, &sys_uuid) + &plan.windows;
+        write(run, log, &target.join(boot::CONF), &conf, None)?;
     }
     for cmd in plan.base.relabel(target, Path::new("")) {
         exec(run, log, &cmd)?;
@@ -473,6 +481,14 @@ pub mod tests {
         mode: Mode,
         base: &dyn Base,
     ) -> (Fake, Buf, Vec<Progress>, Result<(), Failure>) {
+        run_with_windows(mode, base, "")
+    }
+
+    fn run_with_windows(
+        mode: Mode,
+        base: &dyn Base,
+        windows: &str,
+    ) -> (Fake, Buf, Vec<Progress>, Result<(), Failure>) {
         let f = install_fake();
         let buf = Buf::default();
         let os = OsRelease::parse("NAME=\"Stackific OS\"\nID=stackific\nID_LIKE=arch\n");
@@ -484,6 +500,7 @@ pub mod tests {
             layout: layout(mode),
             sector: 512,
             target: disk::TARGET.into(),
+            windows: windows.into(),
         };
         let mut seen = Vec::new();
         let r = install(
@@ -617,6 +634,48 @@ pub mod tests {
     }
 
     #[test]
+    fn windows_entries_follow_the_system_on_both_bases() {
+        let t = disk::TARGET;
+        let entries = boot::windows_entries(&["6a1f".into()], true);
+        let (f, _, _, r) = run_with_windows(Mode::FreeSpace, &Arch, &entries);
+        assert_eq!(r, Ok(()));
+        let s = f.state();
+        assert_eq!(
+            s.files[&PathBuf::from(format!("{t}/{}", boot::CONF))],
+            boot::limine_conf(
+                "Stackific OS",
+                "vmlinuz-linux",
+                "initramfs-linux.img",
+                "1111-sys"
+            ) + &entries
+        );
+        assert!(
+            !s.files
+                .contains_key(&PathBuf::from(format!("{t}/{}", boot::WINDOWS_CONF)))
+        );
+        drop(s);
+        // Fedora: the file stackific-boot's plugin appends, written before kernel-install runs
+        let (f, log, _, r) = run_with_windows(Mode::FreeSpace, &Fedora, &entries);
+        assert_eq!(r, Ok(()));
+        assert_eq!(
+            f.state().files[&PathBuf::from(format!("{t}/{}", boot::WINDOWS_CONF))],
+            entries
+        );
+        let log = log.text();
+        let wrote = log
+            .find(&format!("write {t}/{}", boot::WINDOWS_CONF))
+            .unwrap();
+        assert!(wrote < log.find(&format!("$ chroot {t} /usr/bin/bash")).unwrap());
+        // No Windows: no file
+        let (f, _, _, _) = run_install_on(Mode::FreeSpace, &Fedora);
+        assert!(
+            !f.state()
+                .files
+                .contains_key(&PathBuf::from(format!("{t}/{}", boot::WINDOWS_CONF)))
+        );
+    }
+
+    #[test]
     fn free_space_install_writes_into_the_gap() {
         let (f, _, _, r) = run_install(Mode::FreeSpace);
         assert_eq!(r, Ok(()));
@@ -648,6 +707,7 @@ pub mod tests {
             layout: layout(Mode::Erase),
             sector: 512,
             target: disk::TARGET.into(),
+            windows: String::new(),
         };
         let r = install(
             &f,

@@ -1,0 +1,35 @@
+Info for BITLK device bitlk-aes-xts-128-clearkey-only.img.
+Version:      	2
+GUID:         	df73cb51-ff48-4033-8d56-a32cc2b1ab7a
+Sector size:  	512 [bytes]
+Volume size:  	104857600 [bytes]
+Created:      	Wed Nov  5 12:30:47 2025
+Description:  	WIN11 F: 05/11/2025
+Cipher name:  	aes
+Cipher mode:  	xts-plain64
+Cipher key:   	256 [bits]
+
+Keyslots:
+ 0: VMK
+	GUID:       	f99f18e8-0348-4a6b-afdf-58b1dd71f0d1
+	Protection: 	VMK protected with clear key
+	Salt:       	00000000000000000000000000000000
+	Key data size:	32 [bytes]
+	Key data size:	44 [bytes]
+ 1: FVEK
+	Key data size:	44 [bytes]
+
+Metadata segments:
+ 0: FVE metadata area
+	Offset: 	35213312 [bytes]
+	Size:   	65536 [bytes]
+ 1: FVE metadata area
+	Offset: 	46256128 [bytes]
+	Size:   	65536 [bytes]
+ 2: FVE metadata area
+	Offset: 	57909248 [bytes]
+	Size:   	65536 [bytes]
+ 3: Volume header
+	Offset: 	35278848 [bytes]
+	Size:   	8192 [bytes]
+	Cipher: 	aes-xts-plain64

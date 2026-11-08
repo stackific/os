@@ -18,6 +18,8 @@ pub struct State {
     pub excluded: Vec<Excluded>,
     pub error: Option<String>,
     pub cursor: Cursor,
+    /// Intel RST hides NVMe drives from Linux (IN-07): the guidance line shows, as for an RST member.
+    pub rst: bool,
 }
 
 impl Default for State {
@@ -27,6 +29,7 @@ impl Default for State {
             excluded: vec![],
             error: None,
             cursor: Cursor::new(0, LIST_ROWS, 0),
+            rst: false,
         }
     }
 }
@@ -52,6 +55,7 @@ pub fn rescan(app: &mut App) {
                 excluded,
                 error: None,
                 cursor,
+                rst: drives::remapped_nvme(&*app.env.run),
             };
         }
         Err(e) => {
@@ -152,6 +156,11 @@ pub fn draw(app: &App, c: &mut Canvas) {
             );
         }
         last = head + s.excluded.len() as u16;
+    }
+    if s.rst || s.excluded.iter().any(|x| x.reason == drives::RST_MEMBER) {
+        let rst = "Intel RST may hide drives here. To use them, set the firmware's storage mode to AHCI, and prepare \
+                   Windows first, or it may stop starting.";
+        last += 1 + c.prose(last + 2, rst, look.warning());
     }
     if !app.env.console {
         let hint = "To change partitions first, open Disks from the app launcher. This list updates when you come back.";

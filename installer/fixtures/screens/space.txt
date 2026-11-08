@@ -8,12 +8,12 @@
 │  On it now:                                                                  │
 │    nvme0n1p1     260.0 MiB   vfat    SYSTEM                                  │
 │    nvme0n1p2      16.0 MiB                                                   │
-│    nvme0n1p3     811.2 GiB   ntfs    Windows                                 │
+│    nvme0n1p3     811.2 GiB   BitLocker                                       │
 │    free          120.0 GiB                                                   │
 │                                                                              │
 │                                                                              │
 │  When the free space cannot be used, its line says why: under 40 GiB, no GPT │
-│  partition table, a table that needs repair, or BitLocker on the drive.      │
+│  partition table, BIOS-mode Windows, or a table that needs repair.           │
 │                                                                              │
 │                                                                              │
 │                                                                              │

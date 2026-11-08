@@ -5,7 +5,7 @@
 │  Stays as it is:                                                             │
 │    nvme0n1p1     260.0 MiB   vfat    SYSTEM                                  │
 │    nvme0n1p2      16.0 MiB                                                   │
-│    nvme0n1p3     811.2 GiB   ntfs    Windows                                 │
+│    nvme0n1p3     811.2 GiB   BitLocker                                       │
 │                                                                              │
 │  New, in the 120.0 GiB of free space:                                        │
 │    new             4.0 GiB   FAT32   Stackific OS boot                       │
@@ -16,7 +16,7 @@
 │                                                                              │
 │  Nothing else on the drive changes.                                          │
 │                                                                              │
-│                                                                              │
+│  Limine's menu will also start Windows.                                      │
 │                                                                              │
 │                                                                              │
 │                                                                              │

@@ -92,12 +92,14 @@ pub fn describe(d: &Drive) -> String {
     }
 }
 
-/// One table row: name, size (right-aligned), file system, label.
+/// One table row: name, size (right-aligned), file system, label. A file system name wider than its column ("BitLocker")
+/// still keeps a space before the label.
 pub fn part_row(name: &str, bytes: u64, fs: &str, label: &str) -> String {
     let fs_gap = (PART_FS - ROW - PART_NAME) as usize - PART_SIZE;
     format!(
-        "{name:<nw$}{size:>sw$}{:fs_gap$}{fs:<fw$}{label}",
+        "{name:<nw$}{size:>sw$}{:fs_gap$}{:<fw$}{label}",
         "",
+        format!("{fs} "),
         size = human(bytes),
         nw = PART_NAME as usize,
         sw = PART_SIZE,
@@ -203,7 +205,7 @@ pub fn draw(app: &App, c: &mut Canvas) {
     let r = BODY_ROW + s.options.len() as u16;
     c.text(r + 1, LEFT, "On it now:", look.body());
     let last = draw_parts(c, d, r + 2, true);
-    let hint = "When the free space cannot be used, its line says why: under 40 GiB, no GPT partition table, a table that \
-                needs repair, or BitLocker on the drive.";
+    let hint = "When the free space cannot be used, its line says why: under 40 GiB, no GPT partition table, \
+                BIOS-mode Windows, or a table that needs repair.";
     c.prose(last + HINT_GAP, hint, look.help());
 }

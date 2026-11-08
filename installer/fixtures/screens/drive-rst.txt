@@ -1,0 +1,24 @@
+┌ Stackific OS installer ────────────────────────────────────── 4 of 6 · Drive ┐
+│                                                                              │
+│  Drive to install on                                                         │
+│                                                                              │
+│                   Size       Largest free space                              │
+│  ▶ /dev/nvme0n1   931.5 GiB  120.0 GiB    Samsung SSD 990 PRO 1TB            │
+│                                                                              │
+│  Not listed:                                                                 │
+│    /dev/sda       Intel RST RAID member: set storage mode to AHCI            │
+│    /dev/sdb       the USB stick this installer runs from                     │
+│    /dev/sdc       29.8 GiB, under the 40 GiB minimum                         │
+│                                                                              │
+│  Intel RST may hide drives here. To use them, set the firmware's storage     │
+│  mode to AHCI, and prepare Windows first, or it may stop starting.           │
+│                                                                              │
+│                                                                              │
+│  To change partitions first, open Disks from the app launcher. This list     │
+│  updates when you come back.                                                 │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+└ ↑↓ choose · Enter next · Esc back ───────────────────────────────────────────┘

@@ -1,0 +1,24 @@
+┌ Stackific OS installer ────────────────────────────────── 5 of 6 · BitLocker ┐
+│                                                                              │
+│  Save your BitLocker recovery key                                            │
+│                                                                              │
+│  Secure Boot is off, so Windows will ask for its BitLocker recovery key the  │
+│  next time it starts, unless BitLocker was suspended first.                  │
+│                                                                              │
+│    nvme0n1p3 (811.2 GiB) on Samsung SSD 990 PRO 1TB                          │
+│      On: Windows will ask for recovery key 64311DEA                          │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│                                                                              │
+│  Find it at aka.ms/myrecoverykey (work or school: aka.ms/aadrecoverykey).    │
+│                                                                              │
+│  Type I have my key to go on:  I have my k▏                                  │
+│                                                                              │
+│                                                                              │
+└ Esc back ────────────────────────────────────────────────────────────────────┘
