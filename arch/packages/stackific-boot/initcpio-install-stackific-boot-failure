@@ -1,0 +1,14 @@
+#!/bin/bash
+# mkinitcpio install hook `stackific-boot-failure` (stackific-boot): the plain screen after a failed start, for the
+# systemd initramfs. The installer adds it last to HOOKS on installed systems; the live image's hooks leave it out.
+
+build() {
+  add_file /usr/lib/stackific/boot-failure /usr/lib/stackific/boot-failure 755
+  add_file /usr/lib/stackific/boot-failure.conf /etc/systemd/system/emergency.service.d/stackific-boot-failure.conf
+  add_file /usr/lib/stackific/boot-failure.conf /etc/systemd/system/rescue.service.d/stackific-boot-failure.conf
+}
+
+help() {
+  echo "Shows a plain message and restarts on Enter when the start fails (a wrong disk password three times),"
+  echo "instead of the emergency shell. Needs the systemd hook."
+}
