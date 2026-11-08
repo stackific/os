@@ -64,7 +64,7 @@ packages: builder
         mkdir -p "$n/repo" "$n/src"
         dnf5 -q download --destdir "$n/repo" akmod-nvidia xorg-x11-drv-nvidia-kmodsrc
         rpmkeys --import /rpmfusion.asc
-        # dnf5 download checks no signature; rpm 6's rpmkeys -K fails an unsigned package as well as a wrong key
+        # dnf5 download checks no signature; rpmkeys -K (rpm 6) fails an unsigned package as well as a wrong key
         rpmkeys -K "$n"/repo/*.rpm
         (cd "$n/src" && rpm2cpio "$n"/repo/akmod-nvidia-*.rpm | cpio -idm --quiet)
         createrepo_c --quiet "$n/repo"
