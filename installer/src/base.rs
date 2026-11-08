@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::boot;
 use crate::disk::SUBVOLUMES;
 use crate::os_release::OsRelease;
 use crate::run::Cmd;
@@ -18,9 +19,10 @@ pub trait Base: Send + Sync {
     /// What puts the kernel and its initramfs on the ESP, mounted at the target's /boot: files to write (path, text),
     /// then commands. `cmdline` is the kernel command line (`boot::cmdline`). Limine's program is on the ESP by then.
     fn initramfs(&self, target: &Path, cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>);
-    /// The kernel's and the initramfs' file names at the ESP's root, for the one entry the installer writes into
-    /// `limine.conf`; `None` when the base's own kernel tools wrote `limine.conf` in `initramfs`.
-    fn kernel_files(&self) -> Option<(&'static str, &'static str)>;
+    /// Every kernel the installer writes an entry for into `limine.conf`, the default first: the entry's title after
+    /// the system's name, then the kernel's and the initramfs' file names at the ESP's root; `None` when the base's own
+    /// kernel tools wrote `limine.conf` in `initramfs`.
+    fn kernel_files(&self) -> Option<&'static [boot::Kernel]>;
     /// Commands that give `path` under the target (all of it when empty) its policy's labels (Fedora: SELinux), after
     /// the account files change and after every write, before the firmware entry.
     fn relabel(&self, _target: &Path, _path: &Path) -> Vec<Cmd> {
@@ -30,11 +32,23 @@ pub trait Base: Send + Sync {
 
 /// mkinitcpio's drop-in in the target, read after /etc/mkinitcpio.conf.
 const ARCH_HOOKS: &str = "etc/mkinitcpio.conf.d/stackific.conf";
-/// Its text: mkinitcpio 42's default HOOKS with `sd-encrypt` after `block` and `stackific-boot-failure` last.
-const ARCH_HOOKS_CONF: &str = "# Written by stackific-installer: Arch's default hooks, plus sd-encrypt, which unlocks the \
-encrypted root, and stackific-boot-failure, which shows a plain screen when the start fails\n\
-HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck \
-stackific-boot-failure)\n";
+/// Its text: mkinitcpio 42's default HOOKS with `sd-encrypt` after `block` and `stackific-boot-failure` last; on x86_64
+/// (without `aarch64`) without `kms` (task 019): `autodetect` resolves an NVIDIA card's modalias to nouveau whatever
+/// modprobe.d blacklists, so `kms` would put nouveau and its firmware into the initramfs of every NVIDIA machine. The
+/// GPU driver loads from the root file system instead, and the passphrase prompt draws on the firmware's framebuffer.
+fn arch_hooks_conf(aarch64: bool) -> String {
+    let (kms, note) = if aarch64 {
+        (" kms", "")
+    } else {
+        ("", ", without kms, so no GPU driver is in the initramfs")
+    };
+    format!(
+        "# Written by stackific-installer: Arch's default hooks{note}, plus sd-encrypt, which unlocks the encrypted \
+         root, and stackific-boot-failure, which shows a plain screen when the start fails\n\
+         HOOKS=(base systemd autodetect microcode modconf{kms} keyboard sd-vconsole block sd-encrypt filesystems fsck \
+         stackific-boot-failure)\n"
+    )
+}
 
 /// Whether the installer runs on aarch64, where each base boots its kernel differently (see `Arch` and Fedora's
 /// stackific-boot plugin).
@@ -76,15 +90,26 @@ fn arch_kernel(target: &Path, medium: &Path, aarch64: bool) -> Vec<Cmd> {
     ]
 }
 
-/// The kernel and initramfs file names linux (x86_64) or linux-aarch64 (with `aarch64`) and their mkinitcpio presets
-/// keep current at the ESP's root.
-fn arch_kernel_files(aarch64: bool) -> (&'static str, &'static str) {
+/// The kernel and initramfs file names linux and linux-lts, the fallback kernel (x86_64), or linux-aarch64 (with
+/// `aarch64`) and their mkinitcpio presets keep current at the ESP's root.
+fn arch_kernel_files(aarch64: bool) -> &'static [boot::Kernel] {
     if aarch64 {
-        ("Image", "initramfs-linux.img")
+        &[("", "Image", "initramfs-linux.img")]
     } else {
-        ("vmlinuz-linux", "initramfs-linux.img")
+        &[
+            ("", "vmlinuz-linux", "initramfs-linux.img"),
+            (
+                " (LTS kernel)",
+                "vmlinuz-linux-lts",
+                "initramfs-linux-lts.img",
+            ),
+        ]
     }
 }
+
+/// The live image's pacman hook that removes linux-lts's kernel and initramfs from /boot (arch/iso/airootfs), so
+/// mkarchiso puts no linux-lts files on the ISO: live-only, so installed systems keep them on the ESP.
+const ARCH_LIVE_LTS_HOOK: &str = "etc/pacman.d/hooks/stackific-live-lts.hook";
 
 impl Base for Arch {
     /// archiso's hook mounts the squashfs root here, the lower layer of the live overlay.
@@ -96,12 +121,13 @@ impl Base for Arch {
         Path::new("/run/archiso/bootmnt")
     }
 
-    /// archiso's mkinitcpio drop-in, the live image's kernel-copy hook, and the installer package with the
-    /// dependencies only it needed (`-Rns`), so the installed system has no installer and no launcher.
+    /// archiso's mkinitcpio drop-in, the live image's kernel-copy and linux-lts hooks, and the installer package
+    /// with the dependencies only it needed (`-Rns`), so the installed system has no installer and no launcher.
     fn live_state(&self, target: &Path) -> (Vec<PathBuf>, Vec<Cmd>) {
         let files = vec![
             target.join("etc/mkinitcpio.conf.d/archiso.conf"),
             target.join(ARCH_LIVE_HOOK),
+            target.join(ARCH_LIVE_LTS_HOOK),
         ];
         let pacman = Cmd::new("pacman")
             .args([format!("--sysroot={}", target.display())])
@@ -117,16 +143,16 @@ impl Base for Arch {
 
     /// The kernel on the ESP and its initramfs from the preset (Arch's default: no fallback image), in `arch-chroot`,
     /// which gives mkinitcpio /dev, /proc and /sys for the autodetect hook (`arch_kernel`).
-    /// First the hooks (BT-04): Arch's defaults plus `sd-encrypt`, which unlocks the root, and stackific-boot's
-    /// `stackific-boot-failure`, the plain screen after a failed start. The installer writes the drop-in, not a package:
-    /// a package's would sort after archiso's and change the live image's initramfs. `limine.conf` carries the command
-    /// line.
+    /// First the hooks (BT-04): Arch's defaults (without `kms` on x86_64) plus `sd-encrypt`, which unlocks the root,
+    /// and stackific-boot's `stackific-boot-failure`, the plain screen after a failed start. The installer writes the
+    /// drop-in, not a package: a package's would sort after archiso's and change the live image's initramfs.
+    /// `limine.conf` carries the command line.
     fn initramfs(&self, target: &Path, _cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>) {
-        let files = vec![(target.join(ARCH_HOOKS), ARCH_HOOKS_CONF.to_string())];
+        let files = vec![(target.join(ARCH_HOOKS), arch_hooks_conf(AARCH64))];
         (files, arch_kernel(target, self.live_medium(), AARCH64))
     }
 
-    fn kernel_files(&self) -> Option<(&'static str, &'static str)> {
+    fn kernel_files(&self) -> Option<&'static [boot::Kernel]> {
         Some(arch_kernel_files(AARCH64))
     }
 }
@@ -202,7 +228,7 @@ impl Base for Fedora {
         (files, vec![cmd])
     }
 
-    fn kernel_files(&self) -> Option<(&'static str, &'static str)> {
+    fn kernel_files(&self) -> Option<&'static [boot::Kernel]> {
         None
     }
 
@@ -251,7 +277,8 @@ mod tests {
             files,
             [
                 PathBuf::from("/t/etc/mkinitcpio.conf.d/archiso.conf"),
-                PathBuf::from("/t/etc/pacman.d/hooks/stackific-vmlinuz.hook")
+                PathBuf::from("/t/etc/pacman.d/hooks/stackific-vmlinuz.hook"),
+                PathBuf::from("/t/etc/pacman.d/hooks/stackific-live-lts.hook")
             ]
         );
         assert_eq!(
@@ -263,8 +290,13 @@ mod tests {
             files[0].0,
             PathBuf::from("/t/etc/mkinitcpio.conf.d/stackific.conf")
         );
-        assert!(files[0].1.ends_with(
+        assert_eq!(files[0].1, arch_hooks_conf(AARCH64));
+        assert!(arch_hooks_conf(true).ends_with(
             "\nHOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck \
+             stackific-boot-failure)\n"
+        ));
+        assert!(arch_hooks_conf(false).ends_with(
+            "\nHOOKS=(base systemd autodetect microcode modconf keyboard sd-vconsole block sd-encrypt filesystems fsck \
              stackific-boot-failure)\n"
         ));
         let lines = |c: Vec<Cmd>| c.iter().map(Cmd::line).collect::<Vec<_>>();
@@ -282,7 +314,14 @@ mod tests {
         );
         assert_eq!(
             arch_kernel_files(false),
-            ("vmlinuz-linux", "initramfs-linux.img")
+            [
+                ("", "vmlinuz-linux", "initramfs-linux.img"),
+                (
+                    " (LTS kernel)",
+                    "vmlinuz-linux-lts",
+                    "initramfs-linux-lts.img"
+                )
+            ]
         );
         // Arch Linux ARM: the kernel from the boot medium to the path linux-aarch64 owns, then its preset
         let arm = lines(arch_kernel(Path::new("/t"), base.live_medium(), true));
@@ -293,7 +332,10 @@ mod tests {
                 "arch-chroot /t /usr/bin/bash -c \"mkinitcpio -P\""
             ]
         );
-        assert_eq!(arch_kernel_files(true), ("Image", "initramfs-linux.img"));
+        assert_eq!(
+            arch_kernel_files(true),
+            [("", "Image", "initramfs-linux.img")]
+        );
         assert!(base.relabel(Path::new("/t"), Path::new("")).is_empty());
         assert!(detect(&OsRelease::parse("ID=stackific\nID_LIKE=debian\n")).is_none());
     }

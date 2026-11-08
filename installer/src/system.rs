@@ -44,10 +44,14 @@ pub fn x11_keyboard(layout: &str) -> String {
     )
 }
 
-/// The user's MangoWM config: MangoWM's stock config, then Super+Space for the shell's launcher and our layout on top,
-/// so /etc/mango/ stays stock.
+/// The user's MangoWM config: MangoWM's stock config, lighter effects where older NVIDIA graphics draw the desktop
+/// (stackific-hardware's generator links the file only there; no such file elsewhere), then Super+Space for the
+/// shell's launcher and our layout on top, so /etc/mango/ stays stock.
 pub fn mango_config(layout: &str) -> String {
-    format!("source=/etc/mango/config.conf\n{LAUNCHER_BIND}\nxkb_rules_layout={layout}\n")
+    format!(
+        "source=/etc/mango/config.conf\nsource_optional=/run/stackific/mango-gpu.conf\n{LAUNCHER_BIND}\n\
+         xkb_rules_layout={layout}\n"
+    )
 }
 
 /// Super+Space opens Noctalia's launcher, as in the live session (arch/iso/airootfs/home/live/.config/mango/config.conf).
@@ -155,7 +159,8 @@ mod tests {
     fn mango_keyboard_and_ids() {
         assert_eq!(
             mango_config("de"),
-            "source=/etc/mango/config.conf\nbind=SUPER,space,spawn,noctalia msg panel-toggle launcher\nxkb_rules_layout=de\n"
+            "source=/etc/mango/config.conf\nsource_optional=/run/stackific/mango-gpu.conf\n\
+             bind=SUPER,space,spawn,noctalia msg panel-toggle launcher\nxkb_rules_layout=de\n"
         );
         assert!(x11_keyboard("de").contains("        Option \"XkbLayout\" \"de\"\nEndSection\n"));
         assert_eq!(

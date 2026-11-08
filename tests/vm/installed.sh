@@ -4,7 +4,8 @@
 # tests/vm/install.sh's free-space install, which is the one on the disk. The firmware started our entry; Limine started
 # the kernel from our ESP with root on @; the boot files, the firmware entries and stackific-boot's hooks (the recipe put
 # the image's limine package, and on Fedora its kernel-core package, at the ESP's root); the system the installer set
-# up; the keyboard layout in MangoWM and in the second desktop (Plasma, GNOME); and, last, the fake Windows install.sh
+# up; the keyboard layout in MangoWM and in the second desktop (Plasma, GNOME); on Arch x86_64 the LTS kernel's entry,
+# one restart; and, last, the fake Windows install.sh
 # left on partition 1 started through both of Limine's Windows entries, one restart each. Leaves limine.png (boot.sh),
 # installed.png (the login screen) and efibootmgr.txt.
 # shellcheck disable=SC2154 # out, vm, vm_until, fail and screenshot come from boot.sh, which sources this file
@@ -54,7 +55,7 @@ vm_until "$efi_same" '^same$' 0
 # loader/entries)
 vm_until 'ls -d /boot/*fallback* /boot/*rescue* /boot/EFI/Linux /boot/loader/entries /boot/grub2 2>/dev/null | wc -l' '^0$' 0
 # shellcheck disable=SC2016 # $(…) belongs to the guest shell
-vm_until '[ "$(ls /usr/lib/modules)" = "$(uname -r)" ] && echo match' '^match$' 0
+vm_until 'ls /usr/lib/modules | grep -cx "$(uname -r)"' '^1$' 0
 if [ "$like" = fedora ]; then
   vm_until "cd /boot && ls -d vmlinuz-$version initramfs-$version.img limine.conf EFI/limine/$efi EFI/BOOT/$efi | wc -l" \
     '^5$' 0
@@ -75,6 +76,16 @@ else
   # The unlock (sd-encrypt) and stackific-boot's plain screen after a failed start
   vm_until "lsinitcpio /boot/initramfs-linux.img | grep -cE 'usr/lib/systemd/systemd-cryptsetup\$|etc/systemd/system/emergency.service.d/stackific-boot-failure.conf\$'" \
     '^2$' 0
+  if [ "$efi" = BOOTX64.EFI ]; then
+    # The fallback kernel (task 019): linux-lts beside linux, from its own Limine entry after the default, and no
+    # NVIDIA or nouveau module in either initramfs (the driver loads from the root file system)
+    vm_until 'cd /boot && ls -d vmlinuz-linux-lts initramfs-linux-lts.img | wc -l' '^2$' 0
+    vm_until "grep -E '^/' /boot/limine.conf | head -2 | paste -sd '|'" "^/$name\\|/$name \\(LTS kernel\\)\$" 0
+    vm_until "grep -cx -e '    path: boot():/vmlinuz-linux-lts' -e '    module_path: boot():/initramfs-linux-lts.img' /boot/limine.conf" \
+      '^2$' 0
+    vm_until 'for i in /boot/initramfs-linux.img /boot/initramfs-linux-lts.img; do lsinitcpio "$i"; done | grep -cE "/(nvidia|nouveau)[^/]*\.ko"' \
+      '^0$' 0
+  fi
 fi
 
 # Packages: the boot files stay, the installer and what only it needed are gone (on Fedora also the live image's GRUB);
@@ -217,7 +228,7 @@ vm "mkdir -p /mnt/w && mount /dev/vda1 /mnt/w && { printf 'timeout: 1\n\n/Fake W
   -e '/^    cmdline: /s/\$/ stackific.test=windows/'; } >/mnt/w/EFI/Microsoft/Boot/limine.conf && umount /mnt/w" >/dev/null
 # Restart, wait for the firmware to start an entry, then pick Limine's entry <n> below the first: the first key stops
 # its 3 s countdown, so the wait polls often and the keys go a second after the firmware's line
-windows_boot() {
+limine_pick() {
   local seen keys=()
   seen=$(grep -ac 'BdsDxe: starting Boot' "$out/serial.log")
   vm 'systemctl reboot' >/dev/null 2>&1 || true
@@ -225,13 +236,22 @@ windows_boot() {
   sleep 1
   for _ in $(seq "$1"); do keys+=(down); done
   sendkey "${keys[@]}" ret
-  vm_until 'cat /proc/cmdline' '(^| )stackific.test=windows$' 300
 }
 current() { vm efibootmgr | sed -n 's/^BootCurrent: //p'; }
-windows_boot 1
+# Arch x86_64's second entry starts linux-lts, the fallback kernel (task 019)
+if [ "$efi" = BOOTX64.EFI ] && [ "$like" != fedora ]; then
+  limine_pick 1
+  vm_until 'uname -r' 'lts$' 300
+  echo "ok: \"$name (LTS kernel)\" starts linux-lts"
+fi
+# The Windows entries follow the system's entries
+win=$(( $(vm "grep '^/' /boot/limine.conf | grep -nx /Windows | cut -d: -f1" | tr -d '\r\n') - 1 ))
+limine_pick "$win"
+vm_until 'cat /proc/cmdline' '(^| )stackific.test=windows$' 300
 grep -aq 'BdsDxe: starting Boot[0-9A-F]\{4\} "Windows Boot Manager"' "$out/serial.log" || fail "the firmware did not start Windows Boot Manager"
 vm efibootmgr | grep -q "^Boot$(current)\\* Windows Boot Manager	" || fail "BootCurrent is not Windows Boot Manager: $(vm efibootmgr)"
 echo "ok: \"Windows\" restarts into the firmware's Windows Boot Manager"
-windows_boot 2
+limine_pick $((win + 1))
+vm_until 'cat /proc/cmdline' '(^| )stackific.test=windows$' 300
 vm efibootmgr | grep -q "^Boot$(current)\\* $name	" || fail "BootCurrent is not \"$name\": $(vm efibootmgr)"
 echo "ok: \"Windows, started directly\" starts Windows' loader from Limine"

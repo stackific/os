@@ -55,14 +55,22 @@ pub fn cmdline(luks_uuid: &str) -> String {
     )
 }
 
-/// Limine's menu: one entry named `name` that starts the base's kernel and initramfs from the ESP, with root on the
-/// `@` subvolume inside the LUKS2 container `luks_uuid`.
-pub fn limine_conf(name: &str, kernel: &str, initramfs: &str, luks_uuid: &str) -> String {
-    format!(
-        "timeout: 3\ninterface_branding: {name}\n\n/{name}\n    protocol: linux\n    path: boot():/{kernel}\n    \
-         module_path: boot():/{initramfs}\n    cmdline: {}\n",
-        cmdline(luks_uuid)
-    )
+/// One kernel's entry: the title's suffix after the system's name (empty for the default kernel), then the kernel's
+/// and the initramfs' file names at the ESP's root.
+pub type Kernel = (&'static str, &'static str, &'static str);
+
+/// Limine's menu: one entry per kernel, the first the default, titled `name` plus the kernel's suffix, each starting
+/// its kernel and initramfs from the ESP with root on the `@` subvolume inside the LUKS2 container `luks_uuid`.
+pub fn limine_conf(name: &str, kernels: &[Kernel], luks_uuid: &str) -> String {
+    let mut conf = format!("timeout: 3\ninterface_branding: {name}\n");
+    for (suffix, kernel, initramfs) in kernels {
+        conf += &format!(
+            "\n/{name}{suffix}\n    protocol: linux\n    path: boot():/{kernel}\n    \
+             module_path: boot():/{initramfs}\n    cmdline: {}\n",
+            cmdline(luks_uuid)
+        );
+    }
+    conf
 }
 
 /// Where a base whose kernel tools write `limine.conf` (Fedora) finds the Windows entries to add after its own: under
@@ -173,12 +181,21 @@ mod tests {
         assert_eq!(
             limine_conf(
                 "Stackific OS",
-                "vmlinuz-linux",
-                "initramfs-linux.img",
+                &[
+                    ("", "vmlinuz-linux", "initramfs-linux.img"),
+                    (
+                        " (LTS kernel)",
+                        "vmlinuz-linux-lts",
+                        "initramfs-linux-lts.img"
+                    )
+                ],
                 "1111-sys"
             ),
             "timeout: 3\ninterface_branding: Stackific OS\n\n/Stackific OS\n    protocol: linux\n    \
              path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n    \
+             cmdline: rd.luks.uuid=1111-sys root=/dev/mapper/luks-1111-sys rootflags=subvol=/@ rw quiet\n\
+             \n/Stackific OS (LTS kernel)\n    protocol: linux\n    \
+             path: boot():/vmlinuz-linux-lts\n    module_path: boot():/initramfs-linux-lts.img\n    \
              cmdline: rd.luks.uuid=1111-sys root=/dev/mapper/luks-1111-sys rootflags=subvol=/@ rw quiet\n"
         );
     }
