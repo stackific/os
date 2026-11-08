@@ -1,6 +1,6 @@
 # 014: The installer on the Fedora x86_64 image, with Limine kept current through kernel-install and dracut
 
-- [ ] Done
+- [x] Done
 
 Base: fedora
 
