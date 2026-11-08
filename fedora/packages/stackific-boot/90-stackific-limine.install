@@ -4,6 +4,9 @@
 # 50-dracut.install has written /boot/initramfs-KVER.img by then. This copies the kernel next to it and writes
 # limine.conf with one entry per kernel on the ESP, newest first, with the command line from /etc/kernel/cmdline, then
 # the Windows entries the installer wrote to /etc/kernel/limine-windows.conf, if any (Limine has no include).
+# On aarch64, Fedora's kernel is an EFI zboot image, which Limine's linux protocol refuses (it takes only a raw arm64
+# Image), so its entries start the kernel as an EFI program, which decompresses itself and loads the initramfs named by
+# initrd= from the ESP it was started from (Limine's documented workaround, upstream issue 518).
 # Glue, because Limine reads no Boot Loader Spec entries and no Fedora or Terra package writes Limine entries.
 # It does nothing on a system the installer did not set up (the live image, or its build): no /etc/kernel/cmdline or no
 # Limine on the ESP.
@@ -38,8 +41,13 @@ conf="$boot/limine.conf"
     title=$name
     [ "$first" = 1 ] || title="$name ($kernel)"
     first=0
-    printf '\n/%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: %s\n' \
-      "$title" "$kernel" "$kernel" "$cmdline"
+    if [ "$(uname -m)" = aarch64 ]; then
+      printf '\n/%s\n    protocol: efi\n    path: boot():/vmlinuz-%s\n    cmdline: initrd=\\initramfs-%s.img %s\n' \
+        "$title" "$kernel" "$kernel" "$cmdline"
+    else
+      printf '\n/%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: %s\n' \
+        "$title" "$kernel" "$kernel" "$cmdline"
+    fi
   done
   if [ -f /etc/kernel/limine-windows.conf ]; then cat /etc/kernel/limine-windows.conf; fi
 } >"$conf.new"

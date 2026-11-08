@@ -1,5 +1,5 @@
 # Stackific OS boot files for Fedora: keeps Limine on our EFI System Partition current, as arch/packages/stackific-boot
-# does on Arch. The installer copies /usr/share/limine/BOOTX64.EFI to /boot/EFI/limine/ (the firmware entry's loader)
+# does on Arch. The installer copies /usr/share/limine/BOOTX64.EFI (BOOTAA64.EFI on aarch64) to /boot/EFI/limine/ (the firmware entry's loader)
 # and /boot/EFI/BOOT/ (the firmware's fallback path) and writes /etc/kernel/cmdline, then runs kernel-install. Kernels:
 # kernel-install runs with layout=other on the ESP at /boot, Fedora's dracut plugin writes the initramfs, and our plugin
 # copies the kernel and writes limine.conf, on every kernel install and removal, with the Windows entries the installer
@@ -10,7 +10,7 @@
 
 Name: stackific-boot
 Version: 0.1.0
-Release: 3%{?dist}
+Release: 4%{?dist}
 Summary: Stackific OS boot files: keeps Limine and its menu on the EFI System Partition current
 License: Apache-2.0
 URL: https://os.stackific.com
@@ -38,11 +38,14 @@ install -Dm755 %{SOURCE2} %{buildroot}%{_prefix}/lib/dracut/modules.d/99stackifi
 install -Dm755 %{SOURCE3} %{buildroot}%{_prefix}/lib/stackific/boot-failure
 install -Dm644 %{SOURCE4} %{buildroot}%{_prefix}/lib/stackific/boot-failure.conf
 
-# Where /boot/EFI/limine/ is missing (the live session and its build), nothing to do
+# The machine's program (BOOTX64.EFI or BOOTAA64.EFI); where /boot/EFI/limine/ is missing (the live session and its
+# build), nothing to do
 %triggerin -- limine
+f=BOOTX64.EFI
+[ "$(uname -m)" != aarch64 ] || f=BOOTAA64.EFI
 if [ -d /boot/EFI/limine ]; then
-  install -Dm644 /usr/share/limine/BOOTX64.EFI /boot/EFI/limine/BOOTX64.EFI
-  install -Dm644 /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/BOOTX64.EFI
+  install -Dm644 /usr/share/limine/$f /boot/EFI/limine/$f
+  install -Dm644 /usr/share/limine/$f /boot/EFI/BOOT/$f
 fi
 
 %files

@@ -1,6 +1,7 @@
 # Stackific OS (stackific-boot): copies Limine's EFI program to our EFI System Partition after limine is upgraded or
-# reinstalled, to the two paths the installer wrote: the firmware entry's loader and the firmware's fallback path.
-# Where /boot/EFI/limine/ is missing (the live session), it does nothing.
+# reinstalled, to the two paths the installer wrote: the firmware entry's loader and the firmware's fallback path. The
+# program is the machine's: BOOTX64.EFI on x86_64, BOOTAA64.EFI on aarch64. Where /boot/EFI/limine/ is missing (the
+# live session), it does nothing.
 [Trigger]
 Operation = Upgrade
 Type = Package
@@ -9,4 +10,4 @@ Target = limine
 [Action]
 Description = Updating Limine on the EFI System Partition...
 When = PostTransaction
-Exec = /usr/bin/sh -c '[ ! -d /boot/EFI/limine ] || { install -Dm644 /usr/share/limine/BOOTX64.EFI /boot/EFI/limine/BOOTX64.EFI && install -Dm644 /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/BOOTX64.EFI; }'
+Exec = /usr/bin/sh -c 'f=BOOTX64.EFI; [ "$(uname -m)" != aarch64 ] || f=BOOTAA64.EFI; [ ! -d /boot/EFI/limine ] || { install -Dm644 /usr/share/limine/$f /boot/EFI/limine/$f && install -Dm644 /usr/share/limine/$f /boot/EFI/BOOT/$f; }'

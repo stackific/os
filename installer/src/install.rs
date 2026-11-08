@@ -478,10 +478,7 @@ pub mod tests {
         .on("setfiles ", Output::ok(""))
         .on("install -D ", Output::ok(""))
         .on("efibootmgr --", Output::ok(""))
-        .on(
-            "efibootmgr",
-            Output::ok(include_str!("../fixtures/efibootmgr.txt")),
-        )
+        .on("efibootmgr", Output::ok(&boot::listing()))
         .on(
             "lsblk --noheadings --list --output PARTUUID",
             Output::ok("\n"),
@@ -620,19 +617,18 @@ pub mod tests {
         // fixture's entry on a partition lsblk no longer lists goes, ours is created on the ESP, partition 1
         assert!(pos("pacman --sysroot") < pos("install -D"));
         assert!(pos("install -D") < pos("arch-chroot"));
+        let (kernel, initramfs) = Arch.kernel_files().unwrap();
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/boot/limine.conf"))],
-            boot::limine_conf(
-                "Stackific OS",
-                "vmlinuz-linux",
-                "initramfs-linux.img",
-                "2222-luks"
-            )
+            boot::limine_conf("Stackific OS", kernel, initramfs, "2222-luks")
         );
         assert!(pos("efibootmgr --bootnum 0009 --delete-bootnum") < pos("efibootmgr --create"));
         assert_eq!(
             s.calls[s.calls.len() - 5],
-            r#"efibootmgr --create --disk /dev/vda --part 1 --label "Stackific OS" --loader \EFI\limine\BOOTX64.EFI"#
+            format!(
+                r#"efibootmgr --create --disk /dev/vda --part 1 --label "Stackific OS" --loader \EFI\limine\{}"#,
+                boot::EFI
+            )
         );
         assert!(
             s.files[&PathBuf::from(format!("{t}/etc/fstab"))]
