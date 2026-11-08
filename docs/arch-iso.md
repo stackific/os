@@ -56,6 +56,8 @@ A branding edit changes `branding.env`'s sha256, so update it, and bump `pkgrel`
 
 For Plasma, Arch's second desktop, `stackific-desktop` also holds our wallpaper as a Plasma wallpaper package (`/usr/share/wallpapers/stackific/`, its image a link to `stackific-artwork`'s painting), our look-and-feel package `org.stackific.desktop` (`/usr/share/plasma/look-and-feel/`: Breeze's defaults with `[Wallpaper] Image=stackific`; everything else falls back to Breeze), and `/etc/xdg/kdeglobals`, which selects it for every user. Plasma's wallpaper plugin takes its default from the selected look and feel. The templates are `desktop/plasma/*.in`, rendered from the branding file.
 
+`stackific-hardware` (sources in `hardware/`) holds the NVIDIA driver pick: a systemd generator, NVIDIA's legacy device list and MangoWM's low-effects include. The x86_64 image installs it with `linux-lts`, `nvidia-open`, `nvidia-open-lts` and `nvidia-utils` (task 019); the aarch64 image does not yet. How it works: [hardware.md](hardware.md).
+
 `stackific-artwork` holds the wallpapers and fastfetch's logo, and depends on `fastfetch`, so installing our branding installs fastfetch:
 
 - `/usr/share/backgrounds/stackific/*.jpg`: the ten public-domain paintings in `branding/wallpapers/`, credited in `branding/wallpapers.toml`, which the package installs as its licence file (`/usr/share/licenses/stackific-artwork/wallpapers.toml`);
