@@ -1,6 +1,6 @@
 # 016: Every install encrypted: LUKS2 under btrfs, unlocked by the login password, with a plain screen after three wrong tries
 
-- [ ] Done
+- [x] Done
 
 Base: both
 

@@ -6,15 +6,22 @@ use std::path::Path;
 
 use crate::run::Cmd;
 
-/// The firmware entry's loader on our ESP, in UEFI's notation.
-pub const LOADER: &str = r"\EFI\limine\BOOTX64.EFI";
+/// Limine's EFI program for this machine, under the name UEFI gives the architecture's removable-media path (UEFI 2.10,
+/// 3.5.1.1); the limine package ships it under the same name in /usr/share/limine/.
+pub const EFI: &str = if cfg!(target_arch = "aarch64") {
+    "BOOTAA64.EFI"
+} else {
+    "BOOTX64.EFI"
+};
 
-/// Limine's EFI program in the target, as the limine package installs it.
-const PROGRAM: &str = "usr/share/limine/BOOTX64.EFI";
+/// The firmware entry's loader on our ESP, in UEFI's notation.
+pub fn loader() -> String {
+    format!(r"\EFI\limine\{EFI}")
+}
 
 /// Where the program goes under the target: the firmware entry's loader, then the firmware's fallback path, which
 /// starts the drive when its entry is lost. stackific-boot's pacman hook keeps both current.
-const COPIES: [&str; 2] = ["boot/EFI/limine/BOOTX64.EFI", "boot/EFI/BOOT/BOOTX64.EFI"];
+const COPIES: [&str; 2] = ["boot/EFI/limine", "boot/EFI/BOOT"];
 
 /// `limine.conf` under the target: the ESP's root, which Limine searches after the program's own folder, so one file
 /// serves both copies.
@@ -22,7 +29,7 @@ pub const CONF: &str = "boot/limine.conf";
 
 /// The commands that copy Limine's program from the target's limine package to both places on the ESP.
 pub fn copy_program(target: &Path) -> Vec<Cmd> {
-    let source = target.join(PROGRAM).to_string_lossy().to_string();
+    let source = target.join("usr/share/limine").join(EFI);
     COPIES
         .iter()
         .map(|c| {
@@ -30,8 +37,8 @@ pub fn copy_program(target: &Path) -> Vec<Cmd> {
                 "-D",
                 "-m",
                 "0644",
-                &source,
-                &target.join(c).to_string_lossy(),
+                &source.to_string_lossy(),
+                &target.join(c).join(EFI).to_string_lossy(),
             ])
         })
         .collect()
@@ -41,12 +48,20 @@ pub fn copy_program(target: &Path) -> Vec<Cmd> {
 /// `luks-<uuid>`, and root is the `@` subvolume inside it. Naming root by the mapping, not by btrfs' UUID, makes a
 /// failed unlock fail the root mount at once (the boot-failure screen) instead of after the device timeout. Fedora's
 /// kernel-install plugin reads the same text from /etc/kernel/cmdline. `quiet` keeps the kernel's and systemd's start-up
-/// lines off the console, so the passphrase prompt stands alone.
+/// lines off the console, so the passphrase prompt stands alone. On aarch64 it ends with [`CONSOLE`].
 pub fn cmdline(luks_uuid: &str) -> String {
     format!(
-        "rd.luks.uuid={luks_uuid} root=/dev/mapper/luks-{luks_uuid} rootflags=subvol=/@ rw quiet"
+        "rd.luks.uuid={luks_uuid} root=/dev/mapper/luks-{luks_uuid} rootflags=subvol=/@ rw quiet{CONSOLE}"
     )
 }
+
+/// aarch64: with no `console=`, Linux makes the serial port in ACPI's SPCR table (QEMU, UTM and other VMs, many boards)
+/// the console, so systemd would ask for the passphrase there, off the screen; `console=tty0` keeps it on the screen.
+pub const CONSOLE: &str = if cfg!(target_arch = "aarch64") {
+    " console=tty0"
+} else {
+    ""
+};
 
 /// Limine's menu: one entry named `name` that starts the base's kernel and initramfs from the ESP, with root on the
 /// `@` subvolume inside the LUKS2 container `luks_uuid`.
@@ -116,7 +131,7 @@ pub fn stale(listing: &str, present: &str) -> Vec<String> {
             let hd = &l[l.find("HD(")? + 3..];
             let (fields, file) = hd.split_once(")/")?;
             let guid = fields.split(',').nth(2)?.to_lowercase();
-            let ours = file.to_lowercase().starts_with(&LOADER.to_lowercase());
+            let ours = file.to_lowercase().starts_with(&loader().to_lowercase());
             (ours && !present.contains(&guid)).then(|| num.to_string())
         })
         .collect()
@@ -139,7 +154,7 @@ pub fn create(drive: &str, part: u32, label: &str) -> Cmd {
         "--label",
         label,
         "--loader",
-        LOADER,
+        &loader(),
     ])
 }
 
@@ -150,13 +165,16 @@ pub fn partition_number(path: &str) -> Option<u32> {
     path[path.len() - digits..].parse().ok()
 }
 
+/// efibootmgr's listing in the test VM (OVMF) before the free-space install: the erase install's entry, Boot0009,
+/// on a partition the Windows-like table replaced. Its loader is x86_64's, so it is renamed for this machine's.
+#[cfg(test)]
+pub fn listing() -> String {
+    include_str!("../fixtures/efibootmgr.txt").replace("BOOTX64.EFI", EFI)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    /// efibootmgr's listing in the test VM (OVMF) before the free-space install: the erase install's entry, Boot0009,
-    /// on a partition the Windows-like table replaced.
-    const LISTING: &str = include_str!("../fixtures/efibootmgr.txt");
 
     #[test]
     fn limine_conf_starts_the_kernel_on_the_at_subvolume() {
@@ -167,9 +185,11 @@ mod tests {
                 "initramfs-linux.img",
                 "1111-sys"
             ),
-            "timeout: 3\ninterface_branding: Stackific OS\n\n/Stackific OS\n    protocol: linux\n    \
-             path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n    \
-             cmdline: rd.luks.uuid=1111-sys root=/dev/mapper/luks-1111-sys rootflags=subvol=/@ rw quiet\n"
+            format!(
+                "timeout: 3\ninterface_branding: Stackific OS\n\n/Stackific OS\n    protocol: linux\n    \
+                 path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n    \
+                 cmdline: rd.luks.uuid=1111-sys root=/dev/mapper/luks-1111-sys rootflags=subvol=/@ rw quiet{CONSOLE}\n"
+            )
         );
     }
 
@@ -202,14 +222,24 @@ mod tests {
     #[test]
     fn only_our_loader_on_a_missing_partition_is_stale() {
         let present = "\n\nGUID-PRESENT\n";
-        let gone = LISTING
+        let listing = listing();
+        let gone = listing
             .lines()
-            .find(|l| l.contains("BOOTX64.EFI") && l.contains("HD("))
+            .find(|l| l.contains(EFI) && l.contains("HD("))
             .unwrap();
         assert!(gone.starts_with("Boot"));
-        let stale_nums = stale(LISTING, present);
+        let stale_nums = stale(&listing, present);
         assert_eq!(stale_nums.len(), 1, "{stale_nums:?}");
-        assert!(!stale(LISTING, &format!("{present}\n{}", guid_of(gone))).contains(&stale_nums[0]));
+        assert!(
+            !stale(&listing, &format!("{present}\n{}", guid_of(gone))).contains(&stale_nums[0])
+        );
+        // Another architecture's Limine is not ours
+        let other = if EFI == "BOOTX64.EFI" {
+            "BOOTAA64.EFI"
+        } else {
+            "BOOTX64.EFI"
+        };
+        assert!(stale(&listing.replace(EFI, other), present).is_empty());
         // Other entries (the firmware's own, another OS's) are never stale
         assert!(stale("Boot0000* Windows Boot Manager\tHD(1,GPT,abc,0x800,0x1)/\\EFI\\Microsoft\\Boot\\bootmgfw.efi\n", "").is_empty());
         assert!(stale("BootOrder: 0001\nBootCurrent: 0001\n", "").is_empty());
@@ -224,7 +254,9 @@ mod tests {
     fn commands() {
         assert_eq!(
             create("/dev/vda", 4, "Stackific OS").line(),
-            r#"efibootmgr --create --disk /dev/vda --part 4 --label "Stackific OS" --loader \EFI\limine\BOOTX64.EFI"#
+            format!(
+                r#"efibootmgr --create --disk /dev/vda --part 4 --label "Stackific OS" --loader \EFI\limine\{EFI}"#
+            )
         );
         assert_eq!(
             delete("0004").line(),
@@ -237,8 +269,8 @@ mod tests {
         assert_eq!(
             copies,
             [
-                "install -D -m 0644 /t/usr/share/limine/BOOTX64.EFI /t/boot/EFI/limine/BOOTX64.EFI",
-                "install -D -m 0644 /t/usr/share/limine/BOOTX64.EFI /t/boot/EFI/BOOT/BOOTX64.EFI"
+                format!("install -D -m 0644 /t/usr/share/limine/{EFI} /t/boot/EFI/limine/{EFI}"),
+                format!("install -D -m 0644 /t/usr/share/limine/{EFI} /t/boot/EFI/BOOT/{EFI}")
             ]
         );
         assert_eq!(partition_number("/dev/vda4"), Some(4));

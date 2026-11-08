@@ -96,7 +96,7 @@ It also requires `distribution-systemd-presets`, as `generic-release` does: the 
 
 ### stackific-boot
 
-Limine on the ESP and its menu, on the x86_64 image and kept on installed systems: a kernel-install drop-in (`layout=other`, `BOOT_ROOT=/boot`), the kernel-install plugin `90-stackific-limine.install` that copies each kernel to the ESP and writes `limine.conf`, and a trigger on `limine` that copies its program to the ESP. `docs/installer.md` has the details.
+Limine on the ESP and its menu, on both images and kept on installed systems: a kernel-install drop-in (`layout=other`, `BOOT_ROOT=/boot`), the kernel-install plugin `90-stackific-limine.install` that copies each kernel to the ESP and writes `limine.conf`, and a trigger on `limine` that copies its program (`BOOTX64.EFI` or `BOOTAA64.EFI`) to the ESP. On aarch64 the plugin's entries start Fedora's EFI zboot kernel with Limine's `efi` protocol and `initrd=`, because the `linux` protocol refuses zboot. `docs/installer.md` has the details.
 
 ### stackific-desktop and stackific-artwork
 
@@ -106,7 +106,7 @@ They hold the same files as on Arch (`docs/arch-iso.md`, "Our packages"): the No
 
 - The kernel, `linux-firmware` and the default firmware of Fedora's `hardware-support` group, plus AMD and Intel microcode. The server and datacenter firmware in that group is optional there, so it stays out.
 - NetworkManager with Wi-Fi, btrfs and FAT tools, SELinux enforcing with the targeted policy, and dnf5, so installed systems can update.
-- On x86_64, the installer (`stackific-installer`) and `stackific-boot` with Limine from Terra; aarch64 gets them with task 018.
+- The installer (`stackific-installer`) and `stackific-boot` with Limine from Terra, and Disks (`gnome-disk-utility`) with `ntfs-3g` and `ntfsprogs` (`ntfsresize`), the partition editor.
 - The desktop: MangoWM and noctalia-greeter from Terra, Noctalia, greetd, foot and rofi from Fedora, and GNOME (`gnome-shell`, its Wayland session, Ptyxis and Nautilus), with the GNOME, GTK and wlr portals and PipeWire. Our three RPMs carry the defaults (the live session, below).
 - `stackific-release`, not `fedora-release`. Fedora's trademark guidelines require a remix to leave out `fedora-release`, `fedora-logos` and `fedora-release-notes`; `stackific-release` takes the place of Fedora's `generic-release` (above). `gnome-shell` requires `gdm`, which requires `system-logos`; `config.kiwi` names `generic-logos` for it, or dnf would pick `fedora-logos`.
 - No weak dependencies: kiwi installs only what packages require, and `config.kiwi` names the few weak dependencies users commonly need: `tzdata`, `cracklib-dicts` and `intel-npu-firmware` (task 003), and for the desktop Wi-Fi (`NetworkManager-wifi`, `wpa_supplicant`, `wireless-regdb`, which NetworkManager alone lacks on Fedora) and GNOME's fonts (`adwaita-sans-fonts`, `adwaita-mono-fonts`). Left out until the hardware tasks, as on Arch: Bluetooth, power profiles, Thunderbolt, Vulkan, VA-API and libcamera. Left out as rare on a live desktop: input methods (`ibus`), JACK and ALSA bridges, GNOME's tour, remote desktop, colour manager, parental controls and search indexer, filesystem tools beyond btrfs and FAT, and the codec libraries. Tasks 003 and 008 list them all.
@@ -121,7 +121,7 @@ After a logout, greetd runs noctalia-greeter as Fedora's greeter user `greetd` (
 
 `config.sh` creates `live` with `useradd` (home from `/etc/skel`, our Noctalia include among it), in `wheel`, with an empty password. root also has an empty password, on the other consoles. tty1 belongs to greetd. noctalia-greeter refuses an empty password field, so to log `live` in from the greeter, type any character: Fedora's authselect `local` profile has `nullok`, so `pam_unix` authenticates a user with an empty password without asking for one, and what was typed is never checked.
 
-The boot menu (on x86_64 "Try Stackific OS (x86_64, UEFI)", the default, and "Install Stackific OS (x86_64, UEFI)", which `edit-boot.sh` adds; `docs/installer.md`), volume ID (`STACKIFIC_LIVE`, not the installed ESP's FAT label `STACKIFIC`, which the live initramfs's `root=live:CDLABEL=` would otherwise find on an installed drive) and ISO metadata say Stackific OS; the kernel, GRUB and every other binary are unmodified Fedora packages.
+The boot menu ("Try Stackific OS (<arch>, UEFI)", the default, and "Install Stackific OS (<arch>, UEFI)", which `edit-boot.sh` adds; `docs/installer.md`), volume ID (`STACKIFIC_LIVE`, not the installed ESP's FAT label `STACKIFIC`, which the live initramfs's `root=live:CDLABEL=` would otherwise find on an installed drive) and ISO metadata say Stackific OS; the kernel, GRUB and every other binary are unmodified Fedora packages.
 
 ## Boot test
 
@@ -133,7 +133,7 @@ just fedora test 1.2.3
 It runs the same `tests/vm/boot.sh` as `just arch test` (see `docs/arch-iso.md`), with the builder's raw firmware pair (`uefi_code` and `uefi_vars` in `fedora/vars.just`, passed as `OVMF_CODE` and `OVMF_VARS`). After the checks every image passes, `boot.sh` sources `tests/vm/fedora.sh`, which both Fedora architectures pass. It makes the checks of `tests/vm/arch.sh`, with Fedora's names, and adds Terra and SELinux:
 
 - `/etc/os-release` reads `ID=stackific`, `ID_LIKE=fedora`, `VERSION_ID=45`, `PRETTY_NAME="Stackific OS"` and `LOGO=stackific`; `hostnamectl` shows `Operating System: Stackific OS`; rpm says `generic-release-common` owns `/etc/os-release` (the link) and `stackific-release` owns `/usr/lib/os-release`; no `fedora-release*`, `fedora-logos*` or `fedora-release-notes` is installed; the `stackific` icon is filled `#007a55`;
-- the only packages with vendor `Terra` are `mangowm` and `noctalia-greeter` (and on x86_64 `limine`); `dnf5` is installed;
+- the only packages with vendor `Terra` are `mangowm`, `noctalia-greeter` and `limine`; `dnf5` is installed;
 - GNOME's settings for `live` show our wallpaper (`picture-uri`, `picture-uri-dark`, the screensaver's) and the installer first in `favorite-apps`;
 - `getenforce` prints `Enforcing`;
 - greetd is active and `display-manager.service` links to it; `stackific-noctalia.service` is active for `live`, and `mango` runs as `live`. The unit check runs `systemctl --user` as `live` through `runuser`, not `systemctl --user -M live@` as on Arch: that runs `systemd-run -P`, which hands the test shell's vsock socket to PID 1 and dbus-broker, and Fedora's policy denies them that socket, silently through dontaudit rules (`Failed to start transient service unit: Connection reset by peer`);
@@ -142,9 +142,9 @@ It runs the same `tests/vm/boot.sh` as `just arch test` (see `docs/arch-iso.md`)
 - `/var/lib/noctalia-greeter` belongs to `greetd`, its `greeter.toml` links to ours, which has our accent as `primary`, and the greeter's asset folder links `noctalia.svg` to our icon;
 - `fastfetch` (as `live`) prints the logo's last line in the accent colour, and `OS: Stackific OS`.
 
-It saves `screen.png` (the live desktop), then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greetd` with `NOCTALIA_GREETER_ASSETS_DIR` set to our asset folder, and saves `greeter.png`. Last, the journal of the boot has no `avc:  denied` line. journald reads the kernel's audit records itself (`systemd-journald-audit.socket`), so the kernel's rate limit on printing them does not hide any. All three files go to `.build/fedora/<arch>/`, with `serial.log`.
+It saves `screen.png` (the live desktop), then logs `live` out with `loginctl terminate-user live`. It checks that noctalia-greeter runs as `greetd` with `NOCTALIA_GREETER_ASSETS_DIR` set to our asset folder, and saves `greeter.png`. Last, after GNOME (below), the journal of the boot has no `avc:  denied` line. journald reads the kernel's audit records itself (`systemd-journald-audit.socket`), so the kernel's rate limit on printing them does not hide any. All three files go to `.build/fedora/<arch>/`, with `serial.log`.
 
-On x86_64, `boot.sh` sources `tests/vm/fedora-x86_64.sh`, which sources `fedora.sh` and then checks the installer's launcher and units, `stackific-boot`'s plugin, Limine from Terra, and logs `live` into GNOME through the greeter (`a`, Enter: GNOME is first in its session list), saving `gnome.png`: GNOME's overview with our wallpaper and the installer first in the dash. Not through greetd's `[initial_session]`, as the Arch test does for Plasma: that opens a logind session of type `tty`, and GNOME Shell starts only in a `wayland` one (`Failed to find any matching session`), which noctalia-greeter asks greetd for. Then, again, no `avc:  denied` line.
+After the greeter, `fedora.sh` checks the installer's launcher and units, `stackific-boot`'s plugin, Limine's program for the machine from Terra, Disks with `ntfsresize`, and logs `live` into GNOME through the greeter (`a`, Enter: GNOME is first in its session list), saving `gnome.png`: GNOME's overview with our wallpaper and the installer first in the dash. Not through greetd's `[initial_session]`, as the Arch test does for Plasma: that opens a logind session of type `tty`, and GNOME Shell starts only in a `wayland` one (`Failed to find any matching session`), which noctalia-greeter asks greetd for. Then, again, no `avc:  denied` line.
 
 To check GNOME by hand:
 
@@ -158,14 +158,14 @@ The test shell is a service running `systemd-socket-activate`, not a socket unit
 ## Install test
 
 ```sh
-just fedora test-install      # needs stackific-0.0.0-dev-fedora-x86_64.iso and its manifest
+just fedora test-install      # needs stackific-0.0.0-dev-fedora-<arch>.iso and its manifest
 ```
 
 As `just arch test-install` (`docs/arch-iso.md`): it checks the ISO's `boot/grub2/grub.cfg` for Try (the default) and Install, boots the ISO with a blank 64 GiB disk through `tests/vm/install.sh`, reads the free-space install's ESP with `minfo`, and boots the disk alone with the first boot's firmware variables through `tests/vm/installed.sh`. Before the second boot it downloads the image's `kernel-core` (Fedora) and `limine` (Terra) at the manifest's versions, checks both with `rpmkeys -K` against Fedora 45's and Terra 45's keys, and copies them onto the ESP with `mcopy`, for the reinstall checks. Fedora's `updates` keeps only the newest kernel, so the download fails once the image's kernel is superseded: build the image again. `docs/installer.md` lists what the checks cover.
 
 ## aarch64
 
-The aarch64 image is built and tested on aarch64 Linux: the `fedora-aarch64` jobs of the `images` workflow (started by hand) and of the `release` workflow run it on the Mac's runner VM, and upload it like the other images (`docs/releases.md`). The Mac has one runner, so `arch-aarch64` and `fedora-aarch64` run one after the other. It is the same desktop live ISO as x86_64, from the same description, builder, recipes and checks. What differs:
+The aarch64 image is built and tested on aarch64 Linux: the `fedora-aarch64` jobs of the `images` workflow (on merges to `main` and by hand) and of the `release` workflow run it on the Mac's runner VM, and upload it like the other images (`docs/releases.md`). The Mac has one runner, so `arch-aarch64` and `fedora-aarch64` run one after the other. It is the same desktop live ISO as x86_64, from the same description, builder, recipes and checks. What differs:
 
 - `config.kiwi` keeps eight packages to one architecture with kiwi's `arch` attribute, which kiwi compares with the build host's architecture. On x86_64 they are `grub2-efi-x64`, `grub2-efi-x64-cdboot` and `grub2-efi-x64-modules`, and the x86 CPU microcode, `amd-ucode-firmware` and `microcode_ctl`. Fedora has no `microcode_ctl` on aarch64, and AMD's microcode serves only x86 CPUs. On aarch64 they are `grub2-efi-aa64`, `grub2-efi-aa64-cdboot` and `grub2-efi-aa64-modules`. Every other line serves both images, so the two package sets cannot drift apart. The firmware packages are noarch and stay on both, as on Arch Linux ARM.
 - The kernel command line names both serial consoles, `ttyS0` (x86_64) and `ttyAMA0` (aarch64), as on Arch; the kernel ignores the one the machine lacks.

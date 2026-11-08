@@ -77,8 +77,8 @@ iso version="0.0.0-dev": packages
 
 # Boot-test stackific-<version>-fedora-<arch>.iso under QEMU with UEFI firmware (tests/vm/boot.sh with
 # tests/vm/fedora-<arch>.sh when the architecture has its own checks, else tests/vm/fedora.sh, the checks both Fedora
-# images pass); leaves screen.png (the desktop), greeter.png (the login screen after a logout) and serial.log, and on
-# x86_64 gnome.png
+# images pass); leaves screen.png (the desktop), greeter.png (the login screen after a logout), gnome.png and
+# serial.log
 # podman's default seccomp profile blocks AF_VSOCK sockets, which the test shell client needs. Without labelling off,
 # SELinux (Fedora, as in the Mac's runner VM) keeps containers off /dev/vhost-vsock and bind mounts.
 [positional-arguments]

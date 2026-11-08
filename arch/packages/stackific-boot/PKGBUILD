@@ -1,15 +1,16 @@
 # Stackific OS boot files for Arch: keeps Limine on our EFI System Partition current. The installer copies
-# /usr/share/limine/BOOTX64.EFI to /boot/EFI/limine/ (the firmware entry's loader) and /boot/EFI/BOOT/ (the firmware's
-# fallback path) and writes /boot/limine.conf. The limine package ships no hook, so ours copies the program again after
-# every limine upgrade. Kernels need nothing here: mkinitcpio's own pacman hooks keep /boot/vmlinuz-linux and
-# /boot/initramfs-linux.img current, the paths limine.conf names. The hook is Arch-only, so it sits next to this file.
+# /usr/share/limine/BOOTX64.EFI (BOOTAA64.EFI on aarch64) to /boot/EFI/limine/ (the firmware entry's loader) and
+# /boot/EFI/BOOT/ (the firmware's fallback path) and writes /boot/limine.conf. The limine package ships no hook, so ours
+# copies the program again after every limine upgrade. Kernels need nothing here: the paths limine.conf names stay
+# current through mkinitcpio's own pacman hooks (/boot/vmlinuz-linux and /boot/initramfs-linux.img) and, on Arch Linux
+# ARM, linux-aarch64's own /boot/Image. The hook is Arch-only, so it sits next to this file.
 # Encryption (task 016): the mkinitcpio hook stackific-boot-failure, which the installer adds to installed systems'
 # HOOKS, puts the plain screen after a failed start (installer/initramfs/) into the initramfs.
 # shellcheck disable=SC2034,SC2154
 
 pkgname=stackific-boot
 pkgver=0.1.0
-pkgrel=2
+pkgrel=3
 pkgdesc='Stackific OS boot files: keeps Limine on the EFI System Partition current'
 arch=('any')
 url='https://os.stackific.com'
@@ -20,7 +21,7 @@ source=('stackific-limine.hook'
         'initcpio-install-stackific-boot-failure'
         'stackific-boot-failure'
         'stackific-boot-failure.conf')
-sha256sums=('79fbedfa363eb6e04b7372dcdea99897e52fabcc64f1e59eb9fe31f28d82ca64'
+sha256sums=('dc53f3561533c93affaab5fb1d931c459b6a02d8a5ca3e27139db73a48909dda'
             '2d8cfc9200af09ada4443168fd3ad86eba7197c3d277eced7a2a4eb7e07c1305'
             'fa18c3ecc7f8ed62ae24bddc0513e1e232f65fed49c8a789aeed72f2ec6a7372'
             '1a8358e92f73ab330ddf6dcbebb718dd12070b15d62f3d37132eaea778b3a431')

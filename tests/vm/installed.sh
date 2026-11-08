@@ -36,6 +36,7 @@ echo "ok: Windows Boot Manager is second"
 luks=$(vm "findmnt -no SOURCE / | sed -n 's|^/dev/mapper/luks-\\(.*\\)\\[/@\\]\$|\\1|p'" | tr -d '\r\n')
 [ -n "$luks" ] || fail "/ is not on the LUKS2 container: $(vm 'findmnt -no SOURCE /')"
 cmdline="rd.luks.uuid=$luks root=/dev/mapper/luks-$luks rootflags=subvol=/@ rw quiet"
+[ "$efi" != BOOTAA64.EFI ] || cmdline+=" console=tty0" # the screen, not SPCR's serial port (installer's boot::CONSOLE)
 vm_until 'cat /proc/cmdline' "(^| )$cmdline( |\$)" 0
 vm_until "blkid -o value -s UUID \$(cryptsetup status luks-$luks | sed -n 's/^  device: *//p')" "^$luks\$" 0
 vm_until "cryptsetup status luks-$luks" '^  type: +LUKS2$' 0
@@ -48,7 +49,7 @@ vm_until 'btrfs subvolume get-default /' '^ID 5 \(FS_TREE\)$' 0
 # image's hooks, with the unlock and the boot-failure screen. Arch: mkinitcpio's preset with Arch's default hooks plus
 # the installer's sd-encrypt and stackific-boot-failure. Fedora: kernel-install with Fedora's dracut, the
 # kernel's version in the names, no GRUB.
-efi_same='cmp /usr/share/limine/BOOTX64.EFI /boot/EFI/limine/BOOTX64.EFI && cmp /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/BOOTX64.EFI && echo same'
+efi_same="cmp /usr/share/limine/$efi /boot/EFI/limine/$efi && cmp /usr/share/limine/$efi /boot/EFI/BOOT/$efi && echo same"
 vm_until "$efi_same" '^same$' 0
 # (systemd-boot-random-seed.service writes /boot/loader/random-seed on any ESP; Boot Loader Spec entries would be in
 # loader/entries)
@@ -56,7 +57,7 @@ vm_until 'ls -d /boot/*fallback* /boot/*rescue* /boot/EFI/Linux /boot/loader/ent
 # shellcheck disable=SC2016 # $(…) belongs to the guest shell
 vm_until '[ "$(ls /usr/lib/modules)" = "$(uname -r)" ] && echo match' '^match$' 0
 if [ "$like" = fedora ]; then
-  vm_until "cd /boot && ls -d vmlinuz-$version initramfs-$version.img limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l" \
+  vm_until "cd /boot && ls -d vmlinuz-$version initramfs-$version.img limine.conf EFI/limine/$efi EFI/BOOT/$efi | wc -l" \
     '^5$' 0
   vm_until "lsinitrd /boot/initramfs-$version.img | grep -c dmsquash" '^0$' 0
   vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx btrfs" '^1$' 0
@@ -64,8 +65,12 @@ if [ "$like" = fedora ]; then
   vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx -e systemd-cryptsetup -e stackific-boot-failure" '^2$' 0
   vm_until "cmp /usr/lib/modules/$version/vmlinuz /boot/vmlinuz-$version && echo same" '^same$' 0
 else
-  vm_until 'cd /boot && ls -d vmlinuz-linux initramfs-linux.img limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l' \
-    '^5$' 0
+  # Arch Linux ARM: linux-aarch64's own /boot/Image, and no copy left by the live image's hook
+  kernel=vmlinuz-linux
+  [ "$efi" != BOOTAA64.EFI ] || kernel=Image
+  vm_until "cd /boot && ls -d $kernel initramfs-linux.img limine.conf EFI/limine/$efi EFI/BOOT/$efi | wc -l" '^5$' 0
+  vm_until "grep -cx '    path: boot():/$kernel' /boot/limine.conf" '^1$' 0
+  vm_until 'ls /etc/pacman.d/hooks/stackific-vmlinuz.hook 2>/dev/null | wc -l' '^0$' 0
   vm_until 'lsinitcpio /boot/initramfs-linux.img | grep -c archiso' '^0$' 0
   vm_until "lsinitcpio /boot/initramfs-linux.img | grep -c 'usr/lib/systemd/systemd\$'" '^1$' 0
   # The unlock (sd-encrypt) and stackific-boot's plain screen after a failed start
@@ -103,11 +108,12 @@ screenshot installed
 
 # stackific-boot's hook (Arch: a pacman hook; Fedora: an RPM trigger): reinstalling limine restores both copies of its
 # program, and leaves the firmware entries alone
-vm ': >/boot/EFI/limine/BOOTX64.EFI && : >/boot/EFI/BOOT/BOOTX64.EFI' >/dev/null
+vm ": >/boot/EFI/limine/$efi && : >/boot/EFI/BOOT/$efi" >/dev/null
 if [ "$like" = fedora ]; then
   reinstall='rpm -Uvh --replacepkgs /boot/limine-*.rpm >/dev/null && rm /boot/limine-*.rpm && echo reinstalled'
 else
-  reinstall='pacman -U --noconfirm /boot/limine-*.pkg.tar.zst >/dev/null && rm /boot/limine-*.pkg.tar.zst && echo reinstalled'
+  # (Arch Linux ARM's packages are .pkg.tar.xz, Arch's .pkg.tar.zst)
+  reinstall='pacman -U --noconfirm /boot/limine-*.pkg.tar.* >/dev/null && rm /boot/limine-*.pkg.tar.* && echo reinstalled'
 fi
 vm_until "$reinstall" '^reinstalled$' 0
 vm_until "$efi_same" '^same$' 0
@@ -118,7 +124,12 @@ echo "ok: stackific-boot's hook restored Limine's program"
 # a removed one out; reinstalling the kernel package (offline, from the ESP) runs it through the kernel's own scriptlet.
 # None of it touches the firmware entries.
 if [ "$like" = fedora ]; then
-  entry() { printf '%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: %s' "$1" "$2" "$2" "$cmdline"; }
+  # On aarch64 an EFI program: Fedora's zboot kernel loads its initramfs from initrd= (90-stackific-limine.install)
+  if [ "$efi" = BOOTAA64.EFI ]; then
+    entry() { printf '%s\n    protocol: efi\n    path: boot():/vmlinuz-%s\n    cmdline: initrd=\\initramfs-%s.img %s' "$1" "$2" "$2" "$cmdline"; }
+  else
+    entry() { printf '%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: %s' "$1" "$2" "$2" "$cmdline"; }
+  fi
   # The Windows entries the installer left for the plugin, after the kernels' each time
   win=$(vm 'cat /etc/kernel/limine-windows.conf')
   grep -qx '    entry: Windows Boot Manager' <<<"$win" || fail "no Windows entries for the plugin: $win"

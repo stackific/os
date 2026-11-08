@@ -17,7 +17,7 @@
     <timezone>UTC</timezone>
     <!-- UEFI only, no shim (Secure Boot is off). GRUB, because kiwi's systemd-boot ISO path needs a loop device.
          Both serial consoles, ttyS0 (x86_64) and ttyAMA0 (aarch64): the kernel ignores the one the machine lacks.
-         edit-boot.sh adds the Install entry to the x86_64 boot menu. The volume ID differs from the installed ESP's FAT
+         edit-boot.sh adds the Install entry to the boot menu. The volume ID differs from the installed ESP's FAT
          label (STACKIFIC): the live initramfs finds the ISO by label (root=live:CDLABEL=), and with a drive the
          installer wrote attached it would otherwise pick that ESP. -->
     <type image="iso" primary="true" flags="dmsquash" filesystem="erofs" erofscompression="lzma,level=6"
@@ -119,10 +119,14 @@
     <!-- Our desktop defaults and artwork (the Noctalia unit, wlroots and greeter settings, wallpapers, fastfetch) -->
     <package name="stackific-desktop"/>
     <package name="stackific-artwork"/>
-    <!-- The installer, x86_64 only until task 018, and Limine's boot files, named so that removing the installer from
-         an installed system keeps them (and limine and efibootmgr, which they require) -->
-    <package name="stackific-installer" arch="x86_64"/>
-    <package name="stackific-boot" arch="x86_64"/>
+    <!-- The installer and Limine's boot files, named so that removing the installer from an installed system keeps them
+         (and limine and efibootmgr, which they require) -->
+    <package name="stackific-installer"/>
+    <package name="stackific-boot"/>
+    <!-- Disks, the partition editor, with NTFS mounting and resizing (ntfsresize) for shrinking Windows' partition -->
+    <package name="gnome-disk-utility"/>
+    <package name="ntfs-3g"/>
+    <package name="ntfsprogs"/>
     <!-- MangoWM with Noctalia, and foot and rofi, which MangoWM's stock keybinds launch -->
     <package name="mangowm"/>
     <package name="noctalia"/>

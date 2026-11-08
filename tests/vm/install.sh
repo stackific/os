@@ -61,12 +61,14 @@ install_run() {
 # btrfs inside it; labels, subvolumes, fstab, packages, the user, the system settings, no live state left, and the boot
 # files on the ESP
 installed_checks() {
-  local esp=$1 part=$2 sys=/dev/mapper/test-root uuid_luks
+  local esp=$1 part=$2 sys=/dev/mapper/test-root uuid_luks cmdline
   vm_until "blkid -o value -s TYPE $esp" '^vfat$' 0
   vm_until "blkid -o value -s LABEL $esp" '^STACKIFIC$' 0
   vm_until "blkid -o value -s TYPE $part" '^crypto_LUKS$' 0
   vm_until "cryptsetup luksDump $part | grep -E '^Version:|: luks2\$' | paste -sd ' '" '^Version:[[:space:]]+2 +0: luks2$' 0
   uuid_luks=$(vm "blkid -o value -s UUID $part" | tr -d '\r\n')
+  cmdline="rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet"
+  [ "$efi" != BOOTAA64.EFI ] || cmdline+=" console=tty0" # the screen, not SPCR's serial port (installer's boot::CONSOLE)
   vm "printf %s '$password' | cryptsetup open --key-file - $part test-root" >/dev/null
   vm_until "blkid -o value -s TYPE $sys" '^btrfs$' 0
   vm_until "blkid -o value -s LABEL $sys" '^stackific$' 0
@@ -90,7 +92,7 @@ installed_checks() {
       '^stackific-release-[^ ]+ package stackific-installer is not installed$' 0
     vm_until "rpm --root=$r -qa 'grub2*' | wc -l" '^0$' 0
     vm_until "test ! -e $r/usr/share/applications/stackific-installer.desktop && wc -c <$r/etc/machine-id" '^0$' 0
-    vm_until "cat $r/etc/kernel/cmdline" "^rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet\$" 0
+    vm_until "cat $r/etc/kernel/cmdline" "^$cmdline\$" 0
   else
     local db=$r/var/lib/pacman/local
     vm_until "echo \$(ls -d $db/stackific-release-* | wc -l)/\$(ls -d $db/stackific-installer-* 2>/dev/null | wc -l)" '^1/0$' 0
@@ -119,17 +121,19 @@ installed_checks() {
   # The ESP: the kernel, its initramfs, Limine's program at both paths, and limine.conf with this install's root
   vm "mkdir -p /mnt/e && mount -o ro $esp /mnt/e" >/dev/null
   local kernel=vmlinuz-linux initramfs=initramfs-linux.img
+  [ "$efi" != BOOTAA64.EFI ] || kernel=Image # Arch Linux ARM's linux-aarch64 owns /boot/Image
   if [ "$like" = fedora ]; then
     local version
     version=$(vm "ls $r/usr/lib/modules" | tr -d '\r\n')
     kernel=vmlinuz-$version initramfs=initramfs-$version.img
   fi
-  vm_until "cd /mnt/e && ls -d $kernel $initramfs limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l" \
+  vm_until "cd /mnt/e && ls -d $kernel $initramfs limine.conf EFI/limine/$efi EFI/BOOT/$efi | wc -l" \
     '^5$' 0
-  vm_until "cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/limine/BOOTX64.EFI && cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/BOOT/BOOTX64.EFI && echo same" \
+  vm_until "cmp $r/usr/share/limine/$efi /mnt/e/EFI/limine/$efi && cmp $r/usr/share/limine/$efi /mnt/e/EFI/BOOT/$efi && echo same" \
     '^same$' 0
-  vm_until "grep -cx '    cmdline: rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet' /mnt/e/limine.conf" \
-    '^1$' 0
+  # Fedora on aarch64 starts its zboot kernel as an EFI program, which loads the initramfs named first
+  [ "$like$efi" != fedoraBOOTAA64.EFI ] || cmdline="initrd=\\$initramfs $cmdline"
+  vm_until "grep -cxF '    cmdline: $cmdline' /mnt/e/limine.conf" '^1$' 0
   vm "umount /mnt/e /mnt/t && cryptsetup close test-root" >/dev/null
 }
 
@@ -198,7 +202,7 @@ win_uuid=$(vm 'lsblk -no PARTUUID /dev/vda1' | tr -d '\r\n')
 # A fake Windows: Limine's program as Windows' loader with an empty BCD beside it, and the firmware's "Windows Boot
 # Manager" entry for it, which efibootmgr puts first in the boot order
 vm "mkdir -p /mnt/w && mount /dev/vda1 /mnt/w && mkdir -p /mnt/w/EFI/Microsoft/Boot \
-  && cp /usr/share/limine/BOOTX64.EFI /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && : >/mnt/w/EFI/Microsoft/Boot/BCD \
+  && cp /usr/share/limine/$efi /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && : >/mnt/w/EFI/Microsoft/Boot/BCD \
   && umount /mnt/w && efibootmgr --quiet --create --disk /dev/vda --part 1 --label 'Windows Boot Manager' \
   --loader '\\EFI\\Microsoft\\Boot\\bootmgfw.efi'" >/dev/null
 win_files='mount -o ro /dev/vda1 /mnt/w && (cd /mnt/w && find . -type f -exec sha256sum {} + | sort); umount /mnt/w'

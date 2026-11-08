@@ -36,8 +36,55 @@ encrypted root, and stackific-boot-failure, which shows a plain screen when the 
 HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck \
 stackific-boot-failure)\n";
 
+/// Whether the installer runs on aarch64, where each base boots its kernel differently (see `Arch` and Fedora's
+/// stackific-boot plugin).
+const AARCH64: bool = cfg!(target_arch = "aarch64");
+
+/// The live image's pacman hook that copies Arch Linux ARM's /boot/Image to /boot/vmlinuz-linux for mkarchiso
+/// (arch/iso/airootfs): live-only glue, so installed systems keep no second copy of the kernel.
+const ARCH_LIVE_HOOK: &str = "etc/pacman.d/hooks/stackific-vmlinuz.hook";
+
 /// Arch Linux (and Arch Linux ARM): archiso's live image.
 pub struct Arch;
+
+/// Arch's kernel step for x86_64 or, with `aarch64`, Arch Linux ARM. x86_64: mkinitcpio's own pacman-hook script,
+/// with every kernel on stdin as pacman runs it, copies the kernel to /boot/vmlinuz-<pkgbase> and builds
+/// /boot/initramfs-<pkgbase>.img. Arch Linux ARM's linux-aarch64 has no /usr/lib/modules/*/vmlinuz for that script:
+/// the package itself puts the kernel at /boot/Image, which mkarchiso empties from the live root, so the kernel comes
+/// from the boot medium (`medium`; archiso's file is the live hook's copy of /boot/Image), and `mkinitcpio -P` builds
+/// /boot/initramfs-linux.img from linux-aarch64's preset.
+fn arch_kernel(target: &Path, medium: &Path, aarch64: bool) -> Vec<Cmd> {
+    let chroot = |script: &str| {
+        Cmd::new("arch-chroot").args([&*target.to_string_lossy(), "/usr/bin/bash", "-c", script])
+    };
+    if !aarch64 {
+        return vec![chroot(
+            "printf '%s\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install",
+        )];
+    }
+    vec![
+        Cmd::new("install").args([
+            "-D",
+            "-m",
+            "0644",
+            &*medium
+                .join("arch/boot/aarch64/vmlinuz-linux")
+                .to_string_lossy(),
+            &*target.join("boot/Image").to_string_lossy(),
+        ]),
+        chroot("mkinitcpio -P"),
+    ]
+}
+
+/// The kernel and initramfs file names linux (x86_64) or linux-aarch64 (with `aarch64`) and their mkinitcpio presets
+/// keep current at the ESP's root.
+fn arch_kernel_files(aarch64: bool) -> (&'static str, &'static str) {
+    if aarch64 {
+        ("Image", "initramfs-linux.img")
+    } else {
+        ("vmlinuz-linux", "initramfs-linux.img")
+    }
+}
 
 impl Base for Arch {
     /// archiso's hook mounts the squashfs root here, the lower layer of the live overlay.
@@ -49,10 +96,13 @@ impl Base for Arch {
         Path::new("/run/archiso/bootmnt")
     }
 
-    /// archiso's mkinitcpio drop-in, and the installer package with the dependencies only it needed (`-Rns`), so the
-    /// installed system has no installer and no launcher.
+    /// archiso's mkinitcpio drop-in, the live image's kernel-copy hook, and the installer package with the
+    /// dependencies only it needed (`-Rns`), so the installed system has no installer and no launcher.
     fn live_state(&self, target: &Path) -> (Vec<PathBuf>, Vec<Cmd>) {
-        let files = vec![target.join("etc/mkinitcpio.conf.d/archiso.conf")];
+        let files = vec![
+            target.join("etc/mkinitcpio.conf.d/archiso.conf"),
+            target.join(ARCH_LIVE_HOOK),
+        ];
         let pacman = Cmd::new("pacman")
             .args([format!("--sysroot={}", target.display())])
             .args([
@@ -65,42 +115,43 @@ impl Base for Arch {
         (files, vec![pacman])
     }
 
-    /// mkinitcpio's own pacman-hook script, run in the target with every kernel on stdin, as pacman runs it when it
-    /// installs a kernel: it copies the kernel to /boot/vmlinuz-<pkgbase> and builds /boot/initramfs-<pkgbase>.img
-    /// from the preset (Arch's default: no fallback image) with Arch's default hooks. arch-chroot gives it /dev, /proc
-    /// and /sys, which the autodetect hook reads.
+    /// The kernel on the ESP and its initramfs from the preset (Arch's default: no fallback image), in `arch-chroot`,
+    /// which gives mkinitcpio /dev, /proc and /sys for the autodetect hook (`arch_kernel`).
     /// First the hooks (BT-04): Arch's defaults plus `sd-encrypt`, which unlocks the root, and stackific-boot's
     /// `stackific-boot-failure`, the plain screen after a failed start. The installer writes the drop-in, not a package:
     /// a package's would sort after archiso's and change the live image's initramfs. `limine.conf` carries the command
     /// line.
     fn initramfs(&self, target: &Path, _cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>) {
         let files = vec![(target.join(ARCH_HOOKS), ARCH_HOOKS_CONF.to_string())];
-        let cmd = Cmd::new("arch-chroot").args([
-            &*target.to_string_lossy(),
-            "/usr/bin/bash",
-            "-c",
-            "printf '%s\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install",
-        ]);
-        (files, vec![cmd])
+        (files, arch_kernel(target, self.live_medium(), AARCH64))
     }
 
-    /// The paths mkinitcpio's preset writes for the `linux` kernel; its pacman hooks keep them current on updates.
     fn kernel_files(&self) -> Option<(&'static str, &'static str)> {
-        Some(("vmlinuz-linux", "initramfs-linux.img"))
+        Some(arch_kernel_files(AARCH64))
     }
 }
 
 /// Fedora: a kiwi live image booted by dracut's dmsquash-live, with kernel-install and dracut for the kernel.
 pub struct Fedora;
 
-/// The live image's GRUB, which installed systems do not use (Limine starts them); removing it also takes GRUB's
-/// kernel-install plugins, which would otherwise write BLS entries and call grub2-editenv on every kernel update.
-// shortcut: x86_64's package names only, the one Fedora image with the installer; task 018 adds aarch64's grub2-efi-aa64*
-const LIVE_GRUB: [&str; 3] = [
-    "grub2-efi-x64",
-    "grub2-efi-x64-cdboot",
-    "grub2-efi-x64-modules",
-];
+/// The live image's GRUB on x86_64 or, with `aarch64`, on aarch64 (fedora/iso/config.kiwi), which installed systems do
+/// not use (Limine starts them); removing it also takes GRUB's kernel-install plugins, which would otherwise write BLS
+/// entries and call grub2-editenv on every kernel update.
+fn live_grub(aarch64: bool) -> [&'static str; 3] {
+    if aarch64 {
+        [
+            "grub2-efi-aa64",
+            "grub2-efi-aa64-cdboot",
+            "grub2-efi-aa64-modules",
+        ]
+    } else {
+        [
+            "grub2-efi-x64",
+            "grub2-efi-x64-cdboot",
+            "grub2-efi-x64-modules",
+        ]
+    }
+}
 
 impl Base for Fedora {
     /// dmsquash-live bind-mounts the root image here, the lower layer of the live overlay.
@@ -132,7 +183,7 @@ impl Base for Fedora {
                     "remove",
                     "stackific-installer",
                 ])
-                .args(LIVE_GRUB),
+                .args(live_grub(AARCH64)),
         ];
         (Vec::new(), cmds)
     }
@@ -198,7 +249,10 @@ mod tests {
         let (files, cmds) = base.live_state(Path::new("/t"));
         assert_eq!(
             files,
-            [PathBuf::from("/t/etc/mkinitcpio.conf.d/archiso.conf")]
+            [
+                PathBuf::from("/t/etc/mkinitcpio.conf.d/archiso.conf"),
+                PathBuf::from("/t/etc/pacman.d/hooks/stackific-vmlinuz.hook")
+            ]
         );
         assert_eq!(
             cmds[0].line(),
@@ -213,14 +267,33 @@ mod tests {
             "\nHOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck \
              stackific-boot-failure)\n"
         ));
+        let lines = |c: Vec<Cmd>| c.iter().map(Cmd::line).collect::<Vec<_>>();
         assert_eq!(
-            cmds[0].line(),
-            "arch-chroot /t /usr/bin/bash -c \"printf '%s\\\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install\""
+            lines(cmds),
+            lines(arch_kernel(Path::new("/t"), base.live_medium(), AARCH64))
+        );
+        assert_eq!(base.kernel_files(), Some(arch_kernel_files(AARCH64)));
+        let x86 = lines(arch_kernel(Path::new("/t"), base.live_medium(), false));
+        assert_eq!(
+            x86,
+            [
+                "arch-chroot /t /usr/bin/bash -c \"printf '%s\\\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install\""
+            ]
         );
         assert_eq!(
-            base.kernel_files(),
-            Some(("vmlinuz-linux", "initramfs-linux.img"))
+            arch_kernel_files(false),
+            ("vmlinuz-linux", "initramfs-linux.img")
         );
+        // Arch Linux ARM: the kernel from the boot medium to the path linux-aarch64 owns, then its preset
+        let arm = lines(arch_kernel(Path::new("/t"), base.live_medium(), true));
+        assert_eq!(
+            arm,
+            [
+                "install -D -m 0644 /run/archiso/bootmnt/arch/boot/aarch64/vmlinuz-linux /t/boot/Image",
+                "arch-chroot /t /usr/bin/bash -c \"mkinitcpio -P\""
+            ]
+        );
+        assert_eq!(arch_kernel_files(true), ("Image", "initramfs-linux.img"));
         assert!(base.relabel(Path::new("/t"), Path::new("")).is_empty());
         assert!(detect(&OsRelease::parse("ID=stackific\nID_LIKE=debian\n")).is_none());
     }
@@ -237,11 +310,30 @@ mod tests {
         assert_eq!(
             lines,
             [
-                "mount -t proc proc /t/proc",
-                "mount -t sysfs sys /t/sys",
-                "mount --bind /dev /t/dev",
-                "mount --bind /run /t/run",
-                "dnf5 --installroot=/t --setopt=protected_packages= -y remove stackific-installer grub2-efi-x64 grub2-efi-x64-cdboot grub2-efi-x64-modules"
+                "mount -t proc proc /t/proc".to_string(),
+                "mount -t sysfs sys /t/sys".to_string(),
+                "mount --bind /dev /t/dev".to_string(),
+                "mount --bind /run /t/run".to_string(),
+                format!(
+                    "dnf5 --installroot=/t --setopt=protected_packages= -y remove stackific-installer {}",
+                    live_grub(AARCH64).join(" ")
+                )
+            ]
+        );
+        assert_eq!(
+            live_grub(false),
+            [
+                "grub2-efi-x64",
+                "grub2-efi-x64-cdboot",
+                "grub2-efi-x64-modules"
+            ]
+        );
+        assert_eq!(
+            live_grub(true),
+            [
+                "grub2-efi-aa64",
+                "grub2-efi-aa64-cdboot",
+                "grub2-efi-aa64-modules"
             ]
         );
         let (files, cmds) = base.initramfs(Path::new("/t"), "root=UUID=x rootflags=subvol=/@ rw");

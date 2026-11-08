@@ -1,12 +1,14 @@
-# Builds and boot-tests the images on the self-hosted runners (just runner setup), started by hand only for now (a run
-# takes about 40 minutes, too long for every merge to main; operator 2026-11-07), and never on pull_request, so code
-# from a fork never runs on them. A run by hand has no earlier commit to compare, so it builds all four images (just
-# release changed). When a pull request merged the commit, the images are also published as the test release
-# v0.0.0-pr.<n> (a prerelease, replaced on a rerun). To build on every merge again, add `push: branches: [main]` back.
-# Every step after the setup calls a just recipe.
+# Builds and boot-tests the images on the self-hosted runners (just runner setup), the x86_64 ones on the PC and the
+# aarch64 ones on the Mac, on every push to main (a merged pull request; operator 2026-11-08) and by hand, never on
+# pull_request, so code from a fork never runs on them. A push builds only the images whose files it changed; a run by
+# hand has no earlier commit to compare, so it builds all four (just release changed). When a pull request merged the
+# commit, the images are also published as the test release v0.0.0-pr.<n> (a prerelease, replaced on a rerun). Every
+# step after the setup calls a just recipe.
 name: images
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
@@ -103,7 +105,7 @@ jobs:
     if: needs.test-release.outputs.arch_aarch64 == 'true'
     # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
     runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       VERSION: ${{ needs.test-release.outputs.version || '0.0.0-dev' }}
     steps:
@@ -115,6 +117,7 @@ jobs:
           just-version: 1.59.0
       - run: just arch iso "$VERSION"
       - run: just arch test "$VERSION"
+      - run: just arch test-install "$VERSION"
       - if: needs.test-release.outputs.version != ''
         run: just release upload "$VERSION" arch aarch64
         env:
@@ -125,7 +128,7 @@ jobs:
     if: needs.test-release.outputs.fedora_aarch64 == 'true'
     # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
     runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       VERSION: ${{ needs.test-release.outputs.version || '0.0.0-dev' }}
     steps:
@@ -137,6 +140,7 @@ jobs:
           just-version: 1.59.0
       - run: just fedora iso "$VERSION"
       - run: just fedora test "$VERSION"
+      - run: just fedora test-install "$VERSION"
       - if: needs.test-release.outputs.version != ''
         run: just release upload "$VERSION" fedora aarch64
         env:

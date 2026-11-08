@@ -10,6 +10,8 @@ dosfstools
 stackific-desktop
 stackific-release
 stackific-artwork
+stackific-installer
+stackific-boot
 mangowm
 noctalia
 greetd
@@ -28,3 +30,8 @@ xdg-desktop-portal-wlr
 pipewire
 pipewire-pulse
 wireplumber
+gnome-disk-utility
+ntfs-3g
+ntfsprogs
+breeze-gtk
+kde-gtk-config

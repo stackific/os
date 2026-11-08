@@ -80,7 +80,7 @@ jobs:
     needs: create
     # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
     runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -90,6 +90,7 @@ jobs:
           just-version: 1.59.0
       - run: just arch iso "$VERSION"
       - run: just arch test "$VERSION"
+      - run: just arch test-install "$VERSION"
       - run: just release upload "$VERSION" arch aarch64
         env:
           GH_TOKEN: ${{ github.token }}
@@ -98,7 +99,7 @@ jobs:
     needs: create
     # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
     runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 90
+    timeout-minutes: 150
     steps:
       - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
         with:
@@ -108,6 +109,7 @@ jobs:
           just-version: 1.59.0
       - run: just fedora iso "$VERSION"
       - run: just fedora test "$VERSION"
+      - run: just fedora test-install "$VERSION"
       - run: just release upload "$VERSION" fedora aarch64
         env:
           GH_TOKEN: ${{ github.token }}
