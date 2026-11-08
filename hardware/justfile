@@ -9,12 +9,17 @@ test:
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
   rc=0
-  # check <name> <expected files, space-separated, sorted> <device>... : one fake root per set
+  # check <name> <expected files, space-separated, sorted> <device>... : one fake root per set, with NVIDIA's module for
+  # the running kernel unless module=0
   check() {
     local name=$1 want=$2 r="$tmp/$1" i=0 got
     shift 2
     mkdir -p "$r/usr/share/stackific" "$r/sys/bus/pci/devices" "$r/run" "$r/out"
     cp nvidia-legacy.ids "$r/usr/share/stackific/"
+    if [ "${module:-1}" = 1 ]; then
+      mkdir -p "$r/usr/lib/modules/$(uname -r)/extramodules"
+      touch "$r/usr/lib/modules/$(uname -r)/extramodules/nvidia.ko.zst"
+    fi
     for dev in "$@"; do
       i=$((i + 1))
       d="$r/sys/bus/pci/devices/0000:0$i:00.0"
@@ -39,6 +44,10 @@ test:
   check nvidia-audio-alone "" 10de:10f0:040300
   check virtio-alone "" 1af4:1050:030000
   check no-display ""
+  # No NVIDIA module for the running kernel (a Fedora kernel update before its kmod): nouveau for every NVIDIA card
+  module=0 check turing-no-module "$wait $redirect" 10de:1e04:030000
+  module=0 check pascal-no-module "$wait $redirect $mango" 10de:1b80:030000
+  module=0 check amd-no-module "" 1002:73bf:030000
   # The redirect blacklists NVIDIA's modules and nothing else, and the MangoWM link points at the packaged include
   grep -qx 'blacklist nvidia' "$tmp/pascal-desktop/$redirect" && ! grep -q '^blacklist nouveau' "$tmp/pascal-desktop/$redirect" \
     || { echo "FAIL: the redirect's text" >&2; rc=1; }
