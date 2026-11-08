@@ -37,12 +37,19 @@ pub fn copy_program(target: &Path) -> Vec<Cmd> {
         .collect()
 }
 
+/// The kernel command line: root on the `@` subvolume of the system partition `root_uuid`. Fedora's kernel-install
+/// plugin reads the same text from /etc/kernel/cmdline.
+pub fn cmdline(root_uuid: &str) -> String {
+    format!("root=UUID={root_uuid} rootflags=subvol=/@ rw")
+}
+
 /// Limine's menu: one entry named `name` that starts the base's kernel and initramfs from the ESP, with root on the
 /// `@` subvolume of the system partition `root_uuid`.
 pub fn limine_conf(name: &str, kernel: &str, initramfs: &str, root_uuid: &str) -> String {
     format!(
         "timeout: 3\ninterface_branding: {name}\n\n/{name}\n    protocol: linux\n    path: boot():/{kernel}\n    \
-         module_path: boot():/{initramfs}\n    cmdline: root=UUID={root_uuid} rootflags=subvol=/@ rw\n"
+         module_path: boot():/{initramfs}\n    cmdline: {}\n",
+        cmdline(root_uuid)
     )
 }
 

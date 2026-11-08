@@ -264,7 +264,16 @@ fn steps(
     )?;
 
     step(5, report)?;
-    for cmd in system::user(target, a) {
+    let (accounts, passwords) = system::user(target, a);
+    for cmd in accounts {
+        exec(run, log, &cmd)?;
+    }
+    // useradd rewrote the account files; on Fedora chpasswd's SELinux domain may write them only with their policy
+    // labels, which the live system's policy cannot give paths under the target
+    for cmd in plan.base.relabel(target, Path::new("etc")) {
+        exec(run, log, &cmd)?;
+    }
+    for cmd in passwords {
         exec(run, log, &cmd)?;
     }
     let ids = system::ids(&read(run, &target.join("etc/passwd"))?, &a.user.name)
@@ -295,22 +304,32 @@ fn steps(
         exec(run, log, &cmd)?;
     }
 
-    // After the live state, so the initramfs is built without archiso's mkinitcpio drop-in
+    // After the live state, so the initramfs is built without archiso's mkinitcpio drop-in (Arch) and GRUB's
+    // kernel-install plugins are gone (Fedora). Limine's program first: Fedora's kernel-install plugin writes
+    // limine.conf only on an ESP that has it.
     step(7, report)?;
-    for cmd in plan.base.initramfs(target) {
-        exec(run, log, &cmd)?;
-    }
     for cmd in boot::copy_program(target) {
         exec(run, log, &cmd)?;
     }
-    let (kernel, initramfs) = plan.base.kernel_files();
-    write(
-        run,
-        log,
-        &target.join(boot::CONF),
-        &boot::limine_conf(&plan.os.name, kernel, initramfs, &sys_uuid),
-        None,
-    )?;
+    let (files, cmds) = plan.base.initramfs(target, &boot::cmdline(&sys_uuid));
+    for (path, text) in files {
+        write(run, log, &path, &text, None)?;
+    }
+    for cmd in cmds {
+        exec(run, log, &cmd)?;
+    }
+    if let Some((kernel, initramfs)) = plan.base.kernel_files() {
+        write(
+            run,
+            log,
+            &target.join(boot::CONF),
+            &boot::limine_conf(&plan.os.name, kernel, initramfs, &sys_uuid),
+            None,
+        )?;
+    }
+    for cmd in plan.base.relabel(target, Path::new("")) {
+        exec(run, log, &cmd)?;
+    }
     // The firmware entry last, so a failure before it leaves none behind
     let listing = exec(run, log, &boot::entries())?;
     let present = exec(run, log, &boot::partuuids())?;
@@ -326,7 +345,7 @@ fn steps(
 #[cfg(test)]
 pub mod tests {
     use super::*;
-    use crate::base::Arch;
+    use crate::base::{Arch, Fedora};
     use crate::run::Fake;
 
     /// A writer whose bytes a test can read back.
@@ -402,11 +421,16 @@ pub mod tests {
         .on("blkid -s UUID -o value /dev/vda4", Output::ok("AAAA-ESP\n"))
         .on("systemd-firstboot", Output::ok(""))
         .on("userdel ", Output::ok(""))
-        .on("useradd ", Output::ok(""))
+        .on(&format!("chroot {t} useradd "), Output::ok(""))
         .on("chpasswd ", Output::ok(""))
         .on("usermod ", Output::ok(""))
         .on("pacman --sysroot", Output::ok(""))
         .on("arch-chroot ", Output::ok(""))
+        .on("mount -t ", Output::ok(""))
+        .on("mount --bind ", Output::ok(""))
+        .on("dnf5 --installroot", Output::ok(""))
+        .on("chroot ", Output::ok(""))
+        .on("setfiles ", Output::ok(""))
         .on("install -D ", Output::ok(""))
         .on("efibootmgr --", Output::ok(""))
         .on(
@@ -442,6 +466,13 @@ pub mod tests {
     }
 
     fn run_install(mode: Mode) -> (Fake, Buf, Vec<Progress>, Result<(), Failure>) {
+        run_install_on(mode, &Arch)
+    }
+
+    fn run_install_on(
+        mode: Mode,
+        base: &dyn Base,
+    ) -> (Fake, Buf, Vec<Progress>, Result<(), Failure>) {
         let f = install_fake();
         let buf = Buf::default();
         let os = OsRelease::parse("NAME=\"Stackific OS\"\nID=stackific\nID_LIKE=arch\n");
@@ -449,7 +480,7 @@ pub mod tests {
         let plan = Plan {
             answers: &a,
             os: &os,
-            base: &Arch,
+            base,
             layout: layout(mode),
             sector: 512,
             target: disk::TARGET.into(),
@@ -513,11 +544,11 @@ pub mod tests {
         );
         // `live` goes before our user, so ours gets uid 1000
         let pos = |p: &str| s.calls.iter().position(|c| c.starts_with(p)).unwrap();
-        assert!(pos("userdel") < pos("useradd"));
+        assert!(pos("userdel") < pos(&format!("chroot {t} useradd")));
         // The boot loader after the live state (archiso's mkinitcpio drop-in gone), the firmware entry last: the
         // fixture's entry on a partition lsblk no longer lists goes, ours is created on the ESP, partition 1
-        assert!(pos("pacman --sysroot") < pos("arch-chroot"));
-        assert!(pos("arch-chroot") < pos("install -D"));
+        assert!(pos("pacman --sysroot") < pos("install -D"));
+        assert!(pos("install -D") < pos("arch-chroot"));
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/boot/limine.conf"))],
             boot::limine_conf(
@@ -533,6 +564,56 @@ pub mod tests {
             r#"efibootmgr --create --disk /dev/vda --part 1 --label "Stackific OS" --loader \EFI\limine\BOOTX64.EFI"#
         );
         assert_eq!(s.calls.last().unwrap(), &format!("umount --recursive {t}"));
+    }
+
+    #[test]
+    fn fedora_install_leaves_limine_conf_to_kernel_install_and_relabels_before_the_firmware_entry()
+    {
+        let (f, _, _, r) = run_install_on(Mode::Erase, &Fedora);
+        assert_eq!(r, Ok(()));
+        let s = f.state();
+        assert!(s.unexpected.is_empty(), "{:?}", s.unexpected);
+        let t = disk::TARGET;
+        let pos = |p: &str| s.calls.iter().position(|c| c.starts_with(p)).unwrap();
+        // The kernel interfaces before dnf5's scriptlets, the installer and GRUB gone before kernel-install, Limine's
+        // program on the ESP before kernel-install's plugin looks for it, the labels before the firmware entry
+        assert!(pos(&format!("mount -t proc proc {t}/proc")) < pos("dnf5 --installroot"));
+        assert!(pos("dnf5 --installroot") < pos("install -D"));
+        assert!(pos("install -D") < pos(&format!("chroot {t} /usr/bin/bash")));
+        // /etc between useradd and chpasswd, everything after the last write and before the firmware entry
+        let relabels: Vec<_> = s
+            .calls
+            .iter()
+            .filter(|c| c.starts_with("setfiles "))
+            .collect();
+        assert_eq!(relabels.len(), 2, "{relabels:?}");
+        assert!(relabels[0].ends_with(&format!("{t}/etc")));
+        assert!(
+            pos(&format!("chroot {t} useradd")) < pos("setfiles ")
+                && pos("setfiles ") < pos("chpasswd")
+        );
+        let last = s
+            .calls
+            .iter()
+            .rposition(|c| c.starts_with("setfiles "))
+            .unwrap();
+        assert!(
+            pos(&format!("chroot {t} /usr/bin/bash")) < last && last < pos("efibootmgr --create")
+        );
+        assert!(relabels[1].contains(&format!("file_contexts {t} {t}/home ")));
+        assert_eq!(
+            s.files[&PathBuf::from(format!("{t}/etc/kernel/cmdline"))],
+            "root=UUID=1111-sys rootflags=subvol=/@ rw\n"
+        );
+        assert!(
+            !s.files
+                .contains_key(&PathBuf::from(format!("{t}/{}", boot::CONF)))
+        );
+        assert!(
+            !s.calls
+                .iter()
+                .any(|c| c.starts_with("arch-chroot") || c.starts_with("pacman"))
+        );
     }
 
     #[test]

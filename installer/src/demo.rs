@@ -105,7 +105,7 @@ pub fn fake(delay: Duration) -> Fake {
         "umount ",
         "systemd-firstboot ",
         "userdel ",
-        "useradd ",
+        "chroot ",
         "chpasswd ",
         "usermod ",
         "pacman --sysroot",
@@ -131,7 +131,7 @@ pub fn fake(delay: Duration) -> Fake {
         .file(&format!("{TARGET}/{}", system::LIVE_SYSUSERS), "m live wheel\n");
     {
         let mut s = f.state();
-        s.effects.push(("useradd ".into(), add_user));
+        s.effects.push(("chroot ".into(), add_user));
         s.stream_lines = (0..=100u64)
             .step_by(2)
             .map(|p| {
@@ -147,15 +147,9 @@ pub fn fake(delay: Duration) -> Fake {
     f
 }
 
-/// What `useradd --root <root> … <name>` leaves in the root's passwd: the user, with uid and gid 1000.
+/// What `chroot <root> useradd … <name>` leaves in the root's passwd: the user, with uid and gid 1000.
 fn add_user(cmd: &Cmd, files: &mut HashMap<PathBuf, String>) {
-    let root = cmd
-        .args
-        .iter()
-        .skip_while(|a| *a != "--root")
-        .nth(1)
-        .cloned()
-        .unwrap_or_default();
+    let root = cmd.args.first().cloned().unwrap_or_default();
     let name = cmd.args.last().cloned().unwrap_or_default();
     files
         .entry(PathBuf::from(root).join("etc/passwd"))
