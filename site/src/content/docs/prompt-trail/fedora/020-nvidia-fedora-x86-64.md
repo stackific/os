@@ -57,6 +57,8 @@ No UI.
 ## Review
 
 - **Round 1** found nothing. One worry was checked and dropped before it was reported: whether the signature check passes an unsigned package. rpm 6.1 refuses one, so the build stops; a comment in the recipe now says so.
+- **Round 2** came from the next task's build: that comment's apostrophe closed the recipe's quoted script, so `just fedora packages` stopped with a syntax error. Reworded and fixed.
+- **Round 3** found nothing.
 
 ## Manual changes
 
