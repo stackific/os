@@ -685,7 +685,10 @@ pub mod tests {
         assert!(relabels[1].contains(&format!("file_contexts {t} {t}/home ")));
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/etc/kernel/cmdline"))],
-            "rd.luks.uuid=2222-luks root=/dev/mapper/luks-2222-luks rootflags=subvol=/@ rw quiet\n"
+            format!(
+                "rd.luks.uuid=2222-luks root=/dev/mapper/luks-2222-luks rootflags=subvol=/@ rw quiet{}\n",
+                boot::CONSOLE
+            )
         );
         assert!(
             !s.files
@@ -705,14 +708,10 @@ pub mod tests {
         let (f, _, _, r) = run_with_windows(Mode::FreeSpace, &Arch, &entries);
         assert_eq!(r, Ok(()));
         let s = f.state();
+        let (kernel, initramfs) = Arch.kernel_files().unwrap();
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/{}", boot::CONF))],
-            boot::limine_conf(
-                "Stackific OS",
-                "vmlinuz-linux",
-                "initramfs-linux.img",
-                "2222-luks"
-            ) + &entries
+            boot::limine_conf("Stackific OS", kernel, initramfs, "2222-luks") + &entries
         );
         assert!(
             !s.files

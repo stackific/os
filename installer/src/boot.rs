@@ -48,12 +48,20 @@ pub fn copy_program(target: &Path) -> Vec<Cmd> {
 /// `luks-<uuid>`, and root is the `@` subvolume inside it. Naming root by the mapping, not by btrfs' UUID, makes a
 /// failed unlock fail the root mount at once (the boot-failure screen) instead of after the device timeout. Fedora's
 /// kernel-install plugin reads the same text from /etc/kernel/cmdline. `quiet` keeps the kernel's and systemd's start-up
-/// lines off the console, so the passphrase prompt stands alone.
+/// lines off the console, so the passphrase prompt stands alone. On aarch64 it ends with [`CONSOLE`].
 pub fn cmdline(luks_uuid: &str) -> String {
     format!(
-        "rd.luks.uuid={luks_uuid} root=/dev/mapper/luks-{luks_uuid} rootflags=subvol=/@ rw quiet"
+        "rd.luks.uuid={luks_uuid} root=/dev/mapper/luks-{luks_uuid} rootflags=subvol=/@ rw quiet{CONSOLE}"
     )
 }
+
+/// aarch64: with no `console=`, Linux makes the serial port in ACPI's SPCR table (QEMU, UTM and other VMs, many boards)
+/// the console, so systemd would ask for the passphrase there, off the screen; `console=tty0` keeps it on the screen.
+pub const CONSOLE: &str = if cfg!(target_arch = "aarch64") {
+    " console=tty0"
+} else {
+    ""
+};
 
 /// Limine's menu: one entry named `name` that starts the base's kernel and initramfs from the ESP, with root on the
 /// `@` subvolume inside the LUKS2 container `luks_uuid`.
@@ -177,9 +185,11 @@ mod tests {
                 "initramfs-linux.img",
                 "1111-sys"
             ),
-            "timeout: 3\ninterface_branding: Stackific OS\n\n/Stackific OS\n    protocol: linux\n    \
-             path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n    \
-             cmdline: rd.luks.uuid=1111-sys root=/dev/mapper/luks-1111-sys rootflags=subvol=/@ rw quiet\n"
+            format!(
+                "timeout: 3\ninterface_branding: Stackific OS\n\n/Stackific OS\n    protocol: linux\n    \
+                 path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n    \
+                 cmdline: rd.luks.uuid=1111-sys root=/dev/mapper/luks-1111-sys rootflags=subvol=/@ rw quiet{CONSOLE}\n"
+            )
         );
     }
 

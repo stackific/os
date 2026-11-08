@@ -61,12 +61,14 @@ install_run() {
 # btrfs inside it; labels, subvolumes, fstab, packages, the user, the system settings, no live state left, and the boot
 # files on the ESP
 installed_checks() {
-  local esp=$1 part=$2 sys=/dev/mapper/test-root uuid_luks
+  local esp=$1 part=$2 sys=/dev/mapper/test-root uuid_luks cmdline
   vm_until "blkid -o value -s TYPE $esp" '^vfat$' 0
   vm_until "blkid -o value -s LABEL $esp" '^STACKIFIC$' 0
   vm_until "blkid -o value -s TYPE $part" '^crypto_LUKS$' 0
   vm_until "cryptsetup luksDump $part | grep -E '^Version:|: luks2\$' | paste -sd ' '" '^Version:[[:space:]]+2 +0: luks2$' 0
   uuid_luks=$(vm "blkid -o value -s UUID $part" | tr -d '\r\n')
+  cmdline="rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet"
+  [ "$efi" != BOOTAA64.EFI ] || cmdline+=" console=tty0" # the screen, not SPCR's serial port (installer's boot::CONSOLE)
   vm "printf %s '$password' | cryptsetup open --key-file - $part test-root" >/dev/null
   vm_until "blkid -o value -s TYPE $sys" '^btrfs$' 0
   vm_until "blkid -o value -s LABEL $sys" '^stackific$' 0
@@ -90,7 +92,7 @@ installed_checks() {
       '^stackific-release-[^ ]+ package stackific-installer is not installed$' 0
     vm_until "rpm --root=$r -qa 'grub2*' | wc -l" '^0$' 0
     vm_until "test ! -e $r/usr/share/applications/stackific-installer.desktop && wc -c <$r/etc/machine-id" '^0$' 0
-    vm_until "cat $r/etc/kernel/cmdline" "^rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet\$" 0
+    vm_until "cat $r/etc/kernel/cmdline" "^$cmdline\$" 0
   else
     local db=$r/var/lib/pacman/local
     vm_until "echo \$(ls -d $db/stackific-release-* | wc -l)/\$(ls -d $db/stackific-installer-* 2>/dev/null | wc -l)" '^1/0$' 0
@@ -129,8 +131,9 @@ installed_checks() {
     '^5$' 0
   vm_until "cmp $r/usr/share/limine/$efi /mnt/e/EFI/limine/$efi && cmp $r/usr/share/limine/$efi /mnt/e/EFI/BOOT/$efi && echo same" \
     '^same$' 0
-  vm_until "grep -cx '    cmdline: rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet' /mnt/e/limine.conf" \
-    '^1$' 0
+  # Fedora on aarch64 starts its zboot kernel as an EFI program, which loads the initramfs named first
+  [ "$like$efi" != fedoraBOOTAA64.EFI ] || cmdline="initrd=\\$initramfs $cmdline"
+  vm_until "grep -cxF '    cmdline: $cmdline' /mnt/e/limine.conf" '^1$' 0
   vm "umount /mnt/e /mnt/t && cryptsetup close test-root" >/dev/null
 }
 

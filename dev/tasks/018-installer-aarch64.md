@@ -60,6 +60,7 @@ None. The task number and scope come from the tracked docs (`docs/installer.md`,
 - **Arch's live-only hook.** `stackific-vmlinuz.hook` (`/etc/pacman.d/hooks/` in the airootfs) is live-image glue. `Arch::live_state` deletes it from the target, so installed aarch64 systems keep no second 51 MB copy.
 - **Fedora aarch64 kernel.** On aarch64, the plugin writes each kernel's entry with `protocol: efi`, `path: boot():/vmlinuz-<v>` and `cmdline: initrd=\initramfs-<v>.img <the /etc/kernel/cmdline text>`. The kernel's own EFI stub then decompresses it and loads the initramfs from the ESP. x86_64 entries do not change. The plugin picks the format with `uname -m`, which the chroot reports as the machine's.
   - I prefer this to unpacking the zboot payload into a raw `Image`. Unpacking needs glue code (offsets and zstd) and about 79 MB of ESP per kernel. This way is upstream Limine's documented workaround.
+- **The console on aarch64.** The installed command line ends with `console=tty0` on aarch64 (`boot::CONSOLE`), on both bases (Fedora's plugin reads it from `/etc/kernel/cmdline`). Without it, Linux on arm64 makes the serial port in ACPI's SPCR table the console, and systemd asks for the passphrase there, off the screen (found by the first aarch64 `test-install` run, 2026-11-08: the prompt appeared only in `serial.log`). x86_64's command line does not change.
 - **Fedora's GRUB removal.** `Fedora::live_state` and its package list name the GRUB packages of the installer's own architecture. That removes the `shortcut:` in `base.rs`.
 - **Images.**
   - Arch: the seven packages join `packages.aarch64` in `packages.x86_64`'s order, and `just arch iso` stops deleting the Install entry and the desktop shortcut.
@@ -106,6 +107,7 @@ Must:
 - On installed Arch aarch64, `/boot/Image` and `/boot/initramfs-linux.img` sit on the ESP, `limine.conf` names `boot():/Image`, and `/etc/pacman.d/hooks/stackific-vmlinuz.hook` is gone.
 - On installed Fedora aarch64, every `limine.conf` kernel entry has `protocol: efi` and `cmdline: initrd=\initramfs-<v>.img rd.luks.uuid=…`. A reinstalled `kernel-core` writes the same.
 - On installed Fedora aarch64, no `grub2-efi-aa64*` package is installed.
+- On both installed aarch64 systems, the command line ends with `console=tty0`, and the passphrase prompt shows on the screen.
 - The `images` workflow started by hand passes all four jobs, with `test-install` in the two aarch64 ones.
 - `just lefthook all` passes.
 

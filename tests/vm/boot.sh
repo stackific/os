@@ -129,6 +129,9 @@ fi
 disk=()
 [ -z "${STACKIFIC_TEST_DISK:-}" ] || disk=(-drive "file=$STACKIFIC_TEST_DISK,format=raw,if=virtio")
 cdrom=(-cdrom "$iso")
+# virt has no IDE, so -cdrom would be a virtio disk ahead of the test disk (/dev/vda); a SCSI CD is /dev/sr0, as on q35
+[ "$(uname -m)" != aarch64 ] \
+  || cdrom=(-device virtio-scsi-pci -drive "if=none,id=cd,media=cdrom,format=raw,file=$iso" -device "scsi-cd,drive=cd")
 [ "$iso" != - ] || cdrom=()
 cp "$ovmf_vars" "$tmp/vars.fd"
 rm -f "$out/screen.png" "$out/greeter.png" "$out/limine.png" "$out/serial.log"

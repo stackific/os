@@ -36,6 +36,7 @@ echo "ok: Windows Boot Manager is second"
 luks=$(vm "findmnt -no SOURCE / | sed -n 's|^/dev/mapper/luks-\\(.*\\)\\[/@\\]\$|\\1|p'" | tr -d '\r\n')
 [ -n "$luks" ] || fail "/ is not on the LUKS2 container: $(vm 'findmnt -no SOURCE /')"
 cmdline="rd.luks.uuid=$luks root=/dev/mapper/luks-$luks rootflags=subvol=/@ rw quiet"
+[ "$efi" != BOOTAA64.EFI ] || cmdline+=" console=tty0" # the screen, not SPCR's serial port (installer's boot::CONSOLE)
 vm_until 'cat /proc/cmdline' "(^| )$cmdline( |\$)" 0
 vm_until "blkid -o value -s UUID \$(cryptsetup status luks-$luks | sed -n 's/^  device: *//p')" "^$luks\$" 0
 vm_until "cryptsetup status luks-$luks" '^  type: +LUKS2$' 0

@@ -57,13 +57,31 @@ Each base's aarch64 kernel needed its own way onto the ESP:
 - **Arch Linux ARM** installs its kernel straight to `/boot/Image`, and mkarchiso empties the live root's `/boot`. So the installer copies the kernel from the ISO (`arch/boot/aarch64/vmlinuz-linux`, the live hook's copy of `/boot/Image`) to `/boot/Image`, the path the package owns. It then runs `mkinitcpio -P` for `/boot/initramfs-linux.img`, and `limine.conf` names `boot():/Image`. Later kernel upgrades write `/boot/Image` themselves. The live image's copy hook is removed from installed systems.
 - **Fedora**'s aarch64 kernel is an EFI zboot image, which Limine's `linux` protocol refuses. stackific-boot's plugin writes aarch64 entries with `protocol: efi` and `cmdline: initrd=\initramfs-<version>.img …`. Limine starts the kernel as an EFI program, which unpacks itself and loads the initramfs from the ESP. The installer also removes the aarch64 GRUB packages.
 
+On aarch64 the installed command line ends with `console=tty0`, on both bases. Without it, Linux on arm64 makes the serial port in ACPI's SPCR table the console. QEMU, UTM and many boards have one, so systemd asked for the passphrase there, and the screen stayed black. x86_64's command line is unchanged.
+
 The Arch aarch64 image gains the installer, stackific-boot, Disks with NTFS tools and Plasma's GTK integration. The Install boot entry and the desktop shortcut stay on it. Both Fedora images gain Disks with `ntfs-3g` and `ntfsprogs`, and Fedora aarch64 gains the installer and its Install entry.
 
-The x86_64-only check files went into the shared `arch.sh` and `fedora.sh`. `boot.sh` gives the check files Limine's file name, and the aarch64 VM gets a USB keyboard. The aarch64 jobs of `images` and `release` now run `test-install`.
+The x86_64-only check files went into the shared `arch.sh` and `fedora.sh`. `boot.sh` gives the check files Limine's file name. The aarch64 VM gets a USB keyboard, and the ISO goes in as a SCSI CD (`/dev/sr0`), because `virt` has no IDE and `-cdrom` would make it the first virtio disk, `/dev/vda`, ahead of the test disk. The aarch64 jobs of `images` and `release` now run `test-install`.
 
 ### Screenshots
 
-No installer screen changed: the screens are the same on every architecture. This build machine is x86_64, so the aarch64 images' Limine menu and their Plasma and GNOME desktops come from the Mac's run (Manual changes).
+No installer screen changed: the screens are the same on every architecture. These come from the aarch64 runs in the Mac's runner VM.
+
+![Limine's menu on an installed Arch Linux ARM system: Stackific OS first, then Windows and Windows, started directly](../../../assets/prompt-trail/018/limine-aarch64.webp)
+
+_An install next to Windows on aarch64 starts from `\EFI\limine\BOOTAA64.EFI`, with both Windows entries after the system's._
+
+![The passphrase prompt on the screen of an installed aarch64 system](../../../assets/prompt-trail/018/luks-prompt-aarch64.webp)
+
+_With `console=tty0`, the prompt is on the screen; before it, only the serial port showed it._
+
+![Plasma on the Arch Linux ARM live image, with the Install Stackific OS shortcut on the desktop](../../../assets/prompt-trail/018/plasma-aarch64.webp)
+
+_The aarch64 live desktop now has the installer's shortcut._
+
+![GNOME's overview on the Fedora aarch64 live image, the installer first in the dash](../../../assets/prompt-trail/018/gnome-aarch64.webp)
+
+_The installer is first in GNOME's dash on Fedora aarch64._
 
 ## Review
 
@@ -73,10 +91,17 @@ No installer screen changed: the screens are the same on every architecture. Thi
 - **Round 2** found nothing.
 - **Round 3** came from the x86_64 test run. The wider glob also took the package's `.sig` file, which `pacman -U` then failed on. The recipe now deletes the downloaded signatures.
 - **Round 4** found nothing.
+- **Round 5** came from the installer's tests on the Mac, an aarch64 host. One test still expected Arch's `vmlinuz-linux`, which aarch64 names `Image`, so `cargo test` failed there, and with it both installer package builds. The test now takes the names from `Arch.kernel_files()`.
+- **Round 6** found nothing.
+- **Round 7** came from the first aarch64 run in the VM. `virt` has no IDE, so the ISO became `/dev/vda` and the installs' blank-disk check failed. The ISO is now a SCSI CD.
+- **Round 8** came from the second run:
+  - **Must fix:** the passphrase prompt went to SPCR's serial port, so a keyboard could not unlock an installed aarch64 system. The command line gains `console=tty0` on aarch64.
+  - **Must fix:** the `limine.conf` check missed Fedora aarch64's `initrd=` prefix. The checks now build the expected command line once.
+- **Round 9** found nothing.
 
 ## Manual changes
 
-The aarch64 images build and test only on aarch64 Linux, in the Mac's runner VM, which the build machine (an x86_64 PC) cannot reach. The operator runs `just arch iso`, `test` and `test-install`, then `just fedora iso`, `test` and `test-install` there, or the `images` workflow does it after the merge. Each run's `limine.png`, `plasma.png` and `gnome.png` (in `.build/<base>/aarch64/`) then go into this entry through `just site screenshot`.
+The aarch64 runs were made in the Mac's runner VM, from the branch with the working tree's fixes applied. Rounds 7 to 9 change `tests/vm/` and the installer for x86_64 too, without changing x86_64's behaviour, so `just arch test-install` and `just fedora test-install` run on the PC once more before the merge, or the `images` workflow started by hand runs them.
 
 ## Result
 
@@ -84,7 +109,10 @@ The aarch64 images build and test only on aarch64 Linux, in the Mac's runner VM,
 - x86_64, unchanged in behaviour:
   - `just arch iso` makes a 1553 MiB ISO, and `just arch test` and `just arch test-install` pass with the shared check files. The installed system has no `stackific-vmlinuz.hook`.
   - `just fedora iso` makes a 1502 MiB ISO with Disks (1497 MiB before), and `just fedora test` (Disks and `ntfsresize` included) and `just fedora test-install` pass.
-- aarch64: not yet run (Manual changes).
+- aarch64, in the Mac's runner VM:
+  - `just arch iso` makes a 1345 MiB ISO; `just arch test` and `just arch test-install` pass.
+  - `just fedora iso` makes a 1445 MiB ISO; `just fedora test` and `just fedora test-install` pass.
+  - Each install boots from its disk alone through `\EFI\limine\BOOTAA64.EFI`, starts both Windows entries, and unlocks with the credential and, in the last boot, with the typed passphrase.
 - Docs: `docs/installer.md`, `docs/arch-iso.md`, `docs/fedora-iso.md`, `docs/checks.md`, `site/src/content/docs/user/installation.md`, `release/notes.md`, `AGENTS.md`.
 
 ## Deviations
