@@ -1,0 +1,15 @@
+#!/bin/sh
+# The initramfs' emergency and rescue screen on installed Stackific OS systems (BT-06), from stackific-boot: instead of
+# systemd's emergency shell, which an initramfs without a root password cannot open anyway, a plain message, then a
+# restart on Enter. It runs as emergency.service and rescue.service on the console (stackific-boot-failure.conf); the
+# usual cause is a disk passphrase typed wrong three times. Base-neutral: busybox sh on Arch, bash on Fedora.
+# POSIX sh has no pipefail, and the script has no pipes
+set -eu
+# Clear the screen, then the message
+printf '\033[H\033[2J\n  %s\n\n  %s\n  %s\n\n  %s\n' \
+  "The system could not start." \
+  "If you typed the disk password, it was wrong 3 times." \
+  "Check Caps Lock and the keyboard layout, then try again." \
+  "Press Enter to restart."
+read -r _ || true
+exec systemctl reboot

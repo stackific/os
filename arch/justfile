@@ -94,9 +94,10 @@ test version="0.0.0-dev": builder
 # erase, BIOS-mode Windows refused, BitLocker and a fake Windows on a Windows-like table, and a free-space install,
 # unattended; cryptsetup's BitLocker images pinned in tests/vars.just), then the free-space install's ESP, read from the image with minfo
 # (mtools). Then the installed system boots from the disk alone, with the first boot's firmware variables
-# (tests/vm/installed.sh); mcopy puts the pinned limine package (the builder's mirror is the archive date) at its ESP's
+# (tests/vm/installed.sh), its LUKS2 root unlocked by the passphrase credential; mcopy puts the pinned limine package (the builder's mirror is the archive date) at its ESP's
 # root for the hook check. pacman's sandbox fails in rootless podman, so the download runs without it. The disk image is
-# removed after a pass and kept after a failure.
+# removed after a pass and kept after a failure. A last boot types at the passphrase prompt (tests/vm/unlock.sh): three
+# wrong passphrases, the boot-failure screen, Enter, then the password (tests/vars.just) on the German layout.
 [positional-arguments]
 test-install version="0.0.0-dev": builder
   #!/usr/bin/env bash
@@ -106,6 +107,7 @@ test-install version="0.0.0-dev": builder
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
     --env ISO="/out/stackific-$1-arch-{{ arch() }}.iso" --env STACKIFIC_TEST_DISK=/out/install-test.img \
     --env BITLK_IMAGES_URL={{ bitlk_images_url }} --env BITLK_IMAGES_SHA256={{ bitlk_images_sha256 }} \
+    --env STACKIFIC_TEST_PASSWORD="{{ test_password }}" \
     {{ builder }} bash -c 'set -euo pipefail
       entry() { bsdtar -xOf "$ISO" "loader/$1" | grep -qx -- "$2" || { echo "FAIL: loader/$1 has no line /$2/" >&2; exit 1; }; }
       entry entries/01-stackific-linux.conf "title   Try Stackific OS ({{ arch() }}, UEFI)"
@@ -121,7 +123,8 @@ test-install version="0.0.0-dev": builder
       rm -rf /out/pkg && mkdir /out/pkg
       pacman -Sw --noconfirm --disable-sandbox --cachedir /out/pkg limine >/dev/null
       mcopy -i "$STACKIFIC_TEST_DISK@@$(cat /out/esp-offset)" /out/pkg/limine-*.pkg.tar.zst ::/
-      OVMF_VARS=/out/vars.fd /tests/boot.sh - /out /tests/installed.sh
+      STACKIFIC_TEST_PASSPHRASE="$STACKIFIC_TEST_PASSWORD" OVMF_VARS=/out/vars.fd /tests/boot.sh - /out /tests/installed.sh
+      OVMF_VARS=/out/vars.fd PREBOOT=/tests/unlock.sh /tests/boot.sh - /out /dev/null
       rm -rf "$STACKIFIC_TEST_DISK" /out/pkg'
 
 # Screenshots of the installer's screens for the prompt trail: one boot of stackific-<version>-arch-<arch>.iso with a

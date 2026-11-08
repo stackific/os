@@ -97,7 +97,8 @@ test version="0.0.0-dev": builder
 # and Install), then one boot with a fresh 64 GiB raw disk (tests/vm/boot.sh with tests/vm/install.sh: the console path,
 # a refused erase, an erase, BIOS-mode Windows refused, a Windows-like table with BitLocker and a fake Windows, a
 # free-space install), the free-space install's ESP read with mtools, and a second boot from the disk alone with the first boot's firmware variables
-# (tests/vm/installed.sh). For the second boot it puts the image's limine (Terra) and kernel-core (Fedora) packages, the
+# (tests/vm/installed.sh), its LUKS2 root unlocked by the passphrase credential, then a last boot that types at the
+# passphrase prompt (tests/vm/unlock.sh), as `just arch test-install` does. For the second boot it puts the image's limine (Terra) and kernel-core (Fedora) packages, the
 # versions in the image's manifest, checked against their keys, on the installed ESP for the reinstall checks.
 # Leaves installer-console.png, limine.png, installed.png and efibootmgr.txt.
 [positional-arguments]
@@ -112,6 +113,7 @@ test-install version="0.0.0-dev": builder
     --env ISO="/out/stackific-$1-fedora-{{ arch() }}.iso" --env MANIFEST="/out/stackific-$1-fedora-{{ arch() }}.packages.txt" \
     --env STACKIFIC_TEST_DISK=/out/install-test.img \
     --env BITLK_IMAGES_URL={{ bitlk_images_url }} --env BITLK_IMAGES_SHA256={{ bitlk_images_sha256 }} \
+    --env STACKIFIC_TEST_PASSWORD="{{ test_password }}" \
     {{ builder }} bash -c 'set -euo pipefail
       cfg=$(bsdtar -xOf "$ISO" boot/grub2/grub.cfg)
       entry() { grep -qE -- "$1" <<<"$cfg" || { echo "FAIL: boot/grub2/grub.cfg has no line /$1/" >&2; exit 1; }; }
@@ -140,7 +142,8 @@ test-install version="0.0.0-dev": builder
       minfo -i "$STACKIFIC_TEST_DISK@@$(cat /out/esp-offset)" | grep -q "FAT32" || { echo "FAIL: no FAT32 at the ESP offset" >&2; exit 1; }
       echo "ok: the free-space install'"'"'s ESP is FAT32"
       mcopy -i "$STACKIFIC_TEST_DISK@@$(cat /out/esp-offset)" /out/pkg/*.rpm ::/
-      OVMF_VARS=/out/vars.fd /tests/boot.sh - /out /tests/installed.sh
+      STACKIFIC_TEST_PASSPHRASE="$STACKIFIC_TEST_PASSWORD" OVMF_VARS=/out/vars.fd /tests/boot.sh - /out /tests/installed.sh
+      OVMF_VARS=/out/vars.fd PREBOOT=/tests/unlock.sh /tests/boot.sh - /out /dev/null
       rm -rf "$STACKIFIC_TEST_DISK" /out/pkg'
 
 # Check the host prerequisites image builds need: rootless podman, and read-write /dev/kvm and /dev/vhost-vsock

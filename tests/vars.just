@@ -4,3 +4,7 @@
 # 2026-11-07). The install tests write bitlk-aes-xts-128.img (passphrase and recovery key 64311DEA) to a partition.
 bitlk_images_url := "https://gitlab.com/cryptsetup/cryptsetup/-/raw/v2.8.8/tests/bitlk-images.tar.xz"
 bitlk_images_sha256 := "68bf5669f777668112d497234ebe2166b5feaf0e33b206b095b917f82937bd30"
+
+# The installed user's password in the install tests, also the disk passphrase: strong enough for zxcvbn, and with a y,
+# which tests/vm/unlock.sh types on the German layout at the boot prompt through the US z key (no symbols, which move)
+test_password := "brisk yellow lantern 47"

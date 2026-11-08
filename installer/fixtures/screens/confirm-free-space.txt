@@ -9,15 +9,15 @@
 │                                                                              │
 │  New, in the 120.0 GiB of free space:                                        │
 │    new             4.0 GiB   FAT32   Stackific OS boot                       │
-│    new           116.0 GiB   btrfs   Stackific OS                            │
+│    new           116.0 GiB   LUKS2   Stackific OS, btrfs inside              │
 │                                                                              │
 │  Keyboard de (German) · Timezone Europe/Berlin                               │
 │  User Ada Lovelace (ada), administrator · Computer stackific                 │
+│  Stackific OS is encrypted: your password unlocks it at every start.         │
 │                                                                              │
 │  Nothing else on the drive changes.                                          │
 │                                                                              │
 │  Limine's menu will also start Windows.                                      │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

@@ -1,15 +1,16 @@
 # shellcheck shell=bash
 # Install checks, for any base: boot.sh sources this file with STACKIFIC_TEST_DISK attached as /dev/vda, a blank
 # 64 GiB raw image (`just arch test-install`, `just fedora test-install`). In one boot: the console path, then unattended
-# installs: a wrong erase confirmation, an erase, BIOS-mode Windows refused, a Windows-like table with a real BitLocker
+# installs: a weak password and a wrong erase confirmation refused, an erase, BIOS-mode Windows refused, a Windows-like table with a real BitLocker
 # volume (one of cryptsetup's test images, made by Windows, from BITLK_IMAGES_URL and BITLK_IMAGES_SHA256) and a fake
 # Windows loader with its firmware entry, the free space refused without the BitLocker confirmation, and an install
-# into it with the confirmation. Each installed system is checked on its partitions. Leaves <out-dir>/esp-offset (the
+# into it with the confirmation. Each installed system is checked on its partitions, its system partition opened with
+# the password (LUKS2, btrfs inside). Leaves <out-dir>/esp-offset (the
 # free-space install's ESP, in bytes) for the host's FAT check, <out-dir>/windows-like.dump, installer-console.png and
 # bitlk-images.tar.xz (kept for the next run).
 # shellcheck disable=SC2154 # out, vm, vm_until, fail, screenshot and sendkey come from boot.sh, which sources this file
 
-password='stackific-test-password'
+password=$STACKIFIC_TEST_PASSWORD
 # The base, for the few checks that differ: package queries, the kernel's file names, the live image's state
 # shellcheck disable=SC2016 # $ID_LIKE belongs to the guest shell
 like=$(vm '. /etc/os-release && echo "$ID_LIKE"' | tr -d '\r\n')
@@ -56,12 +57,17 @@ install_run() {
   vm_until "journalctl -u stackific-test-$1 --no-pager | grep -c -- '$password'" '^0$' 0
 }
 
-# The installed system on <esp> and <system>: labels, subvolumes, fstab, packages, the user, the system settings, no
-# live state left, and the boot files on the ESP
+# The installed system on <esp> and <partition>: LUKS2 on the partition with one keyslot, which the password opens,
+# btrfs inside it; labels, subvolumes, fstab, packages, the user, the system settings, no live state left, and the boot
+# files on the ESP
 installed_checks() {
-  local esp=$1 sys=$2
+  local esp=$1 part=$2 sys=/dev/mapper/test-root uuid_luks
   vm_until "blkid -o value -s TYPE $esp" '^vfat$' 0
   vm_until "blkid -o value -s LABEL $esp" '^STACKIFIC$' 0
+  vm_until "blkid -o value -s TYPE $part" '^crypto_LUKS$' 0
+  vm_until "cryptsetup luksDump $part | grep -E '^Version:|: luks2\$' | paste -sd ' '" '^Version:[[:space:]]+2 +0: luks2$' 0
+  uuid_luks=$(vm "blkid -o value -s UUID $part" | tr -d '\r\n')
+  vm "printf %s '$password' | cryptsetup open --key-file - $part test-root" >/dev/null
   vm_until "blkid -o value -s TYPE $sys" '^btrfs$' 0
   vm_until "blkid -o value -s LABEL $sys" '^stackific$' 0
   vm "mkdir -p /mnt/t && mount -o subvolid=5 $sys /mnt/t" >/dev/null
@@ -76,6 +82,7 @@ installed_checks() {
   uuid_esp=$(vm "blkid -o value -s UUID $esp" | tr -d '\r\n')
   vm_until "grep -c '^UUID=$uuid_sys .* btrfs subvol=/@[a-z]*,noatime,compress=zstd:1 0 0\$' $r/etc/fstab" '^12$' 0
   vm_until "grep -cx 'UUID=$uuid_esp /boot vfat umask=0077 0 2' $r/etc/fstab" '^1$' 0
+  vm_until "grep -cx 'luks-$uuid_luks UUID=$uuid_luks none' $r/etc/crypttab" '^1$' 0
   vm_until "grep -cx 'ID=stackific' $r/etc/os-release" '^1$' 0
   # The installer and its launcher are gone; the machine ID is set on first boot (kiwi leaves the file empty)
   if [ "$like" = fedora ]; then
@@ -83,7 +90,7 @@ installed_checks() {
       '^stackific-release-[^ ]+ package stackific-installer is not installed$' 0
     vm_until "rpm --root=$r -qa 'grub2*' | wc -l" '^0$' 0
     vm_until "test ! -e $r/usr/share/applications/stackific-installer.desktop && wc -c <$r/etc/machine-id" '^0$' 0
-    vm_until "cat $r/etc/kernel/cmdline" "^root=UUID=$uuid_sys rootflags=subvol=/@ rw\$" 0
+    vm_until "cat $r/etc/kernel/cmdline" "^rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet\$" 0
   else
     local db=$r/var/lib/pacman/local
     vm_until "echo \$(ls -d $db/stackific-release-* | wc -l)/\$(ls -d $db/stackific-installer-* 2>/dev/null | wc -l)" '^1/0$' 0
@@ -121,8 +128,9 @@ installed_checks() {
     '^5$' 0
   vm_until "cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/limine/BOOTX64.EFI && cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/BOOT/BOOTX64.EFI && echo same" \
     '^same$' 0
-  vm_until "grep -cx '    cmdline: root=UUID=$uuid_sys rootflags=subvol=/@ rw' /mnt/e/limine.conf" '^1$' 0
-  vm "umount /mnt/e /mnt/t" >/dev/null
+  vm_until "grep -cx '    cmdline: rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet' /mnt/e/limine.conf" \
+    '^1$' 0
+  vm "umount /mnt/e /mnt/t && cryptsetup close test-root" >/dev/null
 }
 
 # 0. The console path: the Install entry's target runs the installer on tty1 without the greeter; Esc on Display
@@ -138,7 +146,13 @@ sendkey esc
 vm_until 'systemctl is-active stackific-installer-console.service' '^inactive$' 30
 vm_until 'systemctl is-active graphical.target' '^active$' 120
 
-# 1. A wrong erase confirmation is refused (exit 2) before anything is written
+# 1. A password too easy to guess and a wrong erase confirmation are refused (exit 2) before anything is written
+strong=$password
+password=password123
+answers weak erase vda
+password=$strong
+vm_until '/usr/bin/stackific-installer --config /tmp/weak.toml 2>&1 >/dev/null' 'weak.toml: password: Too easy to guess' 0
+vm_until '/usr/bin/stackific-installer --config /tmp/weak.toml >/dev/null 2>&1; echo $?' '^2$' 0
 answers wrong erase vdb
 vm_until '/usr/bin/stackific-installer --config /tmp/wrong.toml >/dev/null 2>&1; echo $?' '^2$' 0
 vm_until 'sfdisk --json /dev/vda >/dev/null 2>&1; echo $?' '^1$' 0

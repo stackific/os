@@ -3,7 +3,7 @@
 │  Installing Stackific OS on /dev/nvme0n1                                     │
 │                                                                              │
 │  ✓ Create ┌ Stop the install? ──────────────────────────────────┐            │
-│  ✓ Format │                                                     │            │
+│  ✓ Encrypt│                                                     │            │
 │  ✓ Prepare│  The new partitions stay on /dev/nvme0n1, partly    │            │
 │  ▸ Copy th│  written. Nothing else on the drive changes.        │            │
 │    Set the│                                                     │            │
