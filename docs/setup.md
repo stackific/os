@@ -31,7 +31,7 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
 
 ## Self-hosted runners
 
-The `images` workflow builds and boot-tests the images on our own machines when started by hand from the Actions tab (for now; merges to `main` no longer start it, `docs/releases.md`). The x86_64 images run on a Linux PC and the aarch64 images on a Mac. A machine becomes a runner only through `just runner setup`; `just setup` never does it.
+The `images` workflow builds and boot-tests the images on our own machines on every merge to `main`, and when started by hand from the Actions tab (`docs/releases.md`). The x86_64 images run on a Linux PC and the aarch64 images on a Mac. A machine becomes a runner only through `just runner setup`; `just setup` never does it.
 
 The runner runs every job as the user who set it up. The workflow never runs on pull requests, and `just runner register` makes GitHub hold every outside contributor's workflow run until a maintainer approves it. Never add `pull_request` to a workflow that runs on `self-hosted`.
 

@@ -1,12 +1,14 @@
-# Builds and boot-tests the images on the self-hosted runners (just runner setup), started by hand only for now (a run
-# takes about 40 minutes, too long for every merge to main; operator 2026-11-07), and never on pull_request, so code
-# from a fork never runs on them. A run by hand has no earlier commit to compare, so it builds all four images (just
-# release changed). When a pull request merged the commit, the images are also published as the test release
-# v0.0.0-pr.<n> (a prerelease, replaced on a rerun). To build on every merge again, add `push: branches: [main]` back.
-# Every step after the setup calls a just recipe.
+# Builds and boot-tests the images on the self-hosted runners (just runner setup), the x86_64 ones on the PC and the
+# aarch64 ones on the Mac, on every push to main (a merged pull request; operator 2026-11-08) and by hand, never on
+# pull_request, so code from a fork never runs on them. A push builds only the images whose files it changed; a run by
+# hand has no earlier commit to compare, so it builds all four (just release changed). When a pull request merged the
+# commit, the images are also published as the test release v0.0.0-pr.<n> (a prerelease, replaced on a rerun). Every
+# step after the setup calls a just recipe.
 name: images
 
 on:
+  push:
+    branches: [main]
   workflow_dispatch:
 
 permissions:
