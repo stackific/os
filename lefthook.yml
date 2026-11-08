@@ -32,6 +32,10 @@ pre-commit:
     installer-test:
       glob: "installer/**"
       run: just installer test
+    # The GPU driver pick: stackific-gpu-generator against recorded PCI sets
+    hardware:
+      glob: "hardware/**"
+      run: just hardware test
     # Task files, review records and prompt-trail entries follow their templates and point at each other
     dev:
       glob: "{dev/**,site/src/content/docs/prompt-trail/**}"

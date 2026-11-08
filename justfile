@@ -30,6 +30,9 @@ mod arch
 # The installer: one Rust program for both bases (recipes in installer/justfile)
 mod installer
 
+# Hardware: the GPU driver pick and its data (recipes in hardware/justfile)
+mod hardware
+
 # Fedora base: live ISO build and boot test in the pinned builder container (recipes in fedora/justfile)
 mod fedora
 
