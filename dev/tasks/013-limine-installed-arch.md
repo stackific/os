@@ -1,6 +1,6 @@
 # 013: The installed Arch system starts: Limine from our own ESP, first in the firmware's boot order
 
-- [ ] Done
+- [x] Done
 
 Base: arch
 

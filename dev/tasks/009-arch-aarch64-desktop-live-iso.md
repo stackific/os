@@ -1,6 +1,6 @@
 # 009: Arch Linux ARM aarch64 live ISO boots to MangoWM with Noctalia, with KDE Plasma
 
-- [ ] Done
+- [x] Done
 
 Base: arch
 
