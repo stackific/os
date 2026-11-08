@@ -1,5 +1,6 @@
 //! The install itself, after the confirmation: the eight steps the Installing screen lists, in order, each command
-//! and its output logged (never stdin, which carries the password), then the target unmounted. The screens and the
+//! and its output logged (never stdin, which carries the password), then the target unmounted and the encrypted
+//! system partition closed. The screens and the
 //! unattended run share it.
 
 use std::io::Write;
@@ -16,7 +17,7 @@ use crate::{boot, copy, disk, system};
 /// The steps, as the Installing screen names them.
 pub const STEPS: [&str; 8] = [
     "Create the partitions",
-    "Format them",
+    "Encrypt and format them",
     "Prepare the system partition",
     "Copy the system",
     "Set the keyboard, timezone and computer name",
@@ -135,7 +136,7 @@ fn remove(run: &dyn Runner, log: &Log, path: &Path) -> Result<(), Failure> {
         .map_err(|e| Failure::Other(format!("cannot remove {}: {e}", path.display())))
 }
 
-/// Installs, then unmounts the target whatever happened. `report` hears each step and the copy's percentage; a set
+/// Installs, then unmounts the target and closes the system partition's LUKS2 mapping whatever happened. `report` hears each step and the copy's percentage; a set
 /// `stop` ends the install at the next command (the copy at once).
 pub fn install(
     run: &dyn Runner,
@@ -154,7 +155,20 @@ pub fn install(
     } else {
         Ok(())
     };
-    result.and(unmount)
+    let open = run
+        .run(&Cmd::new("cryptsetup").args(["status", disk::MAPPER]))
+        .is_ok_and(|o| o.code == 0);
+    let close = if open && unmount.is_ok() {
+        exec(
+            run,
+            log,
+            &Cmd::new("cryptsetup").args(["close", disk::MAPPER]),
+        )
+        .map(|_| ())
+    } else {
+        Ok(())
+    };
+    result.and(unmount).and(close)
 }
 
 fn steps(
@@ -197,13 +211,17 @@ fn steps(
     )?;
     let [esp, sys] = disk::find_by_start(&lsblk.stdout, starts).map_err(Failure::Other)?;
 
+    // The system partition becomes LUKS2, opened at MAPPER_PATH; btrfs and everything after it go inside (BT-09)
     step(1, report)?;
-    for cmd in disk::format(&esp, &sys, &plan.os.id) {
+    for cmd in disk::encrypt(&sys, &a.user.password) {
+        exec(run, log, &cmd)?;
+    }
+    for cmd in disk::format(&esp, disk::MAPPER_PATH, &plan.os.id) {
         exec(run, log, &cmd)?;
     }
 
     step(2, report)?;
-    for cmd in disk::prepare(&esp, &sys, target) {
+    for cmd in disk::prepare(&esp, disk::MAPPER_PATH, target) {
         exec(run, log, &cmd)?;
     }
 
@@ -244,12 +262,20 @@ fn steps(
         )
         .map(|o| o.stdout.trim().to_string())
     };
-    let (sys_uuid, esp_uuid) = (uuid(&sys)?, uuid(&esp)?);
+    // btrfs' UUID for fstab, the LUKS2 container's for the command line
+    let (sys_uuid, esp_uuid, luks_uuid) = (uuid(disk::MAPPER_PATH)?, uuid(&esp)?, uuid(&sys)?);
     write(
         run,
         log,
         &target.join("etc/fstab"),
         &disk::fstab(&sys_uuid, &esp_uuid),
+        None,
+    )?;
+    write(
+        run,
+        log,
+        &target.join("etc/crypttab"),
+        &disk::crypttab(&luks_uuid),
         None,
     )?;
     let keymap = system::console_keymap(
@@ -313,7 +339,7 @@ fn steps(
     for cmd in boot::copy_program(target) {
         exec(run, log, &cmd)?;
     }
-    let (files, cmds) = plan.base.initramfs(target, &boot::cmdline(&sys_uuid));
+    let (files, cmds) = plan.base.initramfs(target, &boot::cmdline(&luks_uuid));
     for (path, text) in files {
         write(run, log, &path, &text, None)?;
     }
@@ -332,7 +358,7 @@ fn steps(
         exec(run, log, &cmd)?;
     }
     if let Some((kernel, initramfs)) = kernel_files {
-        let conf = boot::limine_conf(&plan.os.name, kernel, initramfs, &sys_uuid) + &plan.windows;
+        let conf = boot::limine_conf(&plan.os.name, kernel, initramfs, &luks_uuid) + &plan.windows;
         write(run, log, &target.join(boot::CONF), &conf, None)?;
     }
     for cmd in plan.base.relabel(target, Path::new("")) {
@@ -423,8 +449,19 @@ pub mod tests {
             "rsync ",
             Output::ok("3,620,000,000 100%   80.00MB/s    0:00:43 (xfr#210000, to-chk=0/215000)"),
         )
-        .on("blkid -s UUID -o value /dev/vda2", Output::ok("1111-sys\n"))
-        .on("blkid -s UUID -o value /dev/vda6", Output::ok("1111-sys\n"))
+        .on(
+            "blkid -s UUID -o value /dev/vda2",
+            Output::ok("2222-luks\n"),
+        )
+        .on(
+            "blkid -s UUID -o value /dev/vda6",
+            Output::ok("2222-luks\n"),
+        )
+        .on(
+            &format!("blkid -s UUID -o value {}", disk::MAPPER_PATH),
+            Output::ok("1111-sys\n"),
+        )
+        .on("cryptsetup ", Output::ok(""))
         .on("blkid -s UUID -o value /dev/vda1", Output::ok("AAAA-ESP\n"))
         .on("blkid -s UUID -o value /dev/vda4", Output::ok("AAAA-ESP\n"))
         .on("systemd-firstboot", Output::ok(""))
@@ -537,7 +574,24 @@ pub mod tests {
                 .iter()
                 .any(|s| s == "tester:correct horse battery\n")
         );
-        assert!(log.contains("$ mkfs.btrfs -f -L stackific /dev/vda2"));
+        // LUKS2 on partition 2 with the password on stdin (no newline), btrfs inside it, fstab by btrfs' UUID
+        assert!(
+            log.contains(
+                "$ cryptsetup luksFormat --type luks2 --batch-mode --key-file - /dev/vda2"
+            )
+        );
+        assert!(log.contains(&format!(
+            "$ mkfs.btrfs -f -L stackific {}",
+            disk::MAPPER_PATH
+        )));
+        assert_eq!(
+            f.state()
+                .stdins
+                .iter()
+                .filter(|s| *s == "correct horse battery")
+                .count(),
+            2
+        );
         let s = f.state();
         let t = disk::TARGET;
         assert_eq!(
@@ -572,15 +626,30 @@ pub mod tests {
                 "Stackific OS",
                 "vmlinuz-linux",
                 "initramfs-linux.img",
-                "1111-sys"
+                "2222-luks"
             )
         );
         assert!(pos("efibootmgr --bootnum 0009 --delete-bootnum") < pos("efibootmgr --create"));
         assert_eq!(
-            s.calls[s.calls.len() - 3],
+            s.calls[s.calls.len() - 5],
             r#"efibootmgr --create --disk /dev/vda --part 1 --label "Stackific OS" --loader \EFI\limine\BOOTX64.EFI"#
         );
-        assert_eq!(s.calls.last().unwrap(), &format!("umount --recursive {t}"));
+        assert!(
+            s.files[&PathBuf::from(format!("{t}/etc/fstab"))]
+                .contains("UUID=1111-sys / btrfs subvol=/@,")
+        );
+        assert!(
+            s.files[&PathBuf::from(format!("{t}/etc/crypttab"))]
+                .ends_with("\nluks-2222-luks UUID=2222-luks none\n")
+        );
+        assert_eq!(
+            s.calls[s.calls.len() - 3..],
+            [
+                format!("umount --recursive {t}"),
+                format!("cryptsetup status {}", disk::MAPPER),
+                format!("cryptsetup close {}", disk::MAPPER)
+            ]
+        );
     }
 
     #[test]
@@ -620,7 +689,7 @@ pub mod tests {
         assert!(relabels[1].contains(&format!("file_contexts {t} {t}/home ")));
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/etc/kernel/cmdline"))],
-            "root=UUID=1111-sys rootflags=subvol=/@ rw\n"
+            "rd.luks.uuid=2222-luks root=/dev/mapper/luks-2222-luks rootflags=subvol=/@ rw quiet\n"
         );
         assert!(
             !s.files
@@ -646,7 +715,7 @@ pub mod tests {
                 "Stackific OS",
                 "vmlinuz-linux",
                 "initramfs-linux.img",
-                "1111-sys"
+                "2222-luks"
             ) + &entries
         );
         assert!(
@@ -718,9 +787,11 @@ pub mod tests {
         );
         assert_eq!(
             r.unwrap_err().message(),
-            "mkfs.btrfs /dev/vda2 failed (exit 1)"
+            format!("mkfs.btrfs {} failed (exit 1)", disk::MAPPER_PATH)
         );
         assert!(f.calls("mount ").is_empty());
+        // The opened mapping is closed after a failure too
+        assert_eq!(f.calls("cryptsetup close").len(), 1);
         let stopped = install(
             &f,
             &Log::new(Buf::default()),

@@ -9,13 +9,13 @@
 │                                                                              │
 │  After the install:                                                          │
 │    1               4.0 GiB   FAT32   Stackific OS boot                       │
-│    2             927.5 GiB   btrfs   Stackific OS                            │
+│    2             927.5 GiB   LUKS2   Stackific OS, btrfs inside              │
 │                                                                              │
 │  Keyboard de (German) · Timezone Europe/Berlin                               │
 │  User Ada Lovelace (ada), administrator · Computer stackific                 │
+│  Stackific OS is encrypted: your password unlocks it at every start.         │
 │                                                                              │
 │  Type nvme0n1 to erase it:  nvme0n1▏                                         │
-│                                                                              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

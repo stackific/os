@@ -146,7 +146,44 @@ pub fn find_by_start(lsblk_json: &str, starts: [u64; 2]) -> Result<[String; 2], 
     Ok([find(starts[0])?, find(starts[1])?])
 }
 
-/// The mkfs commands for the ESP and the system partition.
+/// The system partition's LUKS2 mapping while the installer writes it (BT-09); the installed system's initramfs opens
+/// it as `luks-<uuid>` itself, so the name only has to be fixed for the clean-up.
+pub const MAPPER: &str = "stackific-installer-root";
+/// The mapping's device, where btrfs goes.
+pub const MAPPER_PATH: &str = "/dev/mapper/stackific-installer-root";
+
+/// The commands that put LUKS2 on the system partition with cryptsetup's defaults (argon2id, 2 s) and open it at
+/// MAPPER_PATH. `--key-file -` reads stdin to its end, a newline included, so the passphrase goes in without one.
+pub fn encrypt(system: &str, passphrase: &str) -> [Cmd; 2] {
+    [
+        Cmd::new("cryptsetup")
+            .args([
+                "luksFormat",
+                "--type",
+                "luks2",
+                "--batch-mode",
+                "--key-file",
+                "-",
+                system,
+            ])
+            .stdin(passphrase.to_string()),
+        Cmd::new("cryptsetup")
+            .args(["open", "--key-file", "-", system, MAPPER])
+            .stdin(passphrase.to_string()),
+    ]
+}
+
+/// /etc/crypttab: the system partition's LUKS2 container by UUID, named as the initramfs names it, with no key file
+/// (the passphrase is asked). Fedora's dracut copies it into the initramfs and then adds no unlock job of its own
+/// beside systemd's (that job fails with an error line next to the prompt); elsewhere it only documents the container.
+pub fn crypttab(luks_uuid: &str) -> String {
+    format!(
+        "# /etc/crypttab, written by stackific-installer: the system partition's LUKS2 container\n\
+         luks-{luks_uuid} UUID={luks_uuid} none\n"
+    )
+}
+
+/// The mkfs commands for the ESP and the system partition (the LUKS2 mapping on it).
 pub fn format(esp: &str, system: &str, id: &str) -> [Cmd; 2] {
     [
         Cmd::new("mkfs.fat").args(["-F", "32", "-n", &fat_label(id), esp]),

@@ -102,9 +102,9 @@ fn to_you(app: &mut App) {
     typ(app, "Ada Lovelace");
     press(app, KeyCode::Tab);
     press(app, KeyCode::Tab);
-    typ(app, "abcdefgh");
+    typ(app, "brisk lantern orbith");
     press(app, KeyCode::Tab);
-    typ(app, "abcdefg");
+    typ(app, "brisk lantern orbit");
 }
 
 fn installing_at(app: &mut App, mode: Mode, step: usize, percent: u8) {
@@ -326,7 +326,14 @@ fn navigation_keeps_answers_and_shows_next_only_when_valid() {
     assert_eq!(a.screen, Screen::You);
     assert_eq!(
         a.you.fields,
-        ["Ada Lovelace", "ada", "abcdefgh", "abcdefgh", "stackific"].map(String::from)
+        [
+            "Ada Lovelace",
+            "ada",
+            "brisk lantern orbith",
+            "brisk lantern orbith",
+            "stackific"
+        ]
+        .map(String::from)
     );
     // Ctrl+C before the install leaves at once, with nothing written
     ctrl_c(&mut a);

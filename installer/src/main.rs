@@ -178,7 +178,7 @@ fn unattended(
         Ok(a) => a,
         Err(e) => return refuse(&format!("{file}: {e}")),
     };
-    if let Err(e) = answers.check(catalog) {
+    if let Err(e) = answers.check(catalog, &os.name) {
         return refuse(&format!("{file}: {e}"));
     }
     let (listed, excluded) = match drives::scan(run, base.live_medium()) {
