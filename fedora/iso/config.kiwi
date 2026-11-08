@@ -16,10 +16,14 @@
     <keytable>us</keytable>
     <timezone>UTC</timezone>
     <!-- UEFI only, no shim (Secure Boot is off). GRUB, because kiwi's systemd-boot ISO path needs a loop device.
-         Both serial consoles, ttyS0 (x86_64) and ttyAMA0 (aarch64): the kernel ignores the one the machine lacks. -->
+         Both serial consoles, ttyS0 (x86_64) and ttyAMA0 (aarch64): the kernel ignores the one the machine lacks.
+         edit-boot.sh adds the Install entry to the x86_64 boot menu. The volume ID differs from the installed ESP's FAT
+         label (STACKIFIC): the live initramfs finds the ISO by label (root=live:CDLABEL=), and with a drive the
+         installer wrote attached it would otherwise pick that ESP. -->
     <type image="iso" primary="true" flags="dmsquash" filesystem="erofs" erofscompression="lzma,level=6"
+          editbootconfig="edit-boot.sh"
           firmware="efi" eficsm="false" efiparttable="gpt" efifatimagesize="30" mediacheck="false"
-          volid="STACKIFIC" publisher="Stackific OS" application_id="Stackific OS Live (Fedora base)"
+          volid="STACKIFIC_LIVE" publisher="Stackific OS" application_id="Stackific OS Live (Fedora base)"
           kernelcmdline="console=ttyS0,115200 console=ttyAMA0,115200 console=tty0">
       <bootloader name="grub2" timeout="3"/>
     </type>
@@ -34,7 +38,8 @@
       <signing key="file:///usr/share/pki/rpm-gpg/RPM-GPG-KEY-fedora-$releasever-primary"/>
     </source>
   </repository>
-  <!-- Terra supplies only mangowm and noctalia-greeter (terra-repo.sh appends includepkgs and gpgkey to its repo file).
+  <!-- Terra supplies only mangowm, noctalia-greeter and limine (terra-repo.sh appends includepkgs and gpgkey to its repo
+       file).
        Packages and metadata are checked against Terra 45's key, committed next to this file. -->
   <repository type="rpm-md" alias="terra" package_gpgcheck="true" repository_gpgcheck="true" customize="terra-repo.sh">
     <source path="https://repos.fyralabs.com/terra$releasever">
@@ -92,6 +97,8 @@
     <!-- x86 CPU microcode: Fedora has no microcode_ctl on aarch64, and AMD's microcode is for x86 CPUs only -->
     <package name="amd-ucode-firmware" arch="x86_64"/>
     <package name="microcode_ctl" arch="x86_64"/>
+    <!-- dnf5, so installed systems can update (the live image's GRUB is removed from them by the installer) -->
+    <package name="dnf5"/>
     <package name="NetworkManager"/>
     <package name="btrfs-progs"/>
     <package name="dosfstools"/>
@@ -112,6 +119,10 @@
     <!-- Our desktop defaults and artwork (the Noctalia unit, wlroots and greeter settings, wallpapers, fastfetch) -->
     <package name="stackific-desktop"/>
     <package name="stackific-artwork"/>
+    <!-- The installer, x86_64 only until task 018, and Limine's boot files, named so that removing the installer from
+         an installed system keeps them (and limine and efibootmgr, which they require) -->
+    <package name="stackific-installer" arch="x86_64"/>
+    <package name="stackific-boot" arch="x86_64"/>
     <!-- MangoWM with Noctalia, and foot and rofi, which MangoWM's stock keybinds launch -->
     <package name="mangowm"/>
     <package name="noctalia"/>

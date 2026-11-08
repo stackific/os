@@ -3,6 +3,7 @@
 
 use std::path::{Path, PathBuf};
 
+use crate::disk::SUBVOLUMES;
 use crate::os_release::OsRelease;
 use crate::run::Cmd;
 
@@ -14,10 +15,17 @@ pub trait Base: Send + Sync {
     fn live_medium(&self) -> &'static Path;
     /// The base's own live state in the copied root at `target`: files to remove, then commands to run.
     fn live_state(&self, target: &Path) -> (Vec<PathBuf>, Vec<Cmd>);
-    /// The commands that put the kernel and its initramfs on the ESP, mounted at the target's /boot.
-    fn initramfs(&self, target: &Path) -> Vec<Cmd>;
-    /// The kernel's and the initramfs' file names at the ESP's root, which Limine's entry names.
-    fn kernel_files(&self) -> (&'static str, &'static str);
+    /// What puts the kernel and its initramfs on the ESP, mounted at the target's /boot: files to write (path, text),
+    /// then commands. `cmdline` is the kernel command line (`boot::cmdline`). Limine's program is on the ESP by then.
+    fn initramfs(&self, target: &Path, cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>);
+    /// The kernel's and the initramfs' file names at the ESP's root, for the one entry the installer writes into
+    /// `limine.conf`; `None` when the base's own kernel tools wrote `limine.conf` in `initramfs`.
+    fn kernel_files(&self) -> Option<(&'static str, &'static str)>;
+    /// Commands that give `path` under the target (all of it when empty) its policy's labels (Fedora: SELinux), after
+    /// the account files change and after every write, before the firmware entry.
+    fn relabel(&self, _target: &Path, _path: &Path) -> Vec<Cmd> {
+        Vec::new()
+    }
 }
 
 /// Arch Linux (and Arch Linux ARM): archiso's live image.
@@ -53,27 +61,117 @@ impl Base for Arch {
     /// installs a kernel: it copies the kernel to /boot/vmlinuz-<pkgbase> and builds /boot/initramfs-<pkgbase>.img
     /// from the preset (Arch's default: no fallback image) with Arch's default hooks. arch-chroot gives it /dev, /proc
     /// and /sys, which the autodetect hook reads.
-    fn initramfs(&self, target: &Path) -> Vec<Cmd> {
-        vec![Cmd::new("arch-chroot").args([
+    /// `limine.conf` carries the command line, so nothing is written here.
+    fn initramfs(&self, target: &Path, _cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>) {
+        let cmd = Cmd::new("arch-chroot").args([
             &*target.to_string_lossy(),
             "/usr/bin/bash",
             "-c",
             "printf '%s\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install",
-        ])]
+        ]);
+        (Vec::new(), vec![cmd])
     }
 
     /// The paths mkinitcpio's preset writes for the `linux` kernel; its pacman hooks keep them current on updates.
-    fn kernel_files(&self) -> (&'static str, &'static str) {
-        ("vmlinuz-linux", "initramfs-linux.img")
+    fn kernel_files(&self) -> Option<(&'static str, &'static str)> {
+        Some(("vmlinuz-linux", "initramfs-linux.img"))
+    }
+}
+
+/// Fedora: a kiwi live image booted by dracut's dmsquash-live, with kernel-install and dracut for the kernel.
+pub struct Fedora;
+
+/// The live image's GRUB, which installed systems do not use (Limine starts them); removing it also takes GRUB's
+/// kernel-install plugins, which would otherwise write BLS entries and call grub2-editenv on every kernel update.
+// shortcut: x86_64's package names only, the one Fedora image with the installer; task 018 adds aarch64's grub2-efi-aa64*
+const LIVE_GRUB: [&str; 3] = [
+    "grub2-efi-x64",
+    "grub2-efi-x64-cdboot",
+    "grub2-efi-x64-modules",
+];
+
+impl Base for Fedora {
+    /// dmsquash-live bind-mounts the root image here, the lower layer of the live overlay.
+    fn live_root(&self) -> &'static Path {
+        Path::new("/run/rootfsbase")
+    }
+
+    fn live_medium(&self) -> &'static Path {
+        Path::new("/run/initramfs/live")
+    }
+
+    /// The kernel interfaces the chroot below and rpm's scriptlets need, mounted as arch-chroot mounts them (`/run`
+    /// not recursively, so the target's own mount under /run stays out), then the installer with the dependencies
+    /// only it needed, and the live image's GRUB, removed offline by dnf5. The installer's final `umount --recursive`
+    /// takes the mounts down.
+    fn live_state(&self, target: &Path) -> (Vec<PathBuf>, Vec<Cmd>) {
+        let t = |p: &str| target.join(p).to_string_lossy().to_string();
+        let cmds = vec![
+            Cmd::new("mount").args(["-t", "proc", "proc", &t("proc")]),
+            Cmd::new("mount").args(["-t", "sysfs", "sys", &t("sys")]),
+            Cmd::new("mount").args(["--bind", "/dev", &t("dev")]),
+            Cmd::new("mount").args(["--bind", "/run", &t("run")]),
+            // GRUB's packages mark themselves protected (/etc/dnf/protected.d/); this removal alone lifts that
+            Cmd::new("dnf5")
+                .args([format!("--installroot={}", target.display())])
+                .args([
+                    "--setopt=protected_packages=",
+                    "-y",
+                    "remove",
+                    "stackific-installer",
+                ])
+                .args(LIVE_GRUB),
+        ];
+        (Vec::new(), cmds)
+    }
+
+    /// The command line for kernel-install's plugins, then kernel-install in the target for every kernel, as the
+    /// kernel package's own scriptlet runs it: Fedora's dracut plugin builds /boot/initramfs-<version>.img and
+    /// stackific-boot's plugin copies the kernel and writes `limine.conf`.
+    fn initramfs(&self, target: &Path, cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>) {
+        let files = vec![(target.join("etc/kernel/cmdline"), format!("{cmdline}\n"))];
+        let cmd = Cmd::new("chroot").args([
+            &*target.to_string_lossy(),
+            "/usr/bin/bash",
+            "-c",
+            r#"for k in /usr/lib/modules/*/vmlinuz; do v=${k%/vmlinuz}; kernel-install add "${v##*/}" "$k"; done"#,
+        ]);
+        (files, vec![cmd])
+    }
+
+    fn kernel_files(&self) -> Option<(&'static str, &'static str)> {
+        None
+    }
+
+    /// The policy's labels for what the installer wrote under `path` (the user's home among them), from the target's
+    /// own file contexts (setfiles also reads their `.homedirs` and `.local` files). setfiles does not cross into other
+    /// mounts, so all of the target means `/` and every subvolume's mount point. The ESP holds no labels, and the
+    /// kernel interfaces mounted above are not the target's files.
+    fn relabel(&self, target: &Path, path: &Path) -> Vec<Cmd> {
+        let t = |p: &str| {
+            let full = target.join(p.trim_start_matches('/'));
+            full.to_string_lossy().trim_end_matches('/').to_string()
+        };
+        let mut cmd = Cmd::new("setfiles").args(["-r", &*target.to_string_lossy()]);
+        for skip in ["boot", "proc", "sys", "dev", "run"] {
+            cmd = cmd.args(["-e", &t(skip)]);
+        }
+        cmd = cmd.args([t("etc/selinux/targeted/contexts/files/file_contexts")]);
+        vec![if path.as_os_str().is_empty() {
+            cmd.args(SUBVOLUMES.iter().map(|(_, m)| t(m)))
+        } else {
+            cmd.args([t(&path.to_string_lossy())])
+        }]
     }
 }
 
 /// The base of the running system, from `ID_LIKE`.
 pub fn detect(os: &OsRelease) -> Option<Box<dyn Base>> {
-    os.id_like
-        .split_whitespace()
-        .any(|l| l == "arch")
-        .then(|| Box::new(Arch) as Box<dyn Base>)
+    os.id_like.split_whitespace().find_map(|l| match l {
+        "arch" => Some(Box::new(Arch) as Box<dyn Base>),
+        "fedora" => Some(Box::new(Fedora) as Box<dyn Base>),
+        _ => None,
+    })
 }
 
 #[cfg(test)]
@@ -94,14 +192,62 @@ mod tests {
             cmds[0].line(),
             "pacman --sysroot=/t --remove --nosave --recursive --noconfirm stackific-installer"
         );
+        let (files, cmds) = base.initramfs(Path::new("/t"), "root=UUID=x");
+        assert!(files.is_empty());
         assert_eq!(
-            base.initramfs(Path::new("/t"))[0].line(),
+            cmds[0].line(),
             "arch-chroot /t /usr/bin/bash -c \"printf '%s\\\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install\""
         );
         assert_eq!(
             base.kernel_files(),
-            ("vmlinuz-linux", "initramfs-linux.img")
+            Some(("vmlinuz-linux", "initramfs-linux.img"))
         );
-        assert!(detect(&OsRelease::parse("ID=stackific\nID_LIKE=fedora\n")).is_none());
+        assert!(base.relabel(Path::new("/t"), Path::new("")).is_empty());
+        assert!(detect(&OsRelease::parse("ID=stackific\nID_LIKE=debian\n")).is_none());
+    }
+
+    #[test]
+    fn fedora_from_id_like() {
+        let os = OsRelease::parse("ID=stackific\nID_LIKE=fedora\n");
+        let base = detect(&os).unwrap();
+        assert_eq!(base.live_root(), Path::new("/run/rootfsbase"));
+        assert_eq!(base.live_medium(), Path::new("/run/initramfs/live"));
+        let (files, cmds) = base.live_state(Path::new("/t"));
+        assert!(files.is_empty());
+        let lines: Vec<_> = cmds.iter().map(Cmd::line).collect();
+        assert_eq!(
+            lines,
+            [
+                "mount -t proc proc /t/proc",
+                "mount -t sysfs sys /t/sys",
+                "mount --bind /dev /t/dev",
+                "mount --bind /run /t/run",
+                "dnf5 --installroot=/t --setopt=protected_packages= -y remove stackific-installer grub2-efi-x64 grub2-efi-x64-cdboot grub2-efi-x64-modules"
+            ]
+        );
+        let (files, cmds) = base.initramfs(Path::new("/t"), "root=UUID=x rootflags=subvol=/@ rw");
+        assert_eq!(
+            files,
+            [(
+                PathBuf::from("/t/etc/kernel/cmdline"),
+                "root=UUID=x rootflags=subvol=/@ rw\n".to_string()
+            )]
+        );
+        assert_eq!(
+            cmds[0].line(),
+            r#"chroot /t /usr/bin/bash -c "for k in /usr/lib/modules/*/vmlinuz; do v=${k%/vmlinuz}; kernel-install add \"${v##*/}\" \"$k\"; done""#
+        );
+        assert_eq!(base.kernel_files(), None);
+        assert_eq!(
+            base.relabel(Path::new("/t"), Path::new(""))[0].line(),
+            "setfiles -r /t -e /t/boot -e /t/proc -e /t/sys -e /t/dev -e /t/run /t/etc/selinux/targeted/contexts/files/file_contexts \
+             /t /t/home /t/root /t/srv /t/var/cache /t/var/tmp /t/var/log /t/swap /t/var/lib/flatpak /t/var/lib/libvirt/images \
+             /t/var/lib/containers /t/var/lib/docker"
+        );
+        assert!(
+            base.relabel(Path::new("/t"), Path::new("etc"))[0]
+                .line()
+                .ends_with("file_contexts /t/etc")
+        );
     }
 }

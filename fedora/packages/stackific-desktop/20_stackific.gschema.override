@@ -1,0 +1,12 @@
+# Stackific OS (stackific-desktop): GNOME starts with our wallpaper, Dahl's "An Eruption of Vesuvius", as Noctalia does,
+# and its dash lists the installer first. GNOME skips a favourite whose app is missing (installed systems have no
+# installer). Above Fedora's own overrides (10_).
+[org.gnome.desktop.background]
+picture-uri='file:///usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg'
+picture-uri-dark='file:///usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg'
+
+[org.gnome.desktop.screensaver]
+picture-uri='file:///usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg'
+
+[org.gnome.shell]
+favorite-apps=['stackific-installer.desktop', 'org.gnome.Nautilus.desktop', 'org.gnome.Ptyxis.desktop']

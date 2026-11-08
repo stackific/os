@@ -66,11 +66,13 @@ Each image has a second desktop: KDE Plasma on the images based on Arch Linux an
 
 ## Install it
 
-Builds after 0.1.0 have an installer on the `-arch-x86_64.iso`: "Install Stackific OS" in the app launcher, and in the boot menu next to "Try Stackific OS". It installs into a drive's free space, next to what is there, or onto a whole drive, which it erases.
+Builds after 0.1.0 have an installer on both x86_64 ISOs, `-arch-x86_64.iso` and `-fedora-x86_64.iso`: "Install Stackific OS" in the app launcher, first in GNOME's dash on the Fedora Remix image, and in the boot menu next to "Try Stackific OS". It installs into a drive's free space, next to what is there, or onto a whole drive, which it erases. The aarch64 ISOs get it later.
 
-1. Open "Install Stackific OS" and follow its screens.
+1. Open "Install Stackific OS" and follow its screens. It first asks to authenticate as an administrator. `live` has no password: in MangoWM, press Enter at the empty password prompt; in GNOME, choose Authenticate.
 2. At the end, remove the USB stick and restart the computer.
 3. The computer starts Stackific OS: its boot menu shows "Stackific OS" for 3 seconds, then the login screen. Log in as the user you made.
+
+On the Fedora Remix image, the installed system updates with `sudo dnf upgrade`. Each kernel update adds an entry to the boot menu: the newest kernel is "Stackific OS", and the two before it are listed below it by version, to start when the newest has a problem.
 
 If the computer starts something else, open the firmware's boot menu (often F12, F11, F8 or Esc at power-on) and pick "Stackific OS". The installer puts it first in the firmware's boot order, but a large Windows update can put Windows first again.
 

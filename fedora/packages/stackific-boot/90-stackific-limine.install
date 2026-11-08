@@ -1,0 +1,44 @@
+#!/usr/bin/env bash
+# Stackific OS (stackific-boot): keeps Limine's menu on our EFI System Partition current when kernel-install adds or
+# removes a kernel (kernel-install(8): `add KVER ENTRY_DIR KERNEL [INITRD...]`, `remove KVER ENTRY_DIR`). Fedora's
+# 50-dracut.install has written /boot/initramfs-KVER.img by then. This copies the kernel next to it and writes
+# limine.conf with one entry per kernel on the ESP, newest first, with the command line from /etc/kernel/cmdline.
+# Glue, because Limine reads no Boot Loader Spec entries and no Fedora or Terra package writes Limine entries.
+# It does nothing on a system the installer did not set up (the live image, or its build): no /etc/kernel/cmdline or no
+# Limine on the ESP.
+set -euo pipefail
+
+command=$1 version=$2
+boot=${KERNEL_INSTALL_BOOT_ROOT:-/boot}
+[ -f /etc/kernel/cmdline ] && [ -d "$boot/EFI/limine" ] || exit 0
+
+case $command in
+  add)
+    install -m 0644 "$4" "$boot/vmlinuz-$version"
+    # dracut builds nothing when kernel-install is given an initrd; then that one is the kernel's
+    if [ ! -e "$boot/initramfs-$version.img" ] && [ -n "${5:-}" ]; then
+      install -m 0644 "$5" "$boot/initramfs-$version.img"
+    fi
+    ;;
+  remove) rm -f "$boot/vmlinuz-$version" "$boot/symvers-$version.xz" ;;
+  *) exit 0 ;;
+esac
+
+# shellcheck source=/dev/null disable=SC2153 # NAME comes from os-release
+name=$(. /etc/os-release && echo "$NAME")
+cmdline=$(<"/etc/kernel/cmdline")
+conf="$boot/limine.conf"
+{
+  printf 'timeout: 3\ninterface_branding: %s\n' "$name"
+  first=1
+  for kernel in $(find "$boot" -maxdepth 1 -name 'vmlinuz-*' -printf '%f\n' | sed 's/^vmlinuz-//' | sort -rV); do
+    [ "$command" = remove ] && [ "$kernel" = "$version" ] && continue
+    [ -e "$boot/initramfs-$kernel.img" ] || continue
+    title=$name
+    [ "$first" = 1 ] || title="$name ($kernel)"
+    first=0
+    printf '\n/%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: %s\n' \
+      "$title" "$kernel" "$kernel" "$cmdline"
+  done
+} >"$conf.new"
+mv "$conf.new" "$conf"

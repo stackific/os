@@ -61,16 +61,18 @@ pub fn mango_path(target: &Path, user: &str) -> PathBuf {
         .join(".config/mango/config.conf")
 }
 
-/// The commands that replace the live user `live` with ours, an administrator through `wheel`, and lock root.
-/// `live` goes first, so our user gets its uid 1000. The password reaches chpasswd on stdin only.
-pub fn user(target: &Path, a: &Answers) -> Vec<Cmd> {
+/// The commands that replace the live user `live` with ours, an administrator through `wheel`, and lock root: first the
+/// accounts, then the passwords, so a base can relabel the account files in between (`Base::relabel`). `live` goes
+/// first, so our user gets its uid 1000. The password reaches chpasswd on stdin only, hashed with yescrypt.
+pub fn user(target: &Path, a: &Answers) -> (Vec<Cmd>, Vec<Cmd>) {
     let root = target.to_string_lossy().to_string();
     let u = &a.user;
-    vec![
+    let accounts = vec![
         Cmd::new("userdel").args(["--root", &root, "--remove", "live"]),
-        Cmd::new("useradd").args([
-            "--root",
-            &root,
+        // In a chroot rather than with --root: Fedora's useradd copies /etc/skel only that way
+        Cmd::new("chroot").args([
+            &*root,
+            "useradd",
             "--create-home",
             "--groups",
             "wheel",
@@ -80,11 +82,16 @@ pub fn user(target: &Path, a: &Answers) -> Vec<Cmd> {
             "/usr/bin/bash",
             &u.name,
         ]),
+    ];
+    let passwords = vec![
+        // An explicit method makes chpasswd hash with libxcrypt itself rather than through PAM, whose pam_unix fails
+        // under --root on Fedora (SELinux runs its unix_update helper); yescrypt is both bases' default anyway
         Cmd::new("chpasswd")
-            .args(["--root", &root])
+            .args(["--root", &root, "--crypt-method", "YESCRYPT"])
             .stdin(format!("{}:{}\n", u.name, u.password)),
         Cmd::new("usermod").args(["--root", &root, "--lock", "root"]),
-    ]
+    ];
+    (accounts, passwords)
 }
 
 /// A user's uid and gid from a passwd file.

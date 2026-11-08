@@ -29,7 +29,7 @@ changed before sha:
   declare -A paths=(
     [arch_x86_64]="$arch arch/iso/packages.x86_64 installer/ tests/vm/install.sh tests/vm/installed.sh tests/vm/arch-x86_64.sh"
     [arch_aarch64]="$arch arch/iso/packages.aarch64 tests/vm/arch-aarch64.sh"
-    [fedora_x86_64]="$fedora tests/vm/fedora-x86_64.sh"
+    [fedora_x86_64]="$fedora installer/ tests/vm/install.sh tests/vm/installed.sh tests/vm/fedora-x86_64.sh"
     [fedora_aarch64]="$fedora tests/vm/fedora-aarch64.sh"
   )
   any=false

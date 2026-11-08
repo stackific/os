@@ -269,7 +269,7 @@ fn navigation_keeps_answers_and_shows_next_only_when_valid() {
         "mkfs",
         "mount",
         "rsync",
-        "useradd",
+        "chroot",
     ];
     assert!(
         f.state()

@@ -1,4 +1,4 @@
-**Live preview.** Each ISO boots from a USB stick to MangoWM, with a second desktop to switch to. The live session writes nothing to your disks, and changes are gone after a reboot. Builds after 0.1.0 have an early installer on the `-arch-x86_64.iso` ("Install Stackific OS", in the app launcher and the boot menu); the drive it installs to starts on its own.
+**Live preview.** Each ISO boots from a USB stick to MangoWM, with a second desktop to switch to. The live session writes nothing to your disks, and changes are gone after a reboot. Builds after 0.1.0 have an early installer on both x86_64 ISOs, `-arch-x86_64.iso` and `-fedora-x86_64.iso` ("Install Stackific OS", in the app launcher and the boot menu); the drive it installs to starts on its own.
 
 **Unsigned.** `SHA256SUMS` shows that a download is intact, not who built it. Signed releases come later. Check an ISO in the folder that holds it and `SHA256SUMS`:
 

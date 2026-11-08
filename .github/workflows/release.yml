@@ -71,6 +71,7 @@ jobs:
           just-version: 1.59.0
       - run: just fedora iso "$VERSION"
       - run: just fedora test "$VERSION"
+      - run: just fedora test-install "$VERSION"
       - run: just release upload "$VERSION" fedora x86_64
         env:
           GH_TOKEN: ${{ github.token }}

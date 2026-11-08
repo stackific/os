@@ -1,12 +1,16 @@
 # shellcheck shell=bash
 # Install checks, for any base: boot.sh sources this file with STACKIFIC_TEST_DISK attached as /dev/vda, a blank
-# 64 GiB raw image (`just arch test-install`). In one boot: the console path, then unattended installs: a wrong erase
+# 64 GiB raw image (`just arch test-install`, `just fedora test-install`). In one boot: the console path, then unattended
+# installs: a wrong erase
 # confirmation, an erase, a Windows-like table with a BitLocker refusal, and an install into its free space. Each
 # installed system is checked on its partitions. Leaves <out-dir>/esp-offset (the free-space install's ESP, in bytes)
 # for the host's FAT check, <out-dir>/windows-like.dump and installer-console.png.
 # shellcheck disable=SC2154 # out, vm, vm_until, fail, screenshot and sendkey come from boot.sh, which sources this file
 
 password='stackific-test-password'
+# The base, for the few checks that differ: package queries, the kernel's file names, the live image's state
+# shellcheck disable=SC2016 # $ID_LIKE belongs to the guest shell
+like=$(vm '. /etc/os-release && echo "$ID_LIKE"' | tr -d '\r\n')
 
 # Write the unattended answers to /tmp/<name>.toml in the guest: mode, and for an erase the typed confirmation
 answers() {
@@ -62,9 +66,18 @@ installed_checks() {
   vm_until "grep -c '^UUID=$uuid_sys .* btrfs subvol=/@[a-z]*,noatime,compress=zstd:1 0 0\$' $r/etc/fstab" '^12$' 0
   vm_until "grep -cx 'UUID=$uuid_esp /boot vfat umask=0077 0 2' $r/etc/fstab" '^1$' 0
   vm_until "grep -cx 'ID=stackific' $r/etc/os-release" '^1$' 0
-  local db=$r/var/lib/pacman/local
-  vm_until "echo \$(ls -d $db/stackific-release-* | wc -l)/\$(ls -d $db/stackific-installer-* 2>/dev/null | wc -l)" '^1/0$' 0
-  vm_until "test ! -e $r/usr/share/applications/stackific-installer.desktop && cat $r/etc/machine-id" '^uninitialized$' 0
+  # The installer and its launcher are gone; the machine ID is set on first boot (kiwi leaves the file empty)
+  if [ "$like" = fedora ]; then
+    vm_until "rpm --root=$r -q stackific-release stackific-installer | paste -sd ' '" \
+      '^stackific-release-[^ ]+ package stackific-installer is not installed$' 0
+    vm_until "rpm --root=$r -qa 'grub2*' | wc -l" '^0$' 0
+    vm_until "test ! -e $r/usr/share/applications/stackific-installer.desktop && wc -c <$r/etc/machine-id" '^0$' 0
+    vm_until "cat $r/etc/kernel/cmdline" "^root=UUID=$uuid_sys rootflags=subvol=/@ rw\$" 0
+  else
+    local db=$r/var/lib/pacman/local
+    vm_until "echo \$(ls -d $db/stackific-release-* | wc -l)/\$(ls -d $db/stackific-installer-* 2>/dev/null | wc -l)" '^1/0$' 0
+    vm_until "test ! -e $r/usr/share/applications/stackific-installer.desktop && cat $r/etc/machine-id" '^uninitialized$' 0
+  fi
   # The user, an administrator through wheel, with a yescrypt hash; root locked
   vm_until "grep -cx 'tester:x:1000:1000:Test User:/home/tester:/usr/bin/bash' $r/etc/passwd" '^1$' 0
   vm_until "grep -E '^wheel:' $r/etc/group | cut -d: -f4 | tr , '\\n' | grep -cx tester" '^1$' 0
@@ -78,7 +91,7 @@ installed_checks() {
   vm_until "readlink $r/etc/localtime" '^\.\./usr/share/zoneinfo/Europe/Berlin$' 0
   vm_until "grep -cx 'KEYMAP=de' $r/etc/vconsole.conf" '^1$' 0
   vm_until "grep -cx '        Option \"XkbLayout\" \"de\"' $r/etc/X11/xorg.conf.d/00-keyboard.conf" '^1$' 0
-  vm_until "grep -cx 'LANG=C.UTF-8' $r/etc/locale.conf" '^1$' 0
+  vm_until "cmp $r/etc/locale.conf /etc/locale.conf && echo same" '^same$' 0
   # No live state: no user `live`, no home, no sysusers line, no archiso drop-in, no autologin
   vm_until "cat $r/etc/passwd $r/etc/shadow $r/etc/group | grep -cE '(^|[:,])live(:|,|\$)'" '^0$' 0
   vm_until "test ! -e $h/live -a ! -e $r/etc/sysusers.d/stackific-live.conf -a ! -e $r/etc/mkinitcpio.conf.d/archiso.conf && echo ok" \
@@ -87,7 +100,13 @@ installed_checks() {
   vm_until "grep -A2 '^\\[default_session\\]' $r/etc/greetd/config.toml | grep -cx 'command = \"/usr/bin/noctalia-greeter-session\"'" '^1$' 0
   # The ESP: the kernel, its initramfs, Limine's program at both paths, and limine.conf with this install's root
   vm "mkdir -p /mnt/e && mount -o ro $esp /mnt/e" >/dev/null
-  vm_until 'cd /mnt/e && ls -d vmlinuz-linux initramfs-linux.img limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l' \
+  local kernel=vmlinuz-linux initramfs=initramfs-linux.img
+  if [ "$like" = fedora ]; then
+    local version
+    version=$(vm "ls $r/usr/lib/modules" | tr -d '\r\n')
+    kernel=vmlinuz-$version initramfs=initramfs-$version.img
+  fi
+  vm_until "cd /mnt/e && ls -d $kernel $initramfs limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l" \
     '^5$' 0
   vm_until "cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/limine/BOOTX64.EFI && cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/BOOT/BOOTX64.EFI && echo same" \
     '^same$' 0

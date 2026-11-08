@@ -1,6 +1,6 @@
 # shellcheck shell=bash
 # Fedora checks, the same on x86_64 and aarch64: boot.sh sources this file after the checks every image passes
-# (`just fedora test`).
+# (`just fedora test`; on x86_64 through tests/vm/fedora-x86_64.sh).
 
 # Identity: stackific-release owns /usr/lib/os-release, which generic-release-common's /etc/os-release links to, and no
 # Fedora release or logo package is in the image (Fedora's trademark guidelines)
@@ -12,9 +12,11 @@ vm_until "rpm -qf --qf '%{name}\n' /etc/os-release /usr/lib/os-release | paste -
   '^generic-release-common stackific-release$' 0
 vm_until "rpm -qa 'fedora-release*' 'fedora-logos*' fedora-release-notes | wc -l" '^0$' 0
 vm_until "grep -c 'fill=\"#007a55\"' /usr/share/icons/hicolor/scalable/apps/stackific.svg" '^1$' 0
-# Terra supplies only what fedora/iso/terra-repo.sh allows
-vm_until "rpm -qa --qf '%{vendor} %{name}\n' | awk '\$1 == \"Terra\" {print \$2}' | sort | paste -sd ' '" \
+# Terra supplies only what fedora/iso/terra-repo.sh allows (limine only on x86_64, fedora-x86_64.sh)
+vm_until "rpm -qa --qf '%{vendor} %{name}\n' | awk '\$1 == \"Terra\" && \$2 != \"limine\" {print \$2}' | sort | paste -sd ' '" \
   '^mangowm noctalia-greeter$' 0
+# dnf5, so installed systems can update
+vm_until 'rpm -q dnf5' '^dnf5-' 0
 vm_until 'getenforce' '^Enforcing$' 0
 
 # The live session: greetd, not gdm, is the display manager; it logs `live` into MangoWM, which starts Noctalia through
@@ -28,6 +30,14 @@ vm_until 'runuser -u live -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user
 vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
 vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/wayland-sessions/gnome.desktop && echo ok' \
   '^ok$' 0
+
+# GNOME's defaults (stackific-desktop): our wallpaper, light and dark and on the lock screen, and the installer first in
+# its dash (GNOME skips it where the installer is missing, as on aarch64 and installed systems)
+vesuvius="'file:///usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg'"
+for key in 'desktop.background picture-uri' 'desktop.background picture-uri-dark' 'desktop.screensaver picture-uri'; do
+  vm_until "runuser -u live -- gsettings get org.gnome.${key% *} ${key#* }" "^$vesuvius\$" 0
+done
+vm_until 'runuser -u live -- gsettings get org.gnome.shell favorite-apps' "^\\['stackific-installer.desktop', " 0
 
 # Artwork and defaults: the shipped wallpapers, Noctalia's defaults through the /etc/skel include, fastfetch's logo
 vm_until 'ls /usr/share/backgrounds/stackific/*.jpg | wc -l' '^10$' 0

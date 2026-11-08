@@ -7,7 +7,9 @@ use crate::run::Cmd;
 
 /// `rsync -aHAXx --numeric-ids --info=progress2` from the live root to the target. `--no-inc-recursive` makes rsync
 /// count every file first, so progress2's percentage is of the whole copy and only grows. `/boot` is left out: it is
-/// empty in the live root (mkarchiso empties it) and is the FAT ESP here, which cannot take owners, ACLs or xattrs.
+/// empty in the live root (mkarchiso empties it) and is the FAT ESP here, which cannot take owners, ACLs or xattrs. So is
+/// what `/dev` holds: device nodes an image build left (kiwi's), unlabelled, so under SELinux rsync may not strip the
+/// label their copies get; the running system mounts devtmpfs over `/dev`.
 pub fn rsync(live_root: &Path, target: &Path) -> Cmd {
     Cmd::new("rsync")
         .args([
@@ -16,6 +18,7 @@ pub fn rsync(live_root: &Path, target: &Path) -> Cmd {
             "--info=progress2",
             "--no-inc-recursive",
             "--exclude=/boot/",
+            "--exclude=/dev/*",
         ])
         .args([
             format!("{}/", live_root.display()),
@@ -42,7 +45,7 @@ mod tests {
         );
         assert_eq!(
             c.line(),
-            "rsync -aHAXx --numeric-ids --info=progress2 --no-inc-recursive --exclude=/boot/ /run/archiso/airootfs/ /run/stackific-installer/target/"
+            "rsync -aHAXx --numeric-ids --info=progress2 --no-inc-recursive --exclude=/boot/ --exclude=/dev/* /run/archiso/airootfs/ /run/stackific-installer/target/"
         );
         assert_eq!(
             percent("  1,234,567  52%   10.00MB/s    0:00:10 (xfr#12, to-chk=3/9)"),

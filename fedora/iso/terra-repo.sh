@@ -7,4 +7,4 @@
 # package signature check uses the same key, imported into the image's rpmdb from config.kiwi's <signing>.
 set -euo pipefail
 
-printf 'includepkgs=mangowm,noctalia-greeter\ngpgkey=file:///desc/terra-45.asc\n' >>"$1"
+printf 'includepkgs=mangowm,noctalia-greeter,limine\ngpgkey=file:///desc/terra-45.asc\n' >>"$1"
