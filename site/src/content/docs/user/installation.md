@@ -84,6 +84,8 @@ Every install encrypts the Stackific OS partition (LUKS2), and your password unl
 
 On the Fedora Remix image, the installed system updates with `sudo dnf upgrade`. Each kernel update adds an entry to the boot menu: the newest kernel is "Stackific OS", and the two before it are listed below it by version, to start when the newest has a problem.
 
+Apps that store passwords, such as browsers and git, keep them in your keyring (oo7, the Secret Service), which your login password unlocks when you log in. If you change your password later with `passwd`, the keyring keeps the old one, and apps may then ask you for it.
+
 If the computer starts something else, open the firmware's boot menu (often F12, F11, F8 or Esc at power-on) and pick "Stackific OS". The installer puts it first in the firmware's boot order, but a large Windows update can put Windows first again; [Next to Windows](/docs/user/windows/#putting-stackific-os-first-again) says how to change it back.
 
 ## Limits of this preview

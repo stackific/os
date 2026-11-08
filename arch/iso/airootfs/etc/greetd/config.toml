@@ -1,6 +1,9 @@
 # greetd on the live image only: the first session after boot logs the user `live` into MangoWM with no prompt.
 # After a logout, noctalia-greeter is the login screen, where Plasma is the other session (empty password for `live`).
-# See greetd(5).
+# Logins use stackific-desktop's PAM service, greetd's lines plus oo7's, which unlocks the keyring. See greetd(5).
+[general]
+service = "stackific-greetd"
+
 [terminal]
 vt = 1
 

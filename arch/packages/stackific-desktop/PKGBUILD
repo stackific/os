@@ -5,24 +5,27 @@
 # its logo from the asset folder that stackific-greeter.sh names: ours, with stackific-release's icon and its own fonts.
 # Plasma, Arch's second desktop, gets our wallpaper through our look-and-feel package (Breeze with our wallpaper), which
 # /etc/xdg/kdeglobals selects; Plasma's own defaults would show its wallpaper. Fedora's GNOME gets its own later.
+# The Secret Service in every session (task 017): oo7-daemon starts with each user's systemd manager, and greetd's PAM
+# service stackific-greetd (Arch-only, next to this file) unlocks its keyring with the login password.
 # shellcheck disable=SC2034,SC2154
 
 pkgname=stackific-desktop
 pkgver=0.2.0
-pkgrel=3
+pkgrel=4
 pkgdesc='Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter and Plasma show our look, and MangoWM also starts on software rendering'
 arch=('any')
 url='https://os.stackific.com'
 license=('Apache-2.0')
-depends=('mangowm' 'noctalia' 'noctalia-greeter' 'systemd' 'stackific-artwork' 'stackific-release')
+depends=('mangowm' 'noctalia' 'noctalia-greeter' 'oo7' 'systemd' 'stackific-artwork' 'stackific-release')
 makedepends=('gettext')
 options=('!debug' '!strip')
 backup=('etc/profile.d/stackific-wlroots.sh' 'etc/profile.d/stackific-greeter.sh'
-        'etc/skel/.config/noctalia/00-stackific.toml' 'etc/xdg/kdeglobals')
+        'etc/skel/.config/noctalia/00-stackific.toml' 'etc/xdg/kdeglobals' 'etc/pam.d/stackific-greetd')
 source=('stackific-noctalia.service' 'stackific-wlroots.sh' 'stackific-noctalia.toml' '00-stackific.toml'
         'branding.env' 'stackific-greeter.toml.in' 'stackific-greeter.conf' 'stackific-greeter.sh'
-        'stackific-wallpaper.json.in' 'stackific-lookandfeel.json.in' 'stackific-lookandfeel-defaults.in' 'kdeglobals.in')
-sha256sums=('d3bdf2b78fb86bdb7b57c3928640d72275165055c66b5da7d8f1b02bb83af0a5'
+        'stackific-wallpaper.json.in' 'stackific-lookandfeel.json.in' 'stackific-lookandfeel-defaults.in' 'kdeglobals.in'
+        'stackific-greetd.pam')
+sha256sums=('b8e90cb80b1bd6a2348cf0670e7ee094bb1f79f17d76357033c2241f2bc76755'
             'a4f8c72e11c79d753efe80780d5efbc9778be340bd51b3b81fecf0b4c0c71171'
             'ff9b3e4f951d97e9f2d2c3168bf7a6938c698e377f9d0c546fc1fe996a6fb2bb'
             'cbf51e8ce45ed3089c768646c3232736799732a659111d9c8820d1e03b195503'
@@ -33,7 +36,8 @@ sha256sums=('d3bdf2b78fb86bdb7b57c3928640d72275165055c66b5da7d8f1b02bb83af0a5'
             '9fb93b21d45f4765ac5d8bd95dd3b7c4fdd37b646a3c52f6c6328e7b348b5112'
             'f6334b3b058be1dc8f6e27c22327203836dcfe0cd3a08ec7dd305d6d74b58034'
             '635006f6e399b60510c3f61ce237cdfe3294e10f63a8f43366825d38eb14de41'
-            '513ed81824eec9bc3cc5f771759d013be2997b042c361060add253026686c288')
+            '513ed81824eec9bc3cc5f771759d013be2997b042c361060add253026686c288'
+            '168234e21b61f8e01c244f0a9f7d2b2c37a0e60bd2ed8d91b411fc22cd0d86d6')
 
 # Render the greeter's defaults with the accent, and Plasma's look and feel with the name, ID and site, from branding.env
 build() {
@@ -75,4 +79,8 @@ package() {
   install -Dm644 stackific-lookandfeel.json "$laf/metadata.json"
   install -Dm644 stackific-lookandfeel-defaults "$laf/contents/defaults"
   install -Dm644 kdeglobals "$pkgdir/etc/xdg/kdeglobals"
+  # The Secret Service: oo7-daemon wanted by every user's manager, and greetd's PAM service that unlocks it
+  install -d "$pkgdir/usr/lib/systemd/user/default.target.wants"
+  ln -s ../oo7-daemon.service "$pkgdir/usr/lib/systemd/user/default.target.wants/oo7-daemon.service"
+  install -Dm644 stackific-greetd.pam "$pkgdir/etc/pam.d/stackific-greetd"
 }

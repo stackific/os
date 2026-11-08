@@ -5,11 +5,12 @@
 # and takes its logo from the asset folder that stackific-greeter.sh names: ours, with stackific-release's icon.
 # GNOME, the second desktop on Fedora, takes our wallpaper and dash from a gschema override, which sits next to this
 # spec because it is Fedora-only (Plasma's counterpart is in the Arch package). mangowm comes from Terra at install
-# time; nothing here needs it to build.
+# time; nothing here needs it to build. The Secret Service in every session (task 017): oo7-daemon starts with each
+# user's systemd manager, and greetd's own PAM file already calls pam_oo7, which unlocks its keyring at login.
 
 Name: stackific-desktop
 Version: 0.2.0
-Release: 3%{?dist}
+Release: 4%{?dist}
 Summary: Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter shows our look
 License: Apache-2.0
 URL: https://os.stackific.com
@@ -29,6 +30,8 @@ BuildRequires: systemd-rpm-macros
 Requires: mangowm
 Requires: noctalia
 Requires: noctalia-greeter
+Requires: oo7-daemon
+Requires: pam_oo7
 Requires: systemd
 Requires: stackific-artwork
 Requires: stackific-release
@@ -36,7 +39,8 @@ Requires: stackific-release
 %description
 Starts Noctalia in MangoWM sessions through a user unit wanted by mango-session.target, lets wlroots compositors start
 on software rendering, and ships Noctalia's Stackific OS defaults with the per-user file that includes them, and
-noctalia-greeter's defaults (our logo, palette and wallpaper), and GNOME's wallpaper and dash.
+noctalia-greeter's defaults (our logo, palette and wallpaper), GNOME's wallpaper and dash, and starts oo7, the Secret
+Service, for every user.
 
 %build
 # Render the greeter's defaults with the accent from branding.env
@@ -63,6 +67,9 @@ ln -s %{_datadir}/icons/hicolor/scalable/apps/stackific.svg %{buildroot}%{_datad
 ln -s %{_datadir}/noctalia-greeter/assets/fonts %{buildroot}%{_datadir}/stackific/greeter-assets/fonts
 # GNOME's defaults; glib2's file trigger compiles the schemas
 install -Dm644 -t %{buildroot}%{_datadir}/glib-2.0/schemas %{SOURCE8}
+# The Secret Service: oo7-daemon wanted by every user's manager (Fedora's own preset is not in our images)
+install -d %{buildroot}%{_prefix}/lib/systemd/user/default.target.wants
+ln -s ../oo7-daemon.service %{buildroot}%{_prefix}/lib/systemd/user/default.target.wants/oo7-daemon.service
 
 %files
 %{_prefix}/lib/systemd/user/stackific-noctalia.service
@@ -81,3 +88,4 @@ install -Dm644 -t %{buildroot}%{_datadir}/glib-2.0/schemas %{SOURCE8}
 %dir %{_sysconfdir}/skel/.config/noctalia
 %config(noreplace) %{_sysconfdir}/skel/.config/noctalia/00-stackific.toml
 %{_datadir}/glib-2.0/schemas/20_stackific.gschema.override
+%{_prefix}/lib/systemd/user/default.target.wants/oo7-daemon.service

@@ -27,6 +27,9 @@ vm_until 'readlink /etc/systemd/system/display-manager.service' '^/usr/lib/syste
 # SELinux policy denies them (silently, through dontaudit rules)
 vm_until 'runuser -u live -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user is-active stackific-noctalia.service' \
   '^active$' 120
+# The Secret Service: oo7-daemon, started by live's systemd manager (stackific-desktop), owns org.freedesktop.secrets
+vm_until "runuser -u live -- env DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus busctl --user status org.freedesktop.secrets | grep -E '^Comm='" \
+  '^Comm=oo7-daemon$' 60
 vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
 vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/wayland-sessions/gnome.desktop && echo ok' \
   '^ok$' 0

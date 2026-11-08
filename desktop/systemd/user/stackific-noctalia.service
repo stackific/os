@@ -11,6 +11,9 @@ After=graphical-session.target
 [Service]
 ExecStart=/usr/bin/noctalia
 Restart=on-failure
+# Noctalia can hang on SIGTERM while a Secret Service prompt it asked for is pending (a session with no password,
+# whose keyring stays locked: the live user); without this, logout and shutdown wait systemd's 90 s for it
+TimeoutStopSec=5s
 
 [Install]
 WantedBy=mango-session.target
