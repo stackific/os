@@ -136,6 +136,18 @@ fi
 # layout; Plasma takes localed's X11 layout while the user has no kxkbrc layout, and GNOME while the user has no input
 # sources.
 uid=$(vm 'id -u tester' | tr -d '\r\n')
+# Run a command as tester on tester's session bus
+as_tester() { printf 'runuser -u tester -- env DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/%s/bus %s' "$uid" "$1"; }
+# The Secret Service after a login through the greeter with the password: oo7-daemon owns the name, pam_oo7 unlocked
+# (or made) the login keyring with the password, and a secret stored with secret-tool reads back, with no prompt
+secrets() {
+  vm_until "$(as_tester 'busctl --user status org.freedesktop.secrets') | grep -E '^Comm='" '^Comm=oo7-daemon$' 60
+  vm_until "$(as_tester "sh -c 'printf stackific-secret | timeout 20 secret-tool store --label=test stackific test && timeout 20 secret-tool lookup stackific test'")" \
+    '^stackific-secret$' 0
+  # (oo7 0.7, Fedora's, keeps it under keyrings/v1/)
+  vm_until 'find /home/tester/.local/share/keyrings -name "*.keyring"' '\.keyring$' 0
+  echo "ok: the keyring is unlocked at login and keeps a secret"
+}
 session() {
   vm "printf '\\n[initial_session]\\ncommand = \"%s\"\\nuser = \"tester\"\\n' '$1' >>/etc/greetd/config.toml \
     && loginctl terminate-user tester 2>/dev/null; rm -f /run/greetd.run && systemctl restart greetd" >/dev/null
@@ -155,12 +167,24 @@ if [ "$like" = fedora ]; then
   vm_until 'pgrep -u tester -x gnome-shell' '^[0-9]+$' 180
   vm_until "runuser -u tester -- gsettings get org.gnome.desktop.input-sources sources" "^\\[\\('xkb', 'de'\\)\\]\$" 60
   echo "ok: MangoWM and GNOME start with the installer's layout"
+  secrets
 else
   session '/usr/lib/plasma-dbus-run-session-if-needed /usr/bin/startplasma-wayland'
   vm_until 'pgrep -u tester -x plasmashell' '^[0-9]+$' 180
   vm_until "runuser -u tester -- env DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/$uid/bus busctl --user call org.kde.keyboard /Layouts org.kde.KeyboardLayouts getLayoutsList" \
     '^a\(sss\) [0-9]+ "de"' 60
   echo "ok: MangoWM and Plasma start with the installer's layout"
+  # oo7, not KWallet's ksecretd, is the Secret Service in Plasma too
+  vm_until "$(as_tester 'busctl --user status org.freedesktop.secrets') | grep -E '^Comm='" '^Comm=oo7-daemon$' 60
+  # A login through the greeter with a password (stackific-greetd's pam_oo7 gets it), letters the US and German
+  # layouts type alike, into the greeter's first session
+  vm "sed -i '/^\\[initial_session\\]/,\$d' /etc/greetd/config.toml && printf 'tester:stackific\\n' | chpasswd \
+    && loginctl terminate-user tester; systemctl restart greetd" >/dev/null
+  vm_until "pgrep -u greeter -f '^/usr/bin/noctalia-greeter( |\$)'" '^[0-9]+$' 60
+  sleep 15 # the greeter draws a few seconds after it starts, on the VM's software renderer
+  sendkey s t a c k i f i c ret
+  vm_until 'pgrep -u tester -x "mango|plasmashell"' '^[0-9]+$' 180
+  secrets
 fi
 
 # Limine's Windows entries start the fake Windows: a limine.conf beside its loader (Limine looks in its program's

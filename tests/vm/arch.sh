@@ -16,6 +16,9 @@ vm_until "grep -c 'fill=\"#007a55\"' /usr/share/icons/hicolor/scalable/apps/stac
 vm_until 'systemctl is-active greetd' '^active$' 0
 vm_until 'systemctl --user -M live@ is-active stackific-noctalia.service' '^active$' 120
 vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
+# The Secret Service: oo7-daemon, started by live's systemd manager (stackific-desktop), owns org.freedesktop.secrets
+vm_until "runuser -u live -- env DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus busctl --user status org.freedesktop.secrets | grep -E '^Comm='" \
+  '^Comm=oo7-daemon$' 60
 vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/wayland-sessions/plasma.desktop && echo ok' \
   '^ok$' 0
 
