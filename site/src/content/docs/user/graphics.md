@@ -5,12 +5,12 @@ sidebar:
   order: 4
 ---
 
-Stackific OS picks the graphics driver every time it starts, live and installed, so there is nothing to choose or install. Today this covers the Arch Linux x86_64 image; the other images follow.
+Stackific OS picks the graphics driver every time it starts, live and installed, so there is nothing to choose or install. Today this covers the two x86_64 images; the aarch64 images follow.
 
 | Graphics card                                                         | Driver                                                                                                                         |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
 | AMD and Intel                                                         | The open drivers in the kernel, with Mesa.                                                                                     |
-| NVIDIA GeForce GTX 16, RTX 20 and newer (Turing and later)            | NVIDIA's open kernel modules, already in the image for both kernels. No download and no compiling.                             |
+| NVIDIA GeForce GTX 16, RTX 20 and newer (Turing and later)            | NVIDIA's open kernel modules, already in the image (on the Arch Linux image for both kernels). No download and no compiling.   |
 | NVIDIA GeForce GTX 10 and older (Pascal, Maxwell, Volta, and earlier) | nouveau, the open driver in the kernel. NVIDIA's current driver no longer supports these cards. 2D and video work; 3D is slow. |
 
 Laptops with two GPUs get the right driver for each of them.
@@ -26,8 +26,12 @@ animation_duration_close=800
 
 If you move your disk to a computer with a different graphics card, Stackific OS picks the right driver at the next start.
 
+## After a kernel update on the Fedora Remix image
+
+On the Fedora Remix image, NVIDIA's driver is built for the kernel the image ships. Until Stackific OS's own package repositories are online, a kernel update brings no matching NVIDIA module: the new kernel then starts with nouveau, which runs GTX 16, RTX 20 and newer cards at full clock speed but slower in 3D. To use NVIDIA's driver, pick the previous kernel, "Stackific OS (<version>)", in the boot menu.
+
 ## The LTS kernel
 
-Installed systems carry two kernels: the current Linux kernel, which starts by default, and the long-term support (LTS) kernel, which changes less often. If the system stops starting after an update, pick "Stackific OS (LTS kernel)" in the boot menu, which shows for three seconds at power-on. Both kernels have the NVIDIA driver. The LTS kernel is older, so very new hardware may work only with the default kernel.
+On the Arch Linux image, installed systems carry two kernels: the current Linux kernel, which starts by default, and the long-term support (LTS) kernel, which changes less often. If the system stops starting after an update, pick "Stackific OS (LTS kernel)" in the boot menu, which shows for three seconds at power-on. Both kernels have the NVIDIA driver. The LTS kernel is older, so very new hardware may work only with the default kernel.
 
-The screen that asks for the disk's password uses the firmware's display mode on this image; the graphics driver starts after the disk is unlocked.
+On the Arch Linux image, and with NVIDIA graphics on the Fedora Remix image, the screen that asks for the disk's password uses the firmware's display mode; the graphics driver starts after the disk is unlocked.

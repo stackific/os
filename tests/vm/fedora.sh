@@ -32,6 +32,11 @@ vm_until 'runuser -u live -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user
 vm_until "runuser -u live -- env DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus busctl --user status org.freedesktop.secrets | grep -E '^Comm='" \
   '^Comm=oo7-daemon$' 60
 vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
+# live's MangoWM config (fedora/iso/config.sh): the stock config, stackific-hardware's lighter effects where present,
+# and Super+Space for the shell's launcher, as on the Arch image
+f=/home/live/.config/mango/config.conf
+vm_until "{ stat -c %U $f; grep -cx -e 'source=/etc/mango/config.conf' -e 'source_optional=/run/stackific/mango-gpu.conf' \
+-e 'bind=SUPER,space,spawn,noctalia msg panel-toggle launcher' $f; } | paste -sd ' '" '^live 3$' 0
 vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/wayland-sessions/gnome.desktop && echo ok' \
   '^ok$' 0
 
