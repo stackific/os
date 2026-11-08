@@ -46,6 +46,22 @@
       <signing key="file:///desc/terra-45.asc"/>
     </source>
   </repository>
+  <!-- RPM Fusion nonfree supplies only NVIDIA's driver (rpmfusion-repo.sh appends includepkgs and gpgkey); its packages
+       are checked against RPM Fusion's Fedora key, committed next to this file. Its metadata is unsigned. The kernel
+       modules come from our repo (`just fedora packages` builds kmod-nvidia-<kernel>). The aarch64 image installs none
+       of it yet (task 022). -->
+  <repository type="rpm-md" alias="rpmfusion-nonfree" sourcetype="metalink" package_gpgcheck="true"
+              customize="rpmfusion-repo.sh">
+    <source path="https://mirrors.rpmfusion.org/metalink?repo=nonfree-fedora-$releasever&amp;arch=$basearch">
+      <signing key="file:///desc/rpmfusion-nonfree-45.asc"/>
+    </source>
+  </repository>
+  <repository type="rpm-md" alias="rpmfusion-nonfree-updates" sourcetype="metalink" package_gpgcheck="true"
+              customize="rpmfusion-repo.sh">
+    <source path="https://mirrors.rpmfusion.org/metalink?repo=nonfree-fedora-updates-released-$releasever&amp;arch=$basearch">
+      <signing key="file:///desc/rpmfusion-nonfree-45.asc"/>
+    </source>
+  </repository>
   <!-- Our RPMs from `just fedora packages`, mounted at /repo; unsigned until release signing -->
   <repository type="rpm-md" alias="stackific">
     <source path="dir:///repo"/>
@@ -123,6 +139,12 @@
          (and limine and efibootmgr, which they require) -->
     <package name="stackific-installer"/>
     <package name="stackific-boot"/>
+    <!-- NVIDIA (task 020): stackific-hardware picks NVIDIA's open modules or nouveau at every boot; the driver from RPM
+         Fusion and its open kernel modules from our repo (nvidia-kmod, provided by kmod-nvidia-<kernel>) -->
+    <package name="stackific-hardware" arch="x86_64"/>
+    <package name="xorg-x11-drv-nvidia" arch="x86_64"/>
+    <package name="xorg-x11-drv-nvidia-libs" arch="x86_64"/>
+    <package name="nvidia-kmod" arch="x86_64"/>
     <!-- Disks, the partition editor, with NTFS mounting and resizing (ntfsresize) for shrinking Windows' partition -->
     <package name="gnome-disk-utility"/>
     <package name="ntfs-3g"/>

@@ -162,19 +162,21 @@ pub struct Fedora;
 
 /// The live image's GRUB on x86_64 or, with `aarch64`, on aarch64 (fedora/iso/config.kiwi), which installed systems do
 /// not use (Limine starts them); removing it also takes GRUB's kernel-install plugins, which would otherwise write BLS
-/// entries and call grub2-editenv on every kernel update.
-fn live_grub(aarch64: bool) -> [&'static str; 3] {
+/// entries and call grub2-editenv on every kernel update. On x86_64 also grubby, which RPM Fusion's NVIDIA driver needs
+/// only while it installs (`Requires(post)`, task 020) and which would keep grub2-tools.
+fn live_grub(aarch64: bool) -> &'static [&'static str] {
     if aarch64 {
-        [
+        &[
             "grub2-efi-aa64",
             "grub2-efi-aa64-cdboot",
             "grub2-efi-aa64-modules",
         ]
     } else {
-        [
+        &[
             "grub2-efi-x64",
             "grub2-efi-x64-cdboot",
             "grub2-efi-x64-modules",
+            "grubby",
         ]
     }
 }
@@ -367,7 +369,8 @@ mod tests {
             [
                 "grub2-efi-x64",
                 "grub2-efi-x64-cdboot",
-                "grub2-efi-x64-modules"
+                "grub2-efi-x64-modules",
+                "grubby"
             ]
         );
         assert_eq!(
