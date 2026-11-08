@@ -105,7 +105,7 @@ jobs:
     if: needs.test-release.outputs.arch_aarch64 == 'true'
     # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
     runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       VERSION: ${{ needs.test-release.outputs.version || '0.0.0-dev' }}
     steps:
@@ -117,6 +117,7 @@ jobs:
           just-version: 1.59.0
       - run: just arch iso "$VERSION"
       - run: just arch test "$VERSION"
+      - run: just arch test-install "$VERSION"
       - if: needs.test-release.outputs.version != ''
         run: just release upload "$VERSION" arch aarch64
         env:
@@ -127,7 +128,7 @@ jobs:
     if: needs.test-release.outputs.fedora_aarch64 == 'true'
     # The arm64 Linux VM on the operator's Mac (just runner setup there); the host's architecture picks the image
     runs-on: [self-hosted, Linux, ARM64]
-    timeout-minutes: 90
+    timeout-minutes: 150
     env:
       VERSION: ${{ needs.test-release.outputs.version || '0.0.0-dev' }}
     steps:
@@ -139,6 +140,7 @@ jobs:
           just-version: 1.59.0
       - run: just fedora iso "$VERSION"
       - run: just fedora test "$VERSION"
+      - run: just fedora test-install "$VERSION"
       - if: needs.test-release.outputs.version != ''
         run: just release upload "$VERSION" fedora aarch64
         env:

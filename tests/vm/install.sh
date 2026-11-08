@@ -119,14 +119,15 @@ installed_checks() {
   # The ESP: the kernel, its initramfs, Limine's program at both paths, and limine.conf with this install's root
   vm "mkdir -p /mnt/e && mount -o ro $esp /mnt/e" >/dev/null
   local kernel=vmlinuz-linux initramfs=initramfs-linux.img
+  [ "$efi" != BOOTAA64.EFI ] || kernel=Image # Arch Linux ARM's linux-aarch64 owns /boot/Image
   if [ "$like" = fedora ]; then
     local version
     version=$(vm "ls $r/usr/lib/modules" | tr -d '\r\n')
     kernel=vmlinuz-$version initramfs=initramfs-$version.img
   fi
-  vm_until "cd /mnt/e && ls -d $kernel $initramfs limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l" \
+  vm_until "cd /mnt/e && ls -d $kernel $initramfs limine.conf EFI/limine/$efi EFI/BOOT/$efi | wc -l" \
     '^5$' 0
-  vm_until "cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/limine/BOOTX64.EFI && cmp $r/usr/share/limine/BOOTX64.EFI /mnt/e/EFI/BOOT/BOOTX64.EFI && echo same" \
+  vm_until "cmp $r/usr/share/limine/$efi /mnt/e/EFI/limine/$efi && cmp $r/usr/share/limine/$efi /mnt/e/EFI/BOOT/$efi && echo same" \
     '^same$' 0
   vm_until "grep -cx '    cmdline: rd.luks.uuid=$uuid_luks root=/dev/mapper/luks-$uuid_luks rootflags=subvol=/@ rw quiet' /mnt/e/limine.conf" \
     '^1$' 0
@@ -198,7 +199,7 @@ win_uuid=$(vm 'lsblk -no PARTUUID /dev/vda1' | tr -d '\r\n')
 # A fake Windows: Limine's program as Windows' loader with an empty BCD beside it, and the firmware's "Windows Boot
 # Manager" entry for it, which efibootmgr puts first in the boot order
 vm "mkdir -p /mnt/w && mount /dev/vda1 /mnt/w && mkdir -p /mnt/w/EFI/Microsoft/Boot \
-  && cp /usr/share/limine/BOOTX64.EFI /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && : >/mnt/w/EFI/Microsoft/Boot/BCD \
+  && cp /usr/share/limine/$efi /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && : >/mnt/w/EFI/Microsoft/Boot/BCD \
   && umount /mnt/w && efibootmgr --quiet --create --disk /dev/vda --part 1 --label 'Windows Boot Manager' \
   --loader '\\EFI\\Microsoft\\Boot\\bootmgfw.efi'" >/dev/null
 win_files='mount -o ro /dev/vda1 /mnt/w && (cd /mnt/w && find . -type f -exec sha256sum {} + | sort); umount /mnt/w'

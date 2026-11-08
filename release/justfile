@@ -23,13 +23,13 @@ changed before sha:
   cd "{{ justfile_directory() }}"
   all=false
   if git cat-file -e "$1^{commit}" 2>/dev/null; then mapfile -t files < <(git diff --name-only "$1" "$2"); else all=true; files=(); fi
-  common='branding/ desktop/ installer/initramfs/ tests/vm/boot.sh tests/vm/stackific-test-shell.service .github/workflows/images.yml'
+  common='branding/ desktop/ installer/ tests/vm/boot.sh tests/vm/install.sh tests/vm/installed.sh tests/vm/unlock.sh tests/vm/stackific-test-shell.service tests/vars.just .github/workflows/images.yml'
   arch="$common arch/Containerfile arch/justfile arch/vars.just arch/packages/ arch/iso/airootfs/ arch/iso/efiboot/ arch/iso/pacman.conf arch/iso/profiledef.sh tests/vm/arch.sh"
   fedora="$common fedora/ tests/vm/fedora.sh"
   declare -A paths=(
-    [arch_x86_64]="$arch arch/iso/packages.x86_64 installer/ tests/vm/install.sh tests/vm/installed.sh tests/vm/unlock.sh tests/vars.just tests/vm/arch-x86_64.sh"
+    [arch_x86_64]="$arch arch/iso/packages.x86_64 tests/vm/arch-x86_64.sh"
     [arch_aarch64]="$arch arch/iso/packages.aarch64 tests/vm/arch-aarch64.sh"
-    [fedora_x86_64]="$fedora installer/ tests/vm/install.sh tests/vm/installed.sh tests/vm/unlock.sh tests/vars.just tests/vm/fedora-x86_64.sh"
+    [fedora_x86_64]="$fedora tests/vm/fedora-x86_64.sh"
     [fedora_aarch64]="$fedora tests/vm/fedora-aarch64.sh"
   )
   any=false

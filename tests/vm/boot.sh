@@ -23,16 +23,21 @@ checks=$3
 here=$(dirname "$(readlink -f "$0")")
 shell_port=$(sed -n 's/.*--listen=vsock::\([0-9]*\) .*/\1/p' "$here/stackific-test-shell.service")
 
-# The machine and its default firmware for this architecture
+# The machine and its default firmware for this architecture, and Limine's EFI program for it (UEFI's removable-media
+# name, which the installer and stackific-boot use), for the check files
+# shellcheck disable=SC2034 # efi is read by the check files this script sources
 case "$(uname -m)" in
   x86_64)
     machine=(qemu-system-x86_64 -machine "q35,accel=kvm" -vga std)
+    efi=BOOTX64.EFI
     ovmf_code=${OVMF_CODE:-/usr/share/edk2/x64/OVMF_CODE.4m.fd}
     ovmf_vars=${OVMF_VARS:-/usr/share/edk2/x64/OVMF_VARS.4m.fd}
     ;;
   aarch64)
-    # virtio-gpu-pci is the display that works with KVM on virt; tty1 shows once its driver loads
-    machine=(qemu-system-aarch64 -machine "virt,accel=kvm" -device virtio-gpu-pci)
+    # virtio-gpu-pci is the display that works with KVM on virt; tty1 shows once its driver loads. virt has no keyboard
+    # of its own, so sendkey gets a USB one, which AAVMF (Limine's menu), the initramfs and the desktop all read.
+    machine=(qemu-system-aarch64 -machine "virt,accel=kvm" -device virtio-gpu-pci -device qemu-xhci -device usb-kbd)
+    efi=BOOTAA64.EFI
     ovmf_code=${OVMF_CODE:-/usr/share/edk2/aarch64/QEMU_EFI.fd}
     ovmf_vars=${OVMF_VARS:-/usr/share/edk2/aarch64/QEMU_VARS.fd}
     ;;

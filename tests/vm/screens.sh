@@ -116,7 +116,7 @@ EOF
 udevadm settle && mkfs.fat -F 32 -n SYSTEM /dev/vda1 >/dev/null \
   && tar -xJOf /tmp/bitlk-images.tar.xz bitlk-images/bitlk-aes-xts-128.img | dd of=/dev/vda3 bs=1M conv=fsync status=none \
   && mkdir -p /mnt/w && mount /dev/vda1 /mnt/w && mkdir -p /mnt/w/EFI/Microsoft/Boot \
-  && cp /usr/share/limine/BOOTX64.EFI /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && umount /mnt/w \
+  && cp /usr/share/limine/$efi /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && umount /mnt/w \
   && efibootmgr --quiet --create --disk /dev/vda --part 1 --label 'Windows Boot Manager' \
   --loader '\\EFI\\Microsoft\\Boot\\bootmgfw.efi'" >/dev/null
 vm_until 'blkid -p -o value -s TYPE /dev/vda3' '^BitLocker$' 0

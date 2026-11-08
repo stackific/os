@@ -1,6 +1,7 @@
 # shellcheck shell=bash
 # Fedora checks, the same on x86_64 and aarch64: boot.sh sources this file after the checks every image passes
-# (`just fedora test`; on x86_64 through tests/vm/fedora-x86_64.sh).
+# (`just fedora test`).
+# shellcheck disable=SC2154 # efi, vm, vm_until, sendkey and screenshot come from boot.sh, which sources this file
 
 # Identity: stackific-release owns /usr/lib/os-release, which generic-release-common's /etc/os-release links to, and no
 # Fedora release or logo package is in the image (Fedora's trademark guidelines)
@@ -12,7 +13,7 @@ vm_until "rpm -qf --qf '%{name}\n' /etc/os-release /usr/lib/os-release | paste -
   '^generic-release-common stackific-release$' 0
 vm_until "rpm -qa 'fedora-release*' 'fedora-logos*' fedora-release-notes | wc -l" '^0$' 0
 vm_until "grep -c 'fill=\"#007a55\"' /usr/share/icons/hicolor/scalable/apps/stackific.svg" '^1$' 0
-# Terra supplies only what fedora/iso/terra-repo.sh allows (limine only on x86_64, fedora-x86_64.sh)
+# Terra supplies only what fedora/iso/terra-repo.sh allows (limine is checked with the installer below)
 vm_until "rpm -qa --qf '%{vendor} %{name}\n' | awk '\$1 == \"Terra\" && \$2 != \"limine\" {print \$2}' | sort | paste -sd ' '" \
   '^mangowm noctalia-greeter$' 0
 # dnf5, so installed systems can update
@@ -35,7 +36,7 @@ vm_until 'test -f /usr/share/wayland-sessions/mango.desktop -a -f /usr/share/way
   '^ok$' 0
 
 # GNOME's defaults (stackific-desktop): our wallpaper, light and dark and on the lock screen, and the installer first in
-# its dash (GNOME skips it where the installer is missing, as on aarch64 and installed systems)
+# its dash (GNOME skips it where the installer is missing, as on installed systems)
 vesuvius="'file:///usr/share/backgrounds/stackific/an-eruption-of-vesuvius-johan-christian-dahl.jpg'"
 for key in 'desktop.background picture-uri' 'desktop.background picture-uri-dark' 'desktop.screensaver picture-uri'; do
   vm_until "runuser -u live -- gsettings get org.gnome.${key% *} ${key#* }" "^$vesuvius\$" 0
@@ -71,5 +72,24 @@ vm_until "tr '\\0' '\\n' </proc/\$(pgrep -u greetd -f '^/usr/bin/noctalia-greete
 sleep 10
 screenshot greeter
 
-# SELinux denied nothing during boot, the session, the logout and the greeter (the kernel writes two spaces)
+# The installer with its launcher and console path, Limine's boot files with limine from Terra (the machine's program,
+# BOOTX64.EFI or BOOTAA64.EFI), and Disks with NTFS resizing
+vm_until "grep -cx -e 'Name=Install Stackific OS' -e 'Exec=foot --app-id=stackific-installer --window-size-chars=100x30 \
+--font=monospace:size=11 --override=dpi-aware=yes run0 stackific-installer' /usr/share/applications/stackific-installer.desktop" '^2$' 0
+vm_until 'systemctl cat stackific-installer.target stackific-installer-console.service >/dev/null && echo ok' '^ok$' 0
+vm_until "test -x /usr/lib/kernel/install.d/90-stackific-limine.install -a -f /usr/share/limine/$efi && echo ok" '^ok$' 0
+vm_until "rpm -q --qf '%{vendor}\n' limine" '^Terra$' 0
+vm_until 'test -x /usr/bin/gnome-disks -a -f /usr/share/applications/org.gnome.DiskUtility.desktop -a -x /usr/sbin/ntfsresize && echo ok' \
+  '^ok$' 0
+
+# GNOME with our wallpaper and the installer in its dash, logged in through the greeter left up above: `live`,
+# with GNOME first in the session list, and any character as the password. Not through greetd's [initial_session], as
+# for Plasma on Arch: that opens a logind session of type tty, and GNOME Shell starts only in a wayland one ("Failed to
+# find any matching session"), which the greeter asks greetd for. GNOME opens on its overview, which shows the dash.
+sleep 15 # the greeter draws a few seconds after it starts, on the VM's software renderer
+sendkey a ret
+vm_until 'pgrep -u live -x gnome-shell >/dev/null && echo up' '^up$' 180
+sleep 30 # GNOME draws a while after gnome-shell starts
+screenshot gnome
+# SELinux denied nothing during boot, the session, the logout, the greeter and GNOME (the kernel writes two spaces)
 vm_until "journalctl -b | grep -c 'avc:  denied'" '^0$' 0
