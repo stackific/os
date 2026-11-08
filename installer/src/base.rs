@@ -28,6 +28,14 @@ pub trait Base: Send + Sync {
     }
 }
 
+/// mkinitcpio's drop-in in the target, read after /etc/mkinitcpio.conf.
+const ARCH_HOOKS: &str = "etc/mkinitcpio.conf.d/stackific.conf";
+/// Its text: mkinitcpio 42's default HOOKS with `sd-encrypt` after `block` and `stackific-boot-failure` last.
+const ARCH_HOOKS_CONF: &str = "# Written by stackific-installer: Arch's default hooks, plus sd-encrypt, which unlocks the \
+encrypted root, and stackific-boot-failure, which shows a plain screen when the start fails\n\
+HOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck \
+stackific-boot-failure)\n";
+
 /// Arch Linux (and Arch Linux ARM): archiso's live image.
 pub struct Arch;
 
@@ -61,15 +69,19 @@ impl Base for Arch {
     /// installs a kernel: it copies the kernel to /boot/vmlinuz-<pkgbase> and builds /boot/initramfs-<pkgbase>.img
     /// from the preset (Arch's default: no fallback image) with Arch's default hooks. arch-chroot gives it /dev, /proc
     /// and /sys, which the autodetect hook reads.
-    /// `limine.conf` carries the command line, so nothing is written here.
+    /// First the hooks (BT-04): Arch's defaults plus `sd-encrypt`, which unlocks the root, and stackific-boot's
+    /// `stackific-boot-failure`, the plain screen after a failed start. The installer writes the drop-in, not a package:
+    /// a package's would sort after archiso's and change the live image's initramfs. `limine.conf` carries the command
+    /// line.
     fn initramfs(&self, target: &Path, _cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>) {
+        let files = vec![(target.join(ARCH_HOOKS), ARCH_HOOKS_CONF.to_string())];
         let cmd = Cmd::new("arch-chroot").args([
             &*target.to_string_lossy(),
             "/usr/bin/bash",
             "-c",
             "printf '%s\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install",
         ]);
-        (Vec::new(), vec![cmd])
+        (files, vec![cmd])
     }
 
     /// The paths mkinitcpio's preset writes for the `linux` kernel; its pacman hooks keep them current on updates.
@@ -193,7 +205,14 @@ mod tests {
             "pacman --sysroot=/t --remove --nosave --recursive --noconfirm stackific-installer"
         );
         let (files, cmds) = base.initramfs(Path::new("/t"), "root=UUID=x");
-        assert!(files.is_empty());
+        assert_eq!(
+            files[0].0,
+            PathBuf::from("/t/etc/mkinitcpio.conf.d/stackific.conf")
+        );
+        assert!(files[0].1.ends_with(
+            "\nHOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck \
+             stackific-boot-failure)\n"
+        ));
         assert_eq!(
             cmds[0].line(),
             "arch-chroot /t /usr/bin/bash -c \"printf '%s\\\\n' usr/lib/modules/*/vmlinuz | /usr/share/libalpm/scripts/mkinitcpio install\""

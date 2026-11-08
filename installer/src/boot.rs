@@ -37,19 +37,24 @@ pub fn copy_program(target: &Path) -> Vec<Cmd> {
         .collect()
 }
 
-/// The kernel command line: root on the `@` subvolume of the system partition `root_uuid`. Fedora's kernel-install
-/// plugin reads the same text from /etc/kernel/cmdline.
-pub fn cmdline(root_uuid: &str) -> String {
-    format!("root=UUID={root_uuid} rootflags=subvol=/@ rw")
+/// The kernel command line (BT-04): the systemd initramfs unlocks the LUKS2 container `luks_uuid` as
+/// `luks-<uuid>`, and root is the `@` subvolume inside it. Naming root by the mapping, not by btrfs' UUID, makes a
+/// failed unlock fail the root mount at once (the boot-failure screen) instead of after the device timeout. Fedora's
+/// kernel-install plugin reads the same text from /etc/kernel/cmdline. `quiet` keeps the kernel's and systemd's start-up
+/// lines off the console, so the passphrase prompt stands alone.
+pub fn cmdline(luks_uuid: &str) -> String {
+    format!(
+        "rd.luks.uuid={luks_uuid} root=/dev/mapper/luks-{luks_uuid} rootflags=subvol=/@ rw quiet"
+    )
 }
 
 /// Limine's menu: one entry named `name` that starts the base's kernel and initramfs from the ESP, with root on the
-/// `@` subvolume of the system partition `root_uuid`.
-pub fn limine_conf(name: &str, kernel: &str, initramfs: &str, root_uuid: &str) -> String {
+/// `@` subvolume inside the LUKS2 container `luks_uuid`.
+pub fn limine_conf(name: &str, kernel: &str, initramfs: &str, luks_uuid: &str) -> String {
     format!(
         "timeout: 3\ninterface_branding: {name}\n\n/{name}\n    protocol: linux\n    path: boot():/{kernel}\n    \
          module_path: boot():/{initramfs}\n    cmdline: {}\n",
-        cmdline(root_uuid)
+        cmdline(luks_uuid)
     )
 }
 
@@ -164,7 +169,7 @@ mod tests {
             ),
             "timeout: 3\ninterface_branding: Stackific OS\n\n/Stackific OS\n    protocol: linux\n    \
              path: boot():/vmlinuz-linux\n    module_path: boot():/initramfs-linux.img\n    \
-             cmdline: root=UUID=1111-sys rootflags=subvol=/@ rw\n"
+             cmdline: rd.luks.uuid=1111-sys root=/dev/mapper/luks-1111-sys rootflags=subvol=/@ rw quiet\n"
         );
     }
 

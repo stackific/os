@@ -4,17 +4,17 @@
 │                                                                              │
 │    Your name        Ada Lovelace                                             │
 │    User name        ada                                                      │
-│    Password         ••••••••                                                 │
-│    Confirm          •••••••▏                                                 │
+│    Password         ••••••••••••••••••••                                     │
+│    Confirm          •••••••••••••••••••▏                                     │
 │    Computer name    stackific                                                │
 │                                                                              │
 │  ✗ The passwords do not match yet.                                           │
 │                                                                              │
-│                                                                              │
+│  Password: it also unlocks the disk at every start; make it hard to guess.   │
 │  User name: lowercase letters, digits, - and _, starting with a letter.      │
 │  Computer name: lowercase letters, digits and -, up to 63.                   │
-│  Typed with the live session's layout (us).                                  │
-│                                                                              │
+│  Typed with the live session's layout (us) here, but with de at every start: │
+│  use only characters that sit on the same keys in both layouts.              │
 │                                                                              │
 │                                                                              │
 │                                                                              │

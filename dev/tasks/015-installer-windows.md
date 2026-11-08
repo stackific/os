@@ -1,6 +1,6 @@
 # 015: Install next to Windows: BitLocker checked and confirmed, Windows in Limine's menu, refusals with guidance
 
-- [ ] Done
+- [x] Done
 
 Base: both
 

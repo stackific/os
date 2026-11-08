@@ -31,16 +31,22 @@ second=$(sed -n 's/^BootOrder: //p' <<<"$entries" | cut -d, -f2)
 grep -q "^Boot$second\\* Windows Boot Manager	" <<<"$entries" || fail "Windows Boot Manager is not second: $entries"
 echo "ok: Windows Boot Manager is second"
 
-# Limine started the kernel with root on the @ subvolume; the btrfs default stays the top level
-uuid=$(vm 'findmnt -no UUID /' | tr -d '\r\n')
-vm_until 'cat /proc/cmdline' "(^| )root=UUID=$uuid rootflags=subvol=/@ rw( |\$)" 0
+# Limine started the kernel with root on the @ subvolume inside the LUKS2 container, which the initramfs unlocked with
+# the passphrase credential (boot.sh); the btrfs default stays the top level
+luks=$(vm "findmnt -no SOURCE / | sed -n 's|^/dev/mapper/luks-\\(.*\\)\\[/@\\]\$|\\1|p'" | tr -d '\r\n')
+[ -n "$luks" ] || fail "/ is not on the LUKS2 container: $(vm 'findmnt -no SOURCE /')"
+cmdline="rd.luks.uuid=$luks root=/dev/mapper/luks-$luks rootflags=subvol=/@ rw quiet"
+vm_until 'cat /proc/cmdline' "(^| )$cmdline( |\$)" 0
+vm_until "blkid -o value -s UUID \$(cryptsetup status luks-$luks | sed -n 's/^  device: *//p')" "^$luks\$" 0
+vm_until "cryptsetup status luks-$luks" '^  type: +LUKS2$' 0
 vm_until 'findmnt -no FSTYPE,OPTIONS /' '^btrfs .*subvol=/@(,|$)' 0
 vm_until 'findmnt -no FSTYPE /boot' '^vfat$' 0
 vm_until 'btrfs subvolume get-default /' '^ID 5 \(FS_TREE\)$' 0
 
 # The ESP: the kernel and its initramfs (no fallback or rescue image, no unified kernel image), limine.conf, and
 # Limine's program at the firmware entry's path and the fallback path; the initramfs is the base's own, with no live
-# image's hooks. Arch: mkinitcpio's preset with Arch's default hooks. Fedora: kernel-install with Fedora's dracut, the
+# image's hooks, with the unlock and the boot-failure screen. Arch: mkinitcpio's preset with Arch's default hooks plus
+# the installer's sd-encrypt and stackific-boot-failure. Fedora: kernel-install with Fedora's dracut, the
 # kernel's version in the names, no GRUB.
 efi_same='cmp /usr/share/limine/BOOTX64.EFI /boot/EFI/limine/BOOTX64.EFI && cmp /usr/share/limine/BOOTX64.EFI /boot/EFI/BOOT/BOOTX64.EFI && echo same'
 vm_until "$efi_same" '^same$' 0
@@ -54,12 +60,17 @@ if [ "$like" = fedora ]; then
     '^5$' 0
   vm_until "lsinitrd /boot/initramfs-$version.img | grep -c dmsquash" '^0$' 0
   vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx btrfs" '^1$' 0
+  # The unlock (dracut's systemd-cryptsetup) and stackific-boot's plain screen after a failed start
+  vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx -e systemd-cryptsetup -e stackific-boot-failure" '^2$' 0
   vm_until "cmp /usr/lib/modules/$version/vmlinuz /boot/vmlinuz-$version && echo same" '^same$' 0
 else
   vm_until 'cd /boot && ls -d vmlinuz-linux initramfs-linux.img limine.conf EFI/limine/BOOTX64.EFI EFI/BOOT/BOOTX64.EFI | wc -l' \
     '^5$' 0
   vm_until 'lsinitcpio /boot/initramfs-linux.img | grep -c archiso' '^0$' 0
   vm_until "lsinitcpio /boot/initramfs-linux.img | grep -c 'usr/lib/systemd/systemd\$'" '^1$' 0
+  # The unlock (sd-encrypt) and stackific-boot's plain screen after a failed start
+  vm_until "lsinitcpio /boot/initramfs-linux.img | grep -cE 'usr/lib/systemd/systemd-cryptsetup\$|etc/systemd/system/emergency.service.d/stackific-boot-failure.conf\$'" \
+    '^2$' 0
 fi
 
 # Packages: the boot files stay, the installer and what only it needed are gone (on Fedora also the live image's GRUB);
@@ -107,7 +118,7 @@ echo "ok: stackific-boot's hook restored Limine's program"
 # a removed one out; reinstalling the kernel package (offline, from the ESP) runs it through the kernel's own scriptlet.
 # None of it touches the firmware entries.
 if [ "$like" = fedora ]; then
-  entry() { printf '%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: root=UUID=%s rootflags=subvol=/@ rw' "$1" "$2" "$2" "$uuid"; }
+  entry() { printf '%s\n    protocol: linux\n    path: boot():/vmlinuz-%s\n    module_path: boot():/initramfs-%s.img\n    cmdline: %s' "$1" "$2" "$2" "$cmdline"; }
   # The Windows entries the installer left for the plugin, after the kernels' each time
   win=$(vm 'cat /etc/kernel/limine-windows.conf')
   grep -qx '    entry: Windows Boot Manager' <<<"$win" || fail "no Windows entries for the plugin: $win"

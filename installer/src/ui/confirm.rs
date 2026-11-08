@@ -99,7 +99,12 @@ pub fn draw(app: &App, c: &mut Canvas) {
         "FAT32",
         &format!("{name} boot"),
     );
-    let sys = part_row(new[1], layout.system.1 * sector, "btrfs", name);
+    let sys = part_row(
+        new[1],
+        layout.system.1 * sector,
+        "LUKS2",
+        &format!("{name}, btrfs inside"),
+    );
     c.text(last + 3, ROW, &esp, look.body());
     c.text(last + 4, ROW, &sys, look.body());
     let a = app.answers();
@@ -123,19 +128,25 @@ pub fn draw(app: &App, c: &mut Canvas) {
         a.user.full_name, a.user.name, a.system.hostname
     );
     c.text(r + 1, LEFT, &user, look.body());
+    c.text(
+        r + 2,
+        LEFT,
+        &format!("{name} is encrypted: your password unlocks it at every start."),
+        look.body(),
+    );
     if erase {
         let end = c.text(
-            r + 3,
+            r + 4,
             LEFT,
             &format!("Type {} to erase it:", d.name),
             look.title(),
         );
         let at = TYPED.max(end + 2);
-        let end = c.text(r + 3, at, &app.confirm.typed, look.body());
-        c.text(r + 3, end, look.sym("▏"), look.mark());
+        let end = c.text(r + 4, at, &app.confirm.typed, look.body());
+        c.text(r + 4, end, look.sym("▏"), look.mark());
     } else {
         c.text(
-            r + 3,
+            r + 4,
             LEFT,
             "Nothing else on the drive changes.",
             look.body(),
@@ -143,7 +154,7 @@ pub fn draw(app: &App, c: &mut Canvas) {
     }
     if !app.windows.esps.is_empty() {
         c.text(
-            r + 5,
+            r + 6,
             LEFT,
             "Limine's menu will also start Windows.",
             look.body(),

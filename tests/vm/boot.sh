@@ -12,6 +12,9 @@
 # builder's. STACKIFIC_TEST_DISK, when it names a raw image file, is attached as a virtio disk (/dev/vda in the guest).
 # <iso> `-` boots that disk alone, an installed system: then <out-dir>/limine.png is its boot menu, taken a second after
 # the firmware starts an entry (OVMF prints `BdsDxe: starting Boot#### "<label>"` on the serial console).
+# STACKIFIC_TEST_PASSPHRASE, when set, is the installed disk's LUKS2 passphrase, passed as systemd-cryptsetup's
+# `cryptsetup.passphrase` credential, so the boots unlock with nobody typing. PREBOOT, when set, names a file sourced
+# right after that, before the wait for the test shell (tests/vm/unlock.sh types at the passphrase prompt).
 set -euo pipefail
 
 iso=$1
@@ -113,6 +116,10 @@ smbios=(
 )
 cred systemd.extra-unit.stackific-test-shell.service "$here/stackific-test-shell.service"
 cred systemd.unit-dropin.multi-user.target "$tmp/multi-user.conf"
+if [ -n "${STACKIFIC_TEST_PASSPHRASE:-}" ]; then
+  printf %s "$STACKIFIC_TEST_PASSPHRASE" >"$tmp/passphrase"
+  cred cryptsetup.passphrase "$tmp/passphrase"
+fi
 
 disk=()
 [ -z "${STACKIFIC_TEST_DISK:-}" ] || disk=(-drive "file=$STACKIFIC_TEST_DISK,format=raw,if=virtio")
@@ -135,6 +142,8 @@ if [ "$iso" = - ]; then
   grep -aq 'BdsDxe: starting Boot' "$out/serial.log" || fail "the firmware started no boot entry"
   sleep 1
   screenshot limine
+  # shellcheck source=/dev/null
+  [ -z "${PREBOOT:-}" ] || source "$PREBOOT"
 fi
 
 # The shell listens from multi-user.target on; --wait returns once boot has finished, in whatever state it reached

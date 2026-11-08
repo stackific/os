@@ -195,6 +195,24 @@ pub fn check_user_name(name: &str, taken: &[String]) -> Result<(), String> {
     Ok(())
 }
 
+/// The lowest zxcvbn score (0 to 4) a password needs: it also unlocks the disk (BT-09).
+pub const STRONG: u8 = 3;
+
+/// A password hard enough to guess for a disk passphrase: zxcvbn's score of at least STRONG, with `guessable` (the
+/// user's names, the computer name, the product name) counted as words an attacker tries first.
+pub fn check_strength(password: &str, guessable: &[&str]) -> Result<(), String> {
+    let words: Vec<String> = guessable
+        .iter()
+        .flat_map(|g| g.split_whitespace())
+        .map(str::to_lowercase)
+        .collect();
+    let words: Vec<&str> = words.iter().map(String::as_str).collect();
+    if u8::from(zxcvbn::zxcvbn(password, &words).score()) < STRONG {
+        return Err("Too easy to guess: try a longer one, or a few unrelated words.".into());
+    }
+    Ok(())
+}
+
 /// A password that is not empty and, on the screen, typed the same twice.
 pub fn check_password(password: &str, confirm: &str) -> Result<(), String> {
     if password.is_empty() {
@@ -239,13 +257,24 @@ pub fn check_erase(device: &str, typed: &str) -> Result<(), String> {
 }
 
 impl Answers {
+    /// The words a password must not lean on: the user's names, the computer name and the product name.
+    pub fn guessable<'a>(&'a self, product: &'a str) -> [&'a str; 4] {
+        [
+            &self.user.full_name,
+            &self.user.name,
+            &self.system.hostname,
+            product,
+        ]
+    }
+
     /// Parses an unattended file.
     pub fn from_toml(text: &str) -> Result<Self, String> {
         toml::from_str(text).map_err(|e| e.to_string())
     }
 
-    /// Every check except the drive's own (drives.rs): the first problem, as one line.
-    pub fn check(&self, catalog: &Catalog) -> Result<(), String> {
+    /// Every check except the drive's own (drives.rs): the first problem, as one line. `product` is os-release's NAME,
+    /// a guessable word for the password.
+    pub fn check(&self, catalog: &Catalog, product: &str) -> Result<(), String> {
         if catalog.layout_name(&self.system.keyboard).is_none() {
             return Err(format!(
                 "keyboard: {:?} is not an XKB layout code from evdev.lst",
@@ -262,6 +291,7 @@ impl Answers {
         check_full_name(&self.user.full_name).map_err(|e| format!("full_name: {e}"))?;
         check_user_name(&self.user.name, &catalog.taken_users).map_err(|e| format!("name: {e}"))?;
         check_password(&self.user.password, &self.user.password)
+            .and_then(|()| check_strength(&self.user.password, &self.guessable(product)))
             .map_err(|e| format!("password: {e}"))?;
         if self.disk.mode == Mode::Erase {
             check_erase(&self.disk.device, &self.disk.erase).map_err(|e| format!("erase: {e}"))?;
@@ -282,6 +312,8 @@ mod tests {
     use super::*;
 
     const EVDEV: &str = include_str!("../fixtures/evdev.lst");
+    /// The product name, a guessable word for passwords.
+    const P: &str = "Stackific OS";
 
     fn catalog() -> Catalog {
         Catalog {
@@ -297,7 +329,7 @@ mod tests {
         Answers::from_toml(
             "[disk]\ndevice = \"/dev/vda\"\nmode = \"erase\"\nerase = \"vda\"\n[system]\nkeyboard = \"de\"\n\
              timezone = \"Europe/Berlin\"\nhostname = \"stackific-test\"\n[user]\nfull_name = \"Test User\"\n\
-             name = \"tester\"\npassword = \"secret\"\n",
+             name = \"tester\"\npassword = \"brisk yellow lantern 47\"\n",
         )
         .unwrap()
     }
@@ -359,26 +391,44 @@ mod tests {
     #[test]
     fn unattended_answers() {
         let c = catalog();
-        assert_eq!(good().check(&c), Ok(()));
+        assert_eq!(good().check(&c, P), Ok(()));
         let mut a = good();
         a.disk.erase = "sda".into();
-        assert!(a.check(&c).unwrap_err().starts_with("erase:"));
+        assert!(a.check(&c, P).unwrap_err().starts_with("erase:"));
         a.disk.mode = Mode::FreeSpace;
-        assert_eq!(a.check(&c), Ok(()));
+        assert_eq!(a.check(&c, P), Ok(()));
         let mut a = good();
         a.system.keyboard = "xx".into();
-        assert!(a.check(&c).unwrap_err().starts_with("keyboard:"));
+        assert!(a.check(&c, P).unwrap_err().starts_with("keyboard:"));
         let mut a = good();
         a.system.timezone = "Mars/Olympus".into();
-        assert!(a.check(&c).unwrap_err().starts_with("timezone:"));
+        assert!(a.check(&c, P).unwrap_err().starts_with("timezone:"));
         let mut a = good();
         a.user.password.clear();
-        assert!(a.check(&c).unwrap_err().starts_with("password:"));
+        assert!(a.check(&c, P).unwrap_err().starts_with("password:"));
+        // Too easy to guess for a disk passphrase, also when it is only the user's own words
+        for weak in [
+            "secret",
+            "password123",
+            "tester",
+            "stackific-test",
+            "Test User",
+        ] {
+            a.user.password = weak.into();
+            assert_eq!(
+                a.check(&c, P),
+                Err(
+                    "password: Too easy to guess: try a longer one, or a few unrelated words."
+                        .into()
+                ),
+                "{weak}"
+            );
+        }
         let mut a = good();
         a.disk.bitlocker = "yes".into();
-        assert!(a.check(&c).unwrap_err().starts_with("bitlocker:"));
+        assert!(a.check(&c, P).unwrap_err().starts_with("bitlocker:"));
         a.disk.bitlocker = "I have my key".into();
-        assert_eq!(a.check(&c), Ok(()));
+        assert_eq!(a.check(&c, P), Ok(()));
         assert!(Answers::from_toml("[disk]\ndevice = \"/dev/vda\"\nmode = \"wipe\"\n").is_err());
         assert!(
             Answers::from_toml(&format!(
@@ -387,6 +437,6 @@ mod tests {
             ))
             .is_err()
         );
-        assert!(!format!("{:?}", good()).contains("secret"));
+        assert!(!format!("{:?}", good()).contains("lantern"));
     }
 }

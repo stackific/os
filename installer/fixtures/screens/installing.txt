@@ -3,7 +3,7 @@
 │  Installing Stackific OS on /dev/nvme0n1                                     │
 │                                                                              │
 │  ✓ Create the partitions                                                     │
-│  ✓ Format them                                                               │
+│  ✓ Encrypt and format them                                                   │
 │  ✓ Prepare the system partition                                              │
 │  ▸ Copy the system           ███████████████▏░░░░░░░░░░░░░   52%             │
 │    Set the keyboard, timezone and computer name                              │
