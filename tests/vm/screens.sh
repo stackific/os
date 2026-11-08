@@ -67,6 +67,9 @@ open_installer() {
   vm_until 'pgrep -x stackific-insta >/dev/null && echo up' '^up$' 60
 }
 
+# A password strong enough for the installer (it also unlocks the disk)
+strong='brisk yellow lantern 47'
+
 # Fill You with a name, a user name from it, a password typed twice, and the default computer name
 you() {
   typ "$1"
@@ -91,7 +94,7 @@ vm "IMSM_NO_PLATFORM=1 IMSM_DEVNAME_AS_SERIAL=1 mdadm --create /dev/md/imsm --me
 vm_until 'lsblk -dno FSTYPE /dev/vda' '^isw_raid_member$' 30
 open_installer launcher
 sendkey ret ret ret ret
-you 'Ada Lovelace' abcdefgh
+you 'Ada Lovelace' "$strong"
 sendkey ret
 shot drive-rst
 sendkey ctrl-c
@@ -131,9 +134,14 @@ typ berl
 shot timezone
 sendkey ret
 you 'Ada Lovelace' abcdefgh
-sendkey backspace
+shot you-weak
+# Clear both password fields (Confirm has the focus), then the strong password twice
+mapfile -t erase < <(yes backspace | head -n 8)
+sendkey "${erase[@]}" shift-tab "${erase[@]}"
+typ "$strong"
+sendkey tab
+typ "$strong"
 shot you
-typ h
 sendkey ret
 shot drive
 sendkey ret
@@ -171,7 +179,7 @@ screenshot screens/small
 sendkey ctrl-0
 sleep 1
 sendkey ret ret ret ret
-you 'Test User' secret
+you 'Test User' "$strong"
 sendkey ret ret
 shot space-refused
 sendkey ret
@@ -195,7 +203,7 @@ sendkey ret ret
 typ germ
 shot keyboard-console
 sendkey ret ret
-you 'Grace Hopper' secret
+you 'Grace Hopper' "$strong"
 sendkey ret ret ret
 typ vda
 shot confirm-console
