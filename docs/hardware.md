@@ -1,6 +1,6 @@
 # Hardware
 
-`hardware/` holds what picks drivers by hardware: today the NVIDIA driver on the Arch x86_64 image (task 019), packaged as `stackific-hardware` (`arch/packages/stackific-hardware/PKGBUILD`). The user page is `site/src/content/docs/user/graphics.md`.
+`hardware/` holds what picks drivers by hardware: today the NVIDIA driver on both x86_64 images (Arch: task 019; Fedora: task 020), packaged as `stackific-hardware` (`arch/packages/stackific-hardware/PKGBUILD`, `fedora/packages/stackific-hardware/stackific-hardware.spec`). The user page is `site/src/content/docs/user/graphics.md`.
 
 ## Test
 
@@ -20,6 +20,12 @@ Each set is a list of `vendor:device:class`; the recipe writes them as `sys/bus/
 - **Initramfs.** No GPU module in it: the live image's hooks have no `kms`, and the installer leaves `kms` out of installed systems' hooks on x86_64. mkinitcpio's `autodetect` resolves an NVIDIA card's modalias with `modprobe -qaR`, which ignores blacklists (checked 2026-11-08 in the builder, `linux` 7.2.11 with `nvidia-utils` 615.78.08: it prints `nouveau` for a Pascal modalias either way), so `kms` would pull nouveau and its firmware into the initramfs of every NVIDIA machine. AMD and Intel lose early KMS with it: the passphrase prompt draws on the firmware's framebuffer.
 - **The fallback kernel.** The live ISO boots `linux` only: mkarchiso copies every `/boot/vmlinuz-*` and `initramfs-*.img` of the live root to the ISO and to its boot image, so the live-only pacman hook `arch/iso/airootfs/etc/pacman.d/hooks/stackific-live-lts.hook` removes `linux-lts`'s two files after mkinitcpio's own hook has made them (a preset with `PRESETS=()` is not enough: mkinitcpio's hook script copies the kernel anyway). The installer removes that hook; the kernel step then builds both kernels' files on the ESP, and Limine gets `/<NAME> (LTS kernel)` after the default entry.
 
+## The NVIDIA driver on Fedora x86_64
+
+The same generator and the same picks, with RPM Fusion's driver (`xorg-x11-drv-nvidia` and its libraries) and NVIDIA's open modules built into the image by `just fedora packages` (`docs/fedora-iso.md`, "Repositories"): no compiler, kernel headers or akmods on the image. The generator also hands NVIDIA graphics to nouveau when the running kernel has no `nvidia.ko` (it looks under `/usr/lib/modules/$(uname -r)`): after a Fedora kernel update, until our repos publish `kmod-nvidia` for each kernel (task 028), the new kernel starts on nouveau, and Limine still lists the previous kernels, which have the module. Fedora's own `nvidia-utils.conf` (in `stackific-hardware`) blacklists nouveau, because RPM Fusion does it only on GRUB's command line; a dracut drop-in keeps nouveau out of the initramfs, while AMD and Intel keep early KMS (Fedora's dracut adds only the machine's driver).
+
+SPEC open decision 6 (operator's design notes: prebuilt kmods in the image, or akmods on first boot) is settled as prebuilt: akmods on the live ISO would compile for minutes on every boot, and keeping `akmod-nvidia` for later kernels would put gcc, kernel headers and 90 MiB of module sources into every image.
+
 ## The legacy list
 
 `hardware/nvidia-legacy.ids` lists the PCI device IDs (vendor `10de`) of NVIDIA's legacy-branch tables (580.xx and older) in `supportedchips.html`, which `nvidia-utils` ships as `/usr/share/doc/nvidia/html/supportedchips.html`: 879 IDs in 615.78.08. MX150 (`1d10`) is in it; MX450 (`1f97`) and GTX 1650 Mobile (`1f99`), Turing chips, are not. The pre-Turing set is closed, so driver updates do not change it. Regenerate it only if NVIDIA moves Turing to a legacy branch: take the four-digit first column of every table row after the "legacy GPUs" heading, lowercased and sorted, for example
@@ -37,5 +43,6 @@ and update the count in `just hardware test`.
 - A free-space guard on the ESP as kernels add up.
 - The Arch x86_64 ISO is 2041 MiB with NVIDIA and `linux-lts`, 7 MiB under the 2 GiB target: the next additions (task 021's firmware) need room, or the R2 path in `AGENTS.md` (CI and releases).
 - Broadcom STA and fingerprint readers on detection (task 021); whether chwd joins for them.
-- NVIDIA on the Fedora images (task 020) and on aarch64 (task 022).
+- `kmod-nvidia` for each new Fedora kernel from our repos (task 028); until then later kernels start on nouveau.
+- NVIDIA on aarch64 (task 022).
 - Real NVIDIA hardware: a Turing desktop, a Pascal desktop, a Pascal Optimus laptop, and an RTX to Pascal swap on one disk (task 030).

@@ -13,7 +13,7 @@ sha256sum -c SHA256SUMS --ignore-missing
 | `-fedora-x86_64.iso` | MangoWM | GNOME |
 | `-fedora-aarch64.iso` | MangoWM | GNOME |
 
-The images boot in UEFI mode only, with Secure Boot off. NVIDIA's open driver is in the Arch Linux x86_64 image (GTX 16, RTX 20 and newer; older cards run nouveau); the other images follow. How to download, check, write and boot an image: https://os.stackific.com/docs/user/installation/
+The images boot in UEFI mode only, with Secure Boot off. NVIDIA's open driver is in both x86_64 images (GTX 16, RTX 20 and newer; older cards run nouveau); the aarch64 images follow. How to download, check, write and boot an image: https://os.stackific.com/docs/user/installation/
 
 Every change, one entry per task: https://os.stackific.com/docs/prompt-trail/
 
