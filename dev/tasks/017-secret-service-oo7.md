@@ -1,6 +1,6 @@
 # 017: A Secret Service in every session: oo7, unlocked at login
 
-- [ ] Done
+- [x] Done
 
 Base: both
 
