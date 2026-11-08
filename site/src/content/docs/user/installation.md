@@ -93,7 +93,7 @@ If the computer starts something else, open the firmware's boot menu (often F12,
 - The images are unsigned.
 - Version 0.1.0 has no installer. The installer in later builds is new: back up your data before you install next to another system.
 - To make free space or set up partitions first, open Disks from the app launcher. Shrinking Windows itself is safest from Windows' own Disk Management.
-- NVIDIA's own driver is not in the images yet.
+- NVIDIA's own driver is only in the Arch Linux x86_64 image so far ([Graphics and NVIDIA](/docs/user/graphics/)).
 
 ## About the bases
 
