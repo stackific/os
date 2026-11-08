@@ -3,6 +3,7 @@
 # outputs go to .build/arch/<arch>/. Image builds need Linux with rootless podman.
 
 import 'vars.just'
+import '../tests/vars.just'
 
 # Build the pinned builder image (podman's layer cache makes a rebuild with unchanged pins a no-op)
 builder:
@@ -90,7 +91,8 @@ test version="0.0.0-dev": builder
 
 # Test the installer on stackific-<version>-arch-<arch>.iso: the boot menu's entries (read with bsdtar, never a
 # mount), then one boot with a fresh 64 GiB raw disk (tests/vm/boot.sh with tests/vm/install.sh: the console path, an
-# erase and a free-space install, unattended), then the free-space install's ESP, read from the image with minfo
+# erase, BIOS-mode Windows refused, BitLocker and a fake Windows on a Windows-like table, and a free-space install,
+# unattended; cryptsetup's BitLocker images pinned in tests/vars.just), then the free-space install's ESP, read from the image with minfo
 # (mtools). Then the installed system boots from the disk alone, with the first boot's firmware variables
 # (tests/vm/installed.sh); mcopy puts the pinned limine package (the builder's mirror is the archive date) at its ESP's
 # root for the hook check. pacman's sandbox fails in rootless podman, so the download runs without it. The disk image is
@@ -103,6 +105,7 @@ test-install version="0.0.0-dev": builder
     --security-opt label=disable \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
     --env ISO="/out/stackific-$1-arch-{{ arch() }}.iso" --env STACKIFIC_TEST_DISK=/out/install-test.img \
+    --env BITLK_IMAGES_URL={{ bitlk_images_url }} --env BITLK_IMAGES_SHA256={{ bitlk_images_sha256 }} \
     {{ builder }} bash -c 'set -euo pipefail
       entry() { bsdtar -xOf "$ISO" "loader/$1" | grep -qx -- "$2" || { echo "FAIL: loader/$1 has no line /$2/" >&2; exit 1; }; }
       entry entries/01-stackific-linux.conf "title   Try Stackific OS ({{ arch() }}, UEFI)"
@@ -132,6 +135,7 @@ screenshots version="0.0.0-dev": builder
     --security-opt label=disable \
     --volume "{{ justfile_directory() }}/tests/vm:/tests:ro" --volume "{{ out }}:/out" \
     --env ISO="/out/stackific-$1-arch-{{ arch() }}.iso" --env STACKIFIC_TEST_DISK=/out/screens-test.img \
+    --env BITLK_IMAGES_URL={{ bitlk_images_url }} --env BITLK_IMAGES_SHA256={{ bitlk_images_sha256 }} \
     {{ builder }} bash -c 'set -euo pipefail
       rm -rf /out/screens "$STACKIFIC_TEST_DISK"
       qemu-img create -q -f raw "$STACKIFIC_TEST_DISK" 64G

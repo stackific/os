@@ -6,8 +6,8 @@
 # vmm.notify_socket is not used: over vsock it opens one connection per message and drops some, READY=1 included.
 # Usage: boot.sh <iso> <out-dir> <checks>. It runs the checks every image passes, then sources <checks>, the image's own
 # check file (tests/vm/<base>.sh, or tests/vm/<base>-<arch>.sh for checks only one architecture passes), which uses vm,
-# vm_until, screenshot and sendkey from here. Leaves <out-dir>/serial.log, <out-dir>/vars.fd (the firmware's variables
-# after the run, for a later boot through OVMF_VARS) and the screenshots the check file takes.
+# vm_until, vm_put, asset, screenshot and sendkey from here. Leaves <out-dir>/serial.log, <out-dir>/vars.fd (the
+# firmware's variables after the run, for a later boot through OVMF_VARS) and the screenshots the check file takes.
 # OVMF_CODE and OVMF_VARS name the raw firmware pair in the builder (AAVMF's on aarch64); the defaults are the Arch
 # builder's. STACKIFIC_TEST_DISK, when it names a raw image file, is attached as a virtio disk (/dev/vda in the guest).
 # <iso> `-` boots that disk alone, an installed system: then <out-dir>/limine.png is its boot menu, taken a second after
@@ -55,6 +55,21 @@ cred() {
 # Run a command in the guest through the test shell: the token line first, then the command
 vm() {
   printf '%s\n%s\n' "$token" "$1" | socat -t 30 - "VSOCK-CONNECT:$cid:$shell_port"
+}
+
+# Copy the host file <file> to <guest path> through the test shell, as base64 in a here-document
+vm_put() {
+  vm "base64 -d >'$2' <<'EOF'
+$(base64 "$1")
+EOF
+echo put" | grep -qx put || fail "could not copy $1 to the guest"
+}
+
+# Download a pinned test asset from <url> to <out-dir>/<file> unless it is there with <sha256>, then check it
+asset() {
+  local url=$1 sha=$2 file=$out/$3
+  echo "$sha  $file" | sha256sum --check --status 2>/dev/null || curl -fsSLo "$file" "$url"
+  echo "$sha  $file" | sha256sum --check --status || fail "$3 does not match its pinned SHA-256"
 }
 
 # Retry a command in the guest until its output matches an extended regex, for up to <seconds> (one try at least)

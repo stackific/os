@@ -1,24 +1,35 @@
 # shellcheck shell=bash
 # Install checks, for any base: boot.sh sources this file with STACKIFIC_TEST_DISK attached as /dev/vda, a blank
 # 64 GiB raw image (`just arch test-install`, `just fedora test-install`). In one boot: the console path, then unattended
-# installs: a wrong erase
-# confirmation, an erase, a Windows-like table with a BitLocker refusal, and an install into its free space. Each
-# installed system is checked on its partitions. Leaves <out-dir>/esp-offset (the free-space install's ESP, in bytes)
-# for the host's FAT check, <out-dir>/windows-like.dump and installer-console.png.
+# installs: a wrong erase confirmation, an erase, BIOS-mode Windows refused, a Windows-like table with a real BitLocker
+# volume (one of cryptsetup's test images, made by Windows, from BITLK_IMAGES_URL and BITLK_IMAGES_SHA256) and a fake
+# Windows loader with its firmware entry, the free space refused without the BitLocker confirmation, and an install
+# into it with the confirmation. Each installed system is checked on its partitions. Leaves <out-dir>/esp-offset (the
+# free-space install's ESP, in bytes) for the host's FAT check, <out-dir>/windows-like.dump, installer-console.png and
+# bitlk-images.tar.xz (kept for the next run).
 # shellcheck disable=SC2154 # out, vm, vm_until, fail, screenshot and sendkey come from boot.sh, which sources this file
 
 password='stackific-test-password'
 # The base, for the few checks that differ: package queries, the kernel's file names, the live image's state
 # shellcheck disable=SC2016 # $ID_LIKE belongs to the guest shell
 like=$(vm '. /etc/os-release && echo "$ID_LIKE"' | tr -d '\r\n')
+# shellcheck disable=SC2016 # $NAME belongs to the guest shell
+name=$(vm '. /etc/os-release && echo "$NAME"' | tr -d '\r\n')
 
-# Write the unattended answers to /tmp/<name>.toml in the guest: mode, and for an erase the typed confirmation
+# The BitLocker volume: passphrase and recovery passphrase protectors, recovery key ID 64311DEA, 100 MiB
+asset "$BITLK_IMAGES_URL" "$BITLK_IMAGES_SHA256" bitlk-images.tar.xz
+vm_put "$out/bitlk-images.tar.xz" /tmp/bitlk-images.tar.xz
+bitlk='tar -xJOf /tmp/bitlk-images.tar.xz bitlk-images/bitlk-aes-xts-128.img'
+
+# Write the unattended answers to /tmp/<name>.toml in the guest: mode, for an erase the typed confirmation, and the
+# BitLocker confirmation
 answers() {
   vm "cat >/tmp/$1.toml <<'EOF'
 [disk]
 device = \"/dev/vda\"
 mode = \"$2\"
 erase = \"$3\"
+bitlocker = \"${4:-}\"
 
 [system]
 keyboard = \"de\"
@@ -145,7 +156,19 @@ grep -qx '/dev/vda2 : start=     8390656, size=   125825024, type=0FC63DAF-8483-
 echo "ok: the erase made the two partitions"
 installed_checks /dev/vda1 /dev/vda2
 
-# 3. A Windows-like table: an ESP (FAT, SYSTEM), Microsoft reserved, a 2 GiB gap, basic data, a large gap, and a
+# 3. BIOS-mode Windows: an MBR table with a BitLocker volume in a type 7 partition refuses the free space (exit 2),
+#    naming MBR2GPT.EXE, and changes nothing
+vm "wipefs --all --quiet /dev/vda && printf 'label: dos\\nstart=2048, size=2097152, type=7\\n' | sfdisk --quiet /dev/vda \
+  && udevadm settle && $bitlk | dd of=/dev/vda1 bs=1M conv=fsync status=none" >/dev/null
+vm_until 'udevadm settle; lsblk -no FSTYPE /dev/vda1' '^BitLocker$' 30
+mbr=$(vm 'sfdisk --dump /dev/vda')
+answers mbr free-space ''
+vm_until '/usr/bin/stackific-installer --config /tmp/mbr.toml >/dev/null 2>/tmp/mbr.err; echo $?' '^2$' 0
+vm_until 'grep -c MBR2GPT /tmp/mbr.err' '^1$' 0
+[ "$(vm 'sfdisk --dump /dev/vda')" = "$mbr" ] || fail "the BIOS-mode refusal changed the table"
+echo "ok: BIOS-mode Windows refused the free space"
+
+# 4. A Windows-like table: an ESP (FAT, SYSTEM), Microsoft reserved, a 2 GiB gap, basic data, a large gap, and a
 #    recovery partition at the end, numbered 1, 2, 3 and 5
 vm "wipefs --all --quiet /dev/vda && sfdisk --quiet /dev/vda <<'EOF'
 label: gpt
@@ -157,22 +180,36 @@ EOF
 udevadm settle && mkfs.fat -F 32 -n SYSTEM /dev/vda1 >/dev/null" >/dev/null
 vm_until 'blkid -o value -s LABEL /dev/vda1' '^SYSTEM$' 0
 old_esp=$(vm 'blkid -o value -s UUID /dev/vda1' | tr -d '\r\n')
+win_uuid=$(vm 'lsblk -no PARTUUID /dev/vda1' | tr -d '\r\n')
+# A fake Windows: Limine's program as Windows' loader with an empty BCD beside it, and the firmware's "Windows Boot
+# Manager" entry for it, which efibootmgr puts first in the boot order
+vm "mkdir -p /mnt/w && mount /dev/vda1 /mnt/w && mkdir -p /mnt/w/EFI/Microsoft/Boot \
+  && cp /usr/share/limine/BOOTX64.EFI /mnt/w/EFI/Microsoft/Boot/bootmgfw.efi && : >/mnt/w/EFI/Microsoft/Boot/BCD \
+  && umount /mnt/w && efibootmgr --quiet --create --disk /dev/vda --part 1 --label 'Windows Boot Manager' \
+  --loader '\\EFI\\Microsoft\\Boot\\bootmgfw.efi'" >/dev/null
+win_files='mount -o ro /dev/vda1 /mnt/w && (cd /mnt/w && find . -type f -exec sha256sum {} + | sort); umount /mnt/w'
+win_before=$(vm "$win_files")
+grep -q ' ./EFI/Microsoft/Boot/bootmgfw.efi$' <<<"$win_before" || fail "no fake Windows loader: $win_before"
+vm_until 'efibootmgr' '^Boot[0-9A-F]{4}\* Windows Boot Manager	' 0
 before=$(vm 'sfdisk --dump /dev/vda')
 printf '%s\n' "$before" >"$out/windows-like.dump"
 [ "$(grep -c '^/dev/vda' <<<"$before")" = 4 ] || fail "the Windows-like table: $before"
 echo "ok: the Windows-like table"
 
-# 4. BitLocker on partition 3 (the -FVE-FS- signature at byte 3, after the boot code's jump) refuses the free space
-vm "printf '\\353\\122\\220-FVE-FS-' | dd of=/dev/vda3 bs=1 conv=notrunc status=none && udevadm settle" >/dev/null
+# 5. BitLocker on partition 3: without the typed confirmation the run exits 2, naming the volume and its recovery key,
+#    and changes nothing
+vm "$bitlk | dd of=/dev/vda3 bs=1M conv=fsync status=none" >/dev/null
 vm_until 'blkid -p -o value -s TYPE /dev/vda3' '^BitLocker$' 0
 answers free free-space ''
-vm_until '/usr/bin/stackific-installer --config /tmp/free.toml >/dev/null 2>&1; echo $?' '^2$' 0
+vm_until '/usr/bin/stackific-installer --config /tmp/free.toml >/dev/null 2>/tmp/free.err; echo $?' '^2$' 0
+vm_until "grep -c 'vda3 (10.0 GiB): .*recovery key 64311DEA' /tmp/free.err" '^1$' 0
 [ "$(vm 'sfdisk --dump /dev/vda')" = "$before" ] || fail "the BitLocker refusal changed the table"
-vm 'dd if=/dev/zero of=/dev/vda3 bs=11 count=1 conv=notrunc status=none && udevadm settle' >/dev/null
-vm_until 'blkid -p -o value -s TYPE /dev/vda3; echo end' '^end$' 0
-echo "ok: BitLocker refused the free space"
+echo "ok: BitLocker needs the typed confirmation"
 
-# 5. Free space: the old entries byte-identical, two new partitions inside the large gap
+# 6. Free space, with the BitLocker confirmation: the old entries byte-identical, two new partitions inside the large
+#    gap, the BitLocker volume and Windows' ESP untouched, Windows' firmware entry kept after ours, and Limine's menu
+#    with both Windows entries
+answers free free-space '' 'I have my key'
 install_run free
 after=$(vm 'sfdisk --dump /dev/vda')
 for line in "$(grep '^label-id:' <<<"$before")" $(grep -n '^/dev/vda' <<<"$before" | cut -d: -f1); do
@@ -200,7 +237,17 @@ fi
 echo "ok: two new partitions fill the gap"
 vm_until "blkid -o value -s UUID /dev/vda1" "^$old_esp\$" 0
 vm_until 'blkid -o value -s LABEL /dev/vda1' '^SYSTEM$' 0
-# Nothing written to the Windows-like ESP: it stays as mkfs.fat left it, empty
-vm_until 'mkdir -p /mnt/w && mount -o ro /dev/vda1 /mnt/w && ls -A /mnt/w | wc -l; umount /mnt/w' '^0$' 0
+[ "$(vm "$win_files")" = "$win_before" ] || fail "the install changed Windows' ESP: $(vm "$win_files")"
+vm_until "cmp <($bitlk) <(head -c 104857600 /dev/vda3) && echo same" '^same$' 0
+echo "ok: Windows' ESP and the BitLocker volume are untouched"
+entries=$(vm efibootmgr)
+order=$(sed -n 's/^BootOrder: //p' <<<"$entries")
+grep -q "^Boot${order%%,*}\\* $name	" <<<"$entries" || fail "\"$name\" is not first: $entries"
+grep -q "^Boot$(cut -d, -f2 <<<"$order")\\* Windows Boot Manager	" <<<"$entries" || fail "Windows Boot Manager is not second: $entries"
+echo "ok: the firmware starts \"$name\" first and keeps Windows Boot Manager after it"
 installed_checks "$(cut -d' ' -f1 <<<"$esp_line")" "$(cut -d' ' -f1 <<<"$sys_line")"
+vm "mount -o ro $(cut -d' ' -f1 <<<"$esp_line") /mnt/e" >/dev/null
+vm_until "grep -cx -e '/Windows' -e '    entry: Windows Boot Manager' -e '/Windows, started directly' \
+  -e '    path: guid($win_uuid):/EFI/Microsoft/Boot/bootmgfw.efi' /mnt/e/limine.conf" '^4$' 0
+vm 'umount /mnt/e' >/dev/null
 echo $((esp_start * 512)) >"$out/esp-offset"
