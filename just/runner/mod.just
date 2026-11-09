@@ -87,10 +87,15 @@ vm:
   set -euo pipefail
   command -v limactl >/dev/null || { echo "runner: limactl missing (brew install lima)" >&2; exit 1; }
   if limactl list --quiet | grep -qx "{{ runner_vm }}"; then
+    # An existing VM keeps the memory it was made with: resize it (a stop ends a job the runner is running)
+    if [ "$(limactl list --format '{{{{.Memory}}' "{{ runner_vm }}")" != $(( {{ runner_vm_memory }} << 30 )) ]; then
+      limactl stop "{{ runner_vm }}" 2>/dev/null || true
+      limactl edit --tty=false --memory={{ runner_vm_memory }} "{{ runner_vm }}"
+    fi
     limactl start --tty=false "{{ runner_vm }}"
   else
     limactl start --tty=false --name="{{ runner_vm }}" --vm-type=vz --nested-virt --mount-none \
-      --cpus=6 --memory=16 --disk=100 \
+      --cpus=6 --memory={{ runner_vm_memory }} --disk=100 \
       --set '.images = [{"location": "https://download.fedoraproject.org/pub/{{ runner_vm_image }}", "arch": "aarch64", "digest": "{{ runner_vm_digest }}"}, {"location": "https://dl.fedoraproject.org/pub/{{ runner_vm_image }}", "arch": "aarch64", "digest": "{{ runner_vm_digest }}"}]' \
       template:fedora
   fi
