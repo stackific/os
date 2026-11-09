@@ -30,6 +30,10 @@ Upstream facts (GitHub releases of github.com/storytold/<app>, read 2026-11-08 w
 ## Inputs
 From the operator's plan, row 025 and SPEC.md ("The ArtCraft suite", question 12), restated: the 13 apps above, from upstream's own release packages, checked against upstream's checksums and pinned by version. Operator decisions (2026-11-08) that replace the plan's "in both repos, installed on every image": not in the ISOs and not in our repos, but a one-click install from upstream on the user's machine, so we never redistribute them and question 12 (may we redistribute) no longer applies; the launcher never names or shows ArtCraft. Files copied: `apps/creative-apps-key.pgp` (upstream's `release-signing-key.asc`, unchanged) and `apps/creative-apps.sha256` (the 52 Linux package lines of the 13 signed `SHA256SUMS.txt`, unchanged, under a comment header).
 
+Decisions (operator 2026-11-09, the recommendations as built):
+1. The script needs 5 GiB free in `/var/tmp`, because it verifies every package before it installs any.
+2. The live session is not a target (its root lives in RAM, and `run0` may refuse the live user's empty password); the user page says to install Stackific OS first. Hiding the launcher there is logged under Later in `docs/apps.md`.
+
 ## Changes
 - `apps/install-creative-apps`: the script (bash, `set -euo pipefail`); `apps/creative-apps.sha256`: the pins; `apps/creative-apps-key.pgp`: upstream's key; `apps/stackific-creative-apps.desktop`: the launcher.
 - `apps/justfile`: `test`, the script against a fake release served from files (`file://`), with a throwaway key: good packages install, a tampered package and a re-signed package with another hash both stop before installing.

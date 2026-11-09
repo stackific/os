@@ -33,3 +33,7 @@ All 13 releases are signed by one key, "ArtCraft Linux Release Signing Key", pri
 4. Update the sha256 in the PKGBUILD and bump `pkgrel` (and `Release` in the spec).
 
 A changed key needs a reason from upstream before it replaces `creative-apps-key.pgp`.
+
+## Later
+
+- Hide the "Install creative apps" launcher in the live session, where it cannot work: the root lives in RAM, and `run0` may refuse the live user's empty password (task 025).
