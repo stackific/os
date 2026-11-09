@@ -54,17 +54,22 @@ iso version="0.0.0-dev": packages
   # The version reaches file names and the container only as data ($1, env), and must be semver like a release
   [[ $1 =~ ^[0-9]+\.[0-9]+\.[0-9]+(-[0-9A-Za-z.-]+)?$ ]] || { echo "version must be semver, got '$1'" >&2; exit 1; }
   name="stackific-$1-arch-{{ arch() }}"
-  mkdir -p "{{ out }}"
+  mkdir -p "{{ out }}" "{{ pkgcache }}"
   rm -f "{{ out }}/$name.iso" "{{ out }}/$name.packages.txt"
   # mkarchiso runs as `build` with its work dir inside the container, so --rm discards it and every build starts fresh.
   # Container root (the host user) then moves the outputs to /out, so the host user owns them.
+  # The package cache is the host's, so a build downloads only what changed since the last one: archive.archlinux.org
+  # stalls now and then, and every download it skips is one fewer chance to fail. `build` must own it, or mkarchiso
+  # falls back to /tmp; container root (the host user) takes it back on exit, so the host user can delete it.
   # Arch Linux ARM keeps some packages (libpisp, which libcamera needs) in its own [alarm] repo, which Arch's archive
   # lacks, so only aarch64 builds add it to the profile's pacman.conf.
   podman run --rm --privileged \
     --volume "{{ justfile_directory() }}/arch/iso:/profile:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
+    --volume "{{ pkgcache }}:/var/cache/pacman/pkg" \
     --env STACKIFIC_VERSION="$1" --env NAME="$name" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
-    {{ builder }} bash -c 'cp -r /profile /home/build/profile \
+    {{ builder }} bash -c 'trap "chown -R root: /var/cache/pacman/pkg" EXIT; chown build: /var/cache/pacman/pkg \
+      && cp -r /profile /home/build/profile \
       && if [ "{{ arch() }}" = aarch64 ]; then printf "\n[alarm]\nInclude = /etc/pacman.d/mirrorlist\n" >>/home/build/profile/pacman.conf; fi \
       && runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /home/build/profile \
       && install -m644 "/home/build/out/$NAME.iso" /out/ \

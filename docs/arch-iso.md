@@ -18,7 +18,7 @@ The version must be semver, as for a release; anything else is refused. The reci
 
 The last line prints the ISO size against the 2048 MiB target. Above the target, a warning comes first, but the build does not fail. The x86_64 ISO was 1543 MiB on 2026-11-06, with the installer, Disks and Plasma's GTK integration (1497 MiB before them).
 
-`mkarchiso` runs as the unprivileged user `build` inside the container. Its work directory stays in the container, so each build starts fresh. Rootless podman cannot mount devtmpfs, which archiso needs when it runs as root.
+`mkarchiso` runs as the unprivileged user `build` inside the container. Its work directory stays in the container, so each build starts fresh. pacman's package cache is not: `.build/arch/<arch>/pkgcache/` is mounted at `/var/cache/pacman/pkg`, so a build downloads only packages the last one did not, and the profile's `pacman.conf` sets `DisableDownloadTimeout`, because archive.archlinux.org sometimes stalls below pacman's 10-second low-speed limit and failed whole builds (`Operation too slow`, 2026-11-08). Delete the folder to start empty; on aarch64, whose live repos move, it grows until then. Rootless podman cannot mount devtmpfs, which archiso needs when it runs as root.
 
 ## Our packages
 
