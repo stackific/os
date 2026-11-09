@@ -28,3 +28,13 @@ Tests after the fixes: unchanged code; `just lefthook all` passes.
 ## Round 3
 Reviewed: the whole change.
 Verdict: Looks good. Ship. (Checked: snapper's files are written before Fedora's last relabel and the snapshot after it, so the snapshot and the files snapper creates in the relabelled `/.snapshots` keep their labels; snap-pac and the dnf5 actions do nothing during the install, because `SNAPPER_CONFIGS` is still empty while the installer removes packages and the actions are `enabled=host-only`; the mapping line from the user page lands under `[Subvol-Mapping]`, the last section of both versions' `/etc/btrfs-assistant.conf`; zram-generator 1.2.1 reads `/usr/lib/systemd/zram-generator.conf.d/`.)
+
+## Round 4
+Reviewed: CI, `images` run 42550000626 (fedora-aarch64 `just fedora test-install`).
+Verdict: fix 1 first.
+
+| # | Group | Finding | Where | Status | Resolution |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Must fix | The install test still expected twelve subvolumes: `btrfs subvolume list` printed `@snapshots` too, so the check failed after a correct install | `tests/vm/install.sh` | fixed | `@snapshots` in the expected list; 14 subvolumes in all (the thirteen flat ones and the "Fresh install" snapshot), exactly one inside `@snapshots`, 13 fstab lines; `docs/arch-iso.md` says thirteen |
+
+Tests after the fix: shellcheck on `tests/vm/install.sh` passes; the four images rerun in the next `images` run.

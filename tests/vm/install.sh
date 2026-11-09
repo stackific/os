@@ -73,16 +73,18 @@ installed_checks() {
   vm_until "blkid -o value -s TYPE $sys" '^btrfs$' 0
   vm_until "blkid -o value -s LABEL $sys" '^stackific$' 0
   vm "mkdir -p /mnt/t && mount -o subvolid=5 $sys /mnt/t" >/dev/null
-  local subvols='@ @cache @containers @docker @flatpak @home @libvirt @log @root @srv @swap @tmp'
+  local subvols='@ @cache @containers @docker @flatpak @home @libvirt @log @root @snapshots @srv @swap @tmp'
   # shellcheck disable=SC2016 # $NF belongs to the guest's awk
   vm_until 'btrfs subvolume list /mnt/t | awk '\''$7 == 5 {print $NF}'\'' | sort | paste -sd " "' "^$subvols\$" 0
-  vm_until 'btrfs subvolume list /mnt/t | wc -l' '^12$' 0
+  # The thirteen flat subvolumes, and inside @snapshots only the "Fresh install" snapshot (task 026)
+  vm_until 'btrfs subvolume list /mnt/t | wc -l' '^14$' 0
+  vm_until 'btrfs subvolume list -o /mnt/t/@snapshots | wc -l' '^1$' 0
   vm_until "lsattr -d /mnt/t/@libvirt /mnt/t/@swap | cut -c1-22 | grep -c C" '^2$' 0
   local r=/mnt/t/@ h=/mnt/t/@home
   local uuid_sys uuid_esp
   uuid_sys=$(vm "blkid -o value -s UUID $sys" | tr -d '\r\n')
   uuid_esp=$(vm "blkid -o value -s UUID $esp" | tr -d '\r\n')
-  vm_until "grep -c '^UUID=$uuid_sys .* btrfs subvol=/@[a-z]*,noatime,compress=zstd:1 0 0\$' $r/etc/fstab" '^12$' 0
+  vm_until "grep -c '^UUID=$uuid_sys .* btrfs subvol=/@[a-z]*,noatime,compress=zstd:1 0 0\$' $r/etc/fstab" '^13$' 0
   vm_until "grep -cx 'UUID=$uuid_esp /boot vfat umask=0077 0 2' $r/etc/fstab" '^1$' 0
   vm_until "grep -cx 'luks-$uuid_luks UUID=$uuid_luks none' $r/etc/crypttab" '^1$' 0
   vm_until "grep -cx 'ID=stackific' $r/etc/os-release" '^1$' 0
