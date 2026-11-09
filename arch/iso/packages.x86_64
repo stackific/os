@@ -2,6 +2,10 @@ base
 linux
 linux-lts
 linux-firmware
+linux-firmware-marvell
+sof-firmware
+alsa-firmware
+wireless-regdb
 amd-ucode
 intel-ucode
 mkinitcpio
@@ -36,6 +40,12 @@ xdg-desktop-portal-wlr
 pipewire
 pipewire-pulse
 wireplumber
+pipewire-libcamera
+pipewire-v4l2
+libcamera
+libcamera-ipa
+bolt
+fprintd
 gnome-disk-utility
 ntfs-3g
 ntfsprogs

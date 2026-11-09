@@ -110,6 +110,9 @@
     <package name="qcom-wwan-firmware"/>
     <package name="realtek-firmware"/>
     <package name="tiwilink-firmware"/>
+    <!-- Firmware parity with Arch (task 021): old sound cards and TV tuners -->
+    <package name="alsa-firmware"/>
+    <package name="dvb-firmware"/>
     <!-- x86 CPU microcode: Fedora has no microcode_ctl on aarch64, and AMD's microcode is for x86 CPUs only -->
     <package name="amd-ucode-firmware" arch="x86_64"/>
     <package name="microcode_ctl" arch="x86_64"/>
@@ -170,6 +173,14 @@
     <package name="pipewire"/>
     <package name="pipewire-pulseaudio"/>
     <package name="wireplumber"/>
+    <!-- Regular hardware (task 021): MIPI webcams through libcamera and PipeWire, Thunderbolt and USB4 authorisation,
+         fingerprint readers (fprintd without fprintd-pam: no PAM stack uses the reader) -->
+    <package name="libcamera"/>
+    <package name="libcamera-ipa"/>
+    <package name="pipewire-plugin-libcamera"/>
+    <package name="pipewire-v4l2"/>
+    <package name="bolt"/>
+    <package name="fprintd"/>
     <!-- Weak dependencies kept for the desktop (task 008): Wi-Fi, which NetworkManager alone lacks on Fedora, and
          GNOME's UI and monospace fonts -->
     <package name="NetworkManager-wifi"/>
