@@ -4,7 +4,7 @@ description: kitty, btop, Thunar with File Roller, and Bazaar with Flathub on ev
 sidebar:
   order: 23
   label: 023 First apps on all four images
-pr: https://github.com/stackific/os/pull/22
+pr: https://github.com/stackific/os/pull/27
 task: dev/tasks/023-first-apps.md
 ---
 
