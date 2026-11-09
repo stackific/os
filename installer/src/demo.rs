@@ -125,7 +125,7 @@ pub fn fake(delay: Duration) -> Fake {
         "chroot ",
         "chpasswd ",
         "usermod ",
-        "pacman --sysroot",
+        "env SNAP_PAC_SKIP=y pacman --sysroot",
         "arch-chroot ",
         "install -D ",
         "efibootmgr --",

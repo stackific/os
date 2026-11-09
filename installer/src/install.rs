@@ -487,7 +487,7 @@ pub mod tests {
         .on(&format!("chroot {t} useradd "), Output::ok(""))
         .on("chpasswd ", Output::ok(""))
         .on("usermod ", Output::ok(""))
-        .on("pacman --sysroot", Output::ok(""))
+        .on("env SNAP_PAC_SKIP=y pacman --sysroot", Output::ok(""))
         .on("arch-chroot ", Output::ok(""))
         .on("mount -t ", Output::ok(""))
         .on("mount --bind ", Output::ok(""))
@@ -633,7 +633,7 @@ pub mod tests {
         assert!(pos("userdel") < pos(&format!("chroot {t} useradd")));
         // The boot loader after the live state (archiso's mkinitcpio drop-in gone), the firmware entry last: the
         // fixture's entry on a partition lsblk no longer lists goes, ours is created on the ESP, partition 1
-        assert!(pos("pacman --sysroot") < pos("install -D"));
+        assert!(pos("env SNAP_PAC_SKIP=y pacman --sysroot") < pos("install -D"));
         assert!(pos("install -D") < pos("arch-chroot"));
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/boot/limine.conf"))],

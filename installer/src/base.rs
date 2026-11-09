@@ -117,13 +117,16 @@ impl Base for Arch {
 
     /// archiso's mkinitcpio drop-in, the live image's kernel-copy and linux-lts hooks, and the installer package
     /// with the dependencies only it needed (`-Rns`), so the installed system has no installer and no launcher.
+    /// `SNAP_PAC_SKIP=y`: snap-pac's hook would take pre and post snapshots before "Fresh install", and it stops on
+    /// `--sysroot`, which mounts no /proc (`FileNotFoundError: '/proc/1/root/.'`, task 026).
     fn live_state(&self, target: &Path) -> (Vec<PathBuf>, Vec<Cmd>) {
         let files = vec![
             target.join("etc/mkinitcpio.conf.d/archiso.conf"),
             target.join(ARCH_LIVE_HOOK),
             target.join(ARCH_LIVE_LTS_HOOK),
         ];
-        let pacman = Cmd::new("pacman")
+        let pacman = Cmd::new("env")
+            .args(["SNAP_PAC_SKIP=y", "pacman"])
             .args([format!("--sysroot={}", target.display())])
             .args([
                 "--remove",
@@ -287,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             cmds[0].line(),
-            "pacman --sysroot=/t --remove --nosave --recursive --noconfirm stackific-installer"
+            "env SNAP_PAC_SKIP=y pacman --sysroot=/t --remove --nosave --recursive --noconfirm stackific-installer"
         );
         let (files, cmds) = base.initramfs(Path::new("/t"), "root=UUID=x");
         assert_eq!(

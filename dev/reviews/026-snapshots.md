@@ -38,3 +38,13 @@ Verdict: fix 1 first.
 | 1 | Must fix | The install test still expected twelve subvolumes: `btrfs subvolume list` printed `@snapshots` too, so the check failed after a correct install | `tests/vm/install.sh` | fixed | `@snapshots` in the expected list; 14 subvolumes in all (the thirteen flat ones and the "Fresh install" snapshot), exactly one inside `@snapshots`, 13 fstab lines; `docs/arch-iso.md` says thirteen |
 
 Tests after the fix: shellcheck on `tests/vm/install.sh` passes; the four images rerun in the next `images` run.
+
+## Round 5
+Reviewed: CI, `images` run 42553225857 (arch-x86_64 `just arch test-install`).
+Verdict: fix 1 first.
+
+| # | Group | Finding | Where | Status | Resolution |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Must fix | The erase install stopped: removing `stackific-installer` with `pacman --sysroot` ran snap-pac's pre-transaction hook, which needs /proc (`FileNotFoundError: [Errno 2] No such file or directory: '/proc/1/root/.'`, `failed to commit transaction (failed to run transaction hooks)`) | `installer/src/base.rs` `live_state` | fixed | The removal runs as `env SNAP_PAC_SKIP=y pacman --sysroot=…`: snap-pac 3.0.1 checks `SNAP_PAC_SKIP` before anything else, and an install should take no pre and post snapshots before "Fresh install" anyway. Fedora needs nothing: its dnf5 actions are `enabled=host-only`, so `--installroot` takes none |
+
+Tests after the fix: `just installer test` passes 67 tests, `just installer lint` is clean; the four images rerun in the next `images` run.
