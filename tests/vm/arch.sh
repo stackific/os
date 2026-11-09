@@ -102,3 +102,11 @@ vm_until 'ls /usr/lib*/spa-0.2/libcamera/libspa-libcamera.so | wc -l' '^[1-9]' 0
 # (the desktops' own fingerprint services excepted: Plasma's lock screen, kscreenlocker's kde-fingerprint, and GDM's
 # gdm-fingerprint, which nothing here starts)
 vm_until 'grep -rl pam_fprintd /etc/pam.d /usr/lib/pam.d 2>/dev/null | grep -vcE "/(kde|gdm)-fingerprint$"' '^0$' 0
+
+# Snapshots and swap (task 026): snapper, btrfs-assistant and snap-pac from stackific-storage, snapper's cleanup timer
+# running, and zram as the only swap at priority 100 with zswap off; snapper has no config on the live image
+vm_until 'pacman -Q stackific-storage snapper btrfs-assistant snap-pac zram-generator | wc -l' '^5$' 0
+vm_until 'systemctl is-active snapper-cleanup.timer' '^active$' 0
+vm_until "swapon --show=NAME,PRIO --noheadings | tr -s ' '" '^/dev/zram0 100$' 60
+vm_until 'cat /sys/module/zswap/parameters/enabled' '^N$' 0
+vm_until 'sysctl -n vm.swappiness vm.page-cluster | paste -sd " "' '^150 0$' 0

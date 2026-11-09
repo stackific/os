@@ -19,6 +19,7 @@ stackific-artwork
 stackific-installer
 stackific-boot
 stackific-hardware
+stackific-storage
 nvidia-open
 nvidia-open-lts
 nvidia-utils

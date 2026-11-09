@@ -1,0 +1,31 @@
+# Stackific OS snapshots and swap for Arch (task 026): snapper with btrfs-assistant, snap-pac's pre and post snapshots
+# around every pacman transaction, snapper's hourly cleanup, and swap in zram with zswap off. snapper's root config is
+# the installer's (installer/src/snapper.rs), because only installed systems have a btrfs root; on the live image
+# snapper has no config, and btrfs-assistant restores an installed system's snapshots. The sources are base-neutral
+# files from storage/, which `just arch packages` stages next to this file by name.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-storage
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS snapshots and swap: snapper, btrfs-assistant, snap-pac and zram'
+arch=('any')
+url='https://os.stackific.com'
+license=('Apache-2.0')
+depends=('snapper' 'btrfs-assistant' 'snap-pac' 'zram-generator')
+options=('!debug' '!strip')
+source=('stackific-zram.conf'
+        '99-stackific-swap.conf'
+        'stackific-zswap.conf')
+sha256sums=('4c2154b48b0c2baf83fb75e133ad143ecebc30b2ab005c2d979ca8b5b710ad1b'
+            '8569eb03938b579be48cfdf03a25b43558ed1d1f69f50f659a7a93e0d2a1dc53'
+            '2241587f5131fecdc7bb77486d9470aadcac273f7a1a95f60f901e05097c2e0b')
+
+# zram's drop-in, the swap sysctls, zswap off, and snapper's cleanup timer enabled
+package() {
+  install -Dm644 stackific-zram.conf "$pkgdir/usr/lib/systemd/zram-generator.conf.d/stackific.conf"
+  install -Dm644 99-stackific-swap.conf "$pkgdir/usr/lib/sysctl.d/99-stackific-swap.conf"
+  install -Dm644 stackific-zswap.conf "$pkgdir/usr/lib/tmpfiles.d/stackific-zswap.conf"
+  install -d "$pkgdir/usr/lib/systemd/system/timers.target.wants"
+  ln -s ../snapper-cleanup.timer "$pkgdir/usr/lib/systemd/system/timers.target.wants/snapper-cleanup.timer"
+}

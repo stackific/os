@@ -142,6 +142,9 @@
          (and limine and efibootmgr, which they require) -->
     <package name="stackific-installer"/>
     <package name="stackific-boot"/>
+    <!-- Snapshots and swap (task 026): snapper, btrfs-assistant, the dnf5 actions plugin's pre and post snapshots and
+         zram, from stackific-storage's requires -->
+    <package name="stackific-storage"/>
     <!-- NVIDIA (task 020): stackific-hardware picks NVIDIA's open modules or nouveau at every boot; the driver from RPM
          Fusion and its open kernel modules from our repo (nvidia-kmod, provided by kmod-nvidia-<kernel>). x86_64 only:
          RPM Fusion's aarch64 xorg-x11-drv-nvidia-libs 615.78.08 requires libnvidia-rmapi-tegra.so, which no package

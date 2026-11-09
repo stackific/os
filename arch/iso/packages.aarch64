@@ -18,6 +18,7 @@ stackific-artwork
 stackific-installer
 stackific-boot
 stackific-hardware
+stackific-storage
 nvidia-open-dkms
 nvidia-utils
 mangowm
