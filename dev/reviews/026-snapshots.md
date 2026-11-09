@@ -1,7 +1,7 @@
 # 026: Snapshots with snapper and btrfs-assistant, a "Fresh install" snapshot, and zram: review
 
 Task: dev/tasks/026-snapshots.md
-Status: commit ready
+Status: open
 
 ## Round 1
 Reviewed: the task's uncommitted change (installer, `stackific-storage` on both bases, package lists and recipes, boot and install checks, docs and entry).
@@ -48,3 +48,11 @@ Verdict: fix 1 first.
 | 1 | Must fix | The erase install stopped: removing `stackific-installer` with `pacman --sysroot` ran snap-pac's pre-transaction hook, which needs /proc (`FileNotFoundError: [Errno 2] No such file or directory: '/proc/1/root/.'`, `failed to commit transaction (failed to run transaction hooks)`) | `installer/src/base.rs` `live_state` | fixed | The removal runs as `env SNAP_PAC_SKIP=y pacman --sysroot=…`: snap-pac 3.0.1 checks `SNAP_PAC_SKIP` before anything else, and an install should take no pre and post snapshots before "Fresh install" anyway. Fedora needs nothing: its dnf5 actions are `enabled=host-only`, so `--installroot` takes none |
 
 Tests after the fix: `just installer test` passes 67 tests, `just installer lint` is clean; the four images rerun in the next `images` run.
+
+## Round 6
+Reviewed: CI, `images` run 42559637348 (fedora-aarch64 `just fedora test-install`; arch-aarch64 passed).
+Verdict: fix 1 first.
+
+| # | Group | Finding | Where | Status | Resolution |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Must fix | On installed Fedora, `dnf5 reinstall kernel-core` made no pre and post snapshots (`snapper … list --columns type` counted 0 `pre`/`post`) | `fedora/packages/stackific-storage/snapper.actions` | open | Not the actions file: in the Fedora builder, dnf5 5.4.7's actions plugin calls a stand-in `snapper` with `create -t pre -p -c number -d …` and `create -t post --pre-number 42 …`. Not SELinux: Fedora 45's policy makes `rpm_t` `dbusd_unconfined`, and `snapperd_t` may answer it. The install test now prints dnf5's log lines for the actions, snapperd's journal and the actions folder before the check, so the next run shows the real error |
