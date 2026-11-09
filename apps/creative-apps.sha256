@@ -1,0 +1,56 @@
+# Pins for install-creative-apps (task 025): the Linux package lines of each app's SHA256SUMS.txt, unchanged, from its
+# GitHub release at github.com/storytold/<app> (all 2026-11-06), each SHA256SUMS.txt verified against
+# creative-apps-key.pgp on 2026-11-08. To update, see docs/apps.md. The script reads only the lines of the form
+# '<sha256>  <app>-<version>-linux-<arch>.<ext>'.
+898c3893ca84503941d72d6d0ab97b5beb4c705bce382f0f3e650956084af0a2  cadcraft-0.18.0-linux-aarch64.pkg.tar.zst
+a7a21e0ab61bda5bbebab5e8d7a91c0243cc5c2bc3abce00412dc9b219bd5a90  cadcraft-0.18.0-linux-aarch64.rpm
+3a4ae0573abfc91fa21baa61be052175e0d2ec9b2c618e04c31ce1f6bfd497e4  cadcraft-0.18.0-linux-x86_64.pkg.tar.zst
+ac0f3c193055f51d371e4ff540571e7dd1cee3cf3beebcc40955206282a107a6  cadcraft-0.18.0-linux-x86_64.rpm
+d334bee23fa661296542cf92f432286ba913eee23ff56357d6818c0644efc6e9  deckcraft-0.16.0-linux-aarch64.pkg.tar.zst
+dfe3848140f5fc05714df3d1fd7f50660245f07a10d7adc5f87817ae9bf0befd  deckcraft-0.16.0-linux-aarch64.rpm
+c713c16029d49d7964d057cde9316b604f10644ecbb456a1aca3625f50d61fc0  deckcraft-0.16.0-linux-x86_64.pkg.tar.zst
+b8e4a4c5d6c8e459a2c9271b9508f6f286c326bf0d205eb1b48dc3e662705e1d  deckcraft-0.16.0-linux-x86_64.rpm
+011be16b07205edb5bf80b375db29d7f8d61d92e7e5b8569159d4e5628ca6119  designcraft-0.18.0-linux-aarch64.pkg.tar.zst
+582bc70293b4be0229633c71ab1d0836d616215f43c4c680b5dedf6efec190d7  designcraft-0.18.0-linux-aarch64.rpm
+2a26898c08baa7c779dd13e8a1184c47ab3cb509bee79b0595f4c7df3e2ee15e  designcraft-0.18.0-linux-x86_64.pkg.tar.zst
+6494c5c5a9aac4f16ac6e33ac5547c3c86c1f2d815527f1e6287d343f9d9c17c  designcraft-0.18.0-linux-x86_64.rpm
+08aff0ba4bfd8feca8eea40defcc9ae92a732ec3e218d2f3d21ebd8bdb97d9a4  effectcraft-0.22.0-linux-aarch64.pkg.tar.zst
+9229328d3792eb16dc8c6d00d0b689513a15131348218e6ea9acfb39feef611b  effectcraft-0.22.0-linux-aarch64.rpm
+e260841f704b623c5d7d887eebb83f9dcb0ff952064da2b6b1749f21851e5330  effectcraft-0.22.0-linux-x86_64.pkg.tar.zst
+95bf37623627bd9c19664f9a10cbe926dad5d07d5d589eee48af9d452710f0d8  effectcraft-0.22.0-linux-x86_64.rpm
+f152315d3daae960441f241f5f050ac2c6a6b55c0150af4d3d93458c63dd718d  figcraft-0.16.0-linux-aarch64.pkg.tar.zst
+cc1389b5903d1edf4365f5e73a485e0f1436819936f867d1e52eeac1b1ec2119  figcraft-0.16.0-linux-aarch64.rpm
+6c7353f26482ca8285a89f0fbc550ba0a0ea72bb59941d6d534f612e31e3b5e9  figcraft-0.16.0-linux-x86_64.pkg.tar.zst
+7e4064eb0914b1269973ec9778ca31747b30e2d84fdb81ab781bb60859d119b5  figcraft-0.16.0-linux-x86_64.rpm
+ebe44f88f319d4c7eeefeabecad9b2e8a0e4c01421e7220a2b085c8a9c018fda  filmcraft-0.18.0-linux-aarch64.pkg.tar.zst
+4bf43a6656651fa9fddb30e18f00b1321542a57c63aa372e81b8674b0a6ec363  filmcraft-0.18.0-linux-aarch64.rpm
+33c83286710f24b2f4f40987cc0febb6b96d409417b8d59b2cf35aa70ff0debd  filmcraft-0.18.0-linux-x86_64.pkg.tar.zst
+a75eae07e847f037df28ee0b4a97af13945bee0d901a4147a8797ee6c56addca  filmcraft-0.18.0-linux-x86_64.rpm
+2ff3a5e56c9a4ca516f41b5477ff43909e2cb4f8af4722bf5bb88e28520737b9  gridcraft-0.17.0-linux-aarch64.pkg.tar.zst
+801fd511540a545b6f3e41cc306ec3db80d91e5d5f4e23fd4f1c5b28696034ab  gridcraft-0.17.0-linux-aarch64.rpm
+e76967eea8f5fd8de0d0d4808cbade6fa236126f338cb870c448bcc14f9600a3  gridcraft-0.17.0-linux-x86_64.pkg.tar.zst
+c615a8d0cb36ce43fe57e8563ff98e909b30f67d7bac80aa0cb64a02ee2fd6f3  gridcraft-0.17.0-linux-x86_64.rpm
+af0c64dc362e2a582cf3b4333236684ac3f5a83d07945be5f8d29d8e739967f9  lightcraft-0.19.0-linux-aarch64.pkg.tar.zst
+0fd3c83602ee70b432e72fedb8009176a87b77d4fb3048591d9c093abc3019fb  lightcraft-0.19.0-linux-aarch64.rpm
+9649ac41a7aa8a1d04296dce6398844905ae8975cbb57bed10cf5cb18e213274  lightcraft-0.19.0-linux-x86_64.pkg.tar.zst
+1d929f7904cea2fd3fe66ef36a77a93ad9e7b8b39dd916c543d66681f5b2237a  lightcraft-0.19.0-linux-x86_64.rpm
+329554dc7b5d05baa8fded4402be14fda879ec4963d9bcd2722fb5db201f068c  pdfcraft-0.19.0-linux-aarch64.pkg.tar.zst
+f3e43d99e457e4133db1c7dd4a61b967db614f1f6f4325f75a2335f27bfff8b5  pdfcraft-0.19.0-linux-aarch64.rpm
+67d3450d28ec6bdfa18db0517b8f98be12a3eb2e88e1ecdb60ed9978362dd3fa  pdfcraft-0.19.0-linux-x86_64.pkg.tar.zst
+d3f2a6aec11c995e3829fb6f229510cc8212dde2b0b4848ff0276f4c82dbaa65  pdfcraft-0.19.0-linux-x86_64.rpm
+236ac5f3e0e5d965ec758b5471a8dfe3fa3e9b6e4844ffefee3a6b676b18be14  photocraft-0.21.0-linux-aarch64.pkg.tar.zst
+717bb1367d6beacb6b22b1bb130e0d443f65cac335c690de8128e5db94b7ba9b  photocraft-0.21.0-linux-aarch64.rpm
+5f2e6bc56496eba4548f3945fc8dbd54cfbb121557dca574143f64e0b2c2b00b  photocraft-0.21.0-linux-x86_64.pkg.tar.zst
+61a41fcd7d6fd78b2217a666afe63ad080a683069f7d56d3d1b77f483bbb0675  photocraft-0.21.0-linux-x86_64.rpm
+c181d44b6ba58a6256f0163b702749513fd22aeed5aa6c2aad4e45613da45cec  soundcraft-0.18.0-linux-aarch64.pkg.tar.zst
+07f061cedb901b360952252f22faad6039e973f7390acd070ea6c66f93e36a0e  soundcraft-0.18.0-linux-aarch64.rpm
+1ea28166370fe72dae2b002c3f2c32c7778cc8bc27638ece1e002adc8a0fd65a  soundcraft-0.18.0-linux-x86_64.pkg.tar.zst
+b364943d4c5fb325ce706cf61c58baa3f518e8ec2dd7b99039ec88428c5f0e47  soundcraft-0.18.0-linux-x86_64.rpm
+ce7a6c7317387a08e39db9ab6399ffd8f81f0f3aa4f07a934596a16c3e52a186  vectorcraft-0.22.0-linux-aarch64.pkg.tar.zst
+80f913296bc2382efb1b47934150bbe1959daf3de9a6e76bd4a89e14fe93d523  vectorcraft-0.22.0-linux-aarch64.rpm
+b3eb5e36fe0d724bc2db755041bdfbee8a9cbf44c7ccce63d5e83f5a5e91adb3  vectorcraft-0.22.0-linux-x86_64.pkg.tar.zst
+0900c60ae67435405bb737517209aba97ea7e67b46a67de4eae5d87f7c0e9d16  vectorcraft-0.22.0-linux-x86_64.rpm
+0a6213a2c424b21ef92ea093c024b9b59116ff8b39661d7093f2549b8e014192  wordcraft-0.16.0-linux-aarch64.pkg.tar.zst
+ccbf138a4e339bce4a7a6a4f15c30d47be5cfc865de003000776939a72e06a2b  wordcraft-0.16.0-linux-aarch64.rpm
+c2db5045ba4111f3215a0d97f58ad79960b7cf1041e4561b4d960c054fe807ae  wordcraft-0.16.0-linux-x86_64.pkg.tar.zst
+2d866267ed75da30e07367c37fdf546e3ffd766d0f565cda0295de44d2890bae  wordcraft-0.16.0-linux-x86_64.rpm

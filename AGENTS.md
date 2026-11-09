@@ -59,6 +59,7 @@ desktop/             base-neutral defaults: MangoWM config, Noctalia defaults, s
 installer/           the installer: disk step, live-image copy, per-base steps
 branding/            the branding file, logo and wallpapers (committed, credited in wallpapers.toml)
 hardware/            the GPU driver pick (stackific-gpu-generator), NVIDIA's legacy list, MangoWM's low effects
+apps/                apps installed from upstream on demand: the creative apps' launcher, script, pins and key
 tests/               container and VM tests
 release/             GitHub Releases for the images (recipes the release and images workflows call)
 site/                user docs and the prompt trail
@@ -138,7 +139,7 @@ dev/reviews/         review records from /s-build, one per task
 - Our packages: makepkg in a fresh pinned container on Arch, mock on Fedora. They hold configuration, artwork, release files and third-party tools we package (Shelly on Arch).
   - Arch: `arch/packages/<name>/PKGBUILD`, base-neutral sources in `desktop/` and `branding/`, Arch-only sources next to the PKGBUILD (staged by name like the rest); `just arch packages` builds them into the local repo `.build/arch/repo/`, which the ISO build reads as `[stackific]` (unsigned until release signing).
   - Fedora: `fedora/packages/<name>/<name>.spec`, the same sources and install paths as the PKGBUILDs (Fedora-only sources beside the spec); mock runs as container root with `--isolation=simple --no-bootstrap-image`, and `just fedora packages` builds the RPMs into the local repo `.build/fedora/repo/` (createrepo_c, unsigned until release signing). `stackific-installer` alone builds with `mock --enable-network` (`cargo fetch` in `%prep`).
-- The ArtCraft apps come from upstream's own release packages (`.pkg.tar.zst`, `.rpm`), checked against its `SHA256SUMS.txt` and pinned by version.
+- The 13 ArtCraft apps (github.com/storytold) are in no image, repo or release of ours (operator 2026-11-08, task 025): `stackific-apps` (`apps/`) ships the launcher "Install creative apps" (`foot --hold … run0`) and `/usr/lib/stackific/install-creative-apps`, which downloads upstream's `.pkg.tar.zst` or `.rpm` for `uname -m` on the user's machine, checks each with `gpgv` against upstream's key (`apps/creative-apps-key.pgp`) and `sha256sum` against `apps/creative-apps.sha256` (upstream's signed `SHA256SUMS.txt` lines, pinned), then runs `pacman -U` or `dnf install`. Brand terms: the ArtCraft name and marks only in upstream's own builds, so no name, icon, README or marketing page of ours says ArtCraft; user docs name the apps in plain text. `docs/apps.md`.
 - Fedora takes MangoWM, noctalia-greeter and Limine from Terra; the images carry dnf5 (installed systems update with it) but no Terra repo file (installed systems get Terra's packages from our repos, task 028); scenefx and Noctalia come from Fedora. `fedora/iso/terra-repo.sh` limits Terra with `includepkgs`, and packages and metadata are checked against Terra's key committed as `fedora/iso/terra-45.asc`. NVIDIA's driver comes from RPM Fusion (its modules from our repo); Broadcom wl from RPM Fusion; Bazaar from Flathub.
 - Signing: packages, repo databases, `SHA256SUMS` and images use a subkey of an offline project key; the subkey lives only in the `release` environment.
 

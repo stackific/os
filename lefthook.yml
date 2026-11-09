@@ -36,6 +36,10 @@ pre-commit:
     hardware:
       glob: "hardware/**"
       run: just hardware test
+    # The creative apps' install script against a fake signed release
+    apps:
+      glob: "apps/**"
+      run: just apps test
     # Task files, review records and prompt-trail entries follow their templates and point at each other
     dev:
       glob: "{dev/**,site/src/content/docs/prompt-trail/**}"

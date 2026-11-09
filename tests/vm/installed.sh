@@ -113,6 +113,10 @@ else
   vm_until 'pacman -Q stackific-installer arch-install-scripts 2>/dev/null | wc -l' '^0$' 0
 fi
 
+# The creative apps' one-click install stays on the installed system (task 025)
+vm_until 'test -x /usr/lib/stackific/install-creative-apps && test -f /usr/share/applications/stackific-creative-apps.desktop && echo ok' \
+  '^ok$' 0
+
 # The system the installer set up, and its login screen
 vm_until 'hostnamectl hostname' '^stackific-test$' 0
 vm_until 'timedatectl show -P Timezone' '^Europe/Berlin$' 0

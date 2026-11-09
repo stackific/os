@@ -138,6 +138,8 @@
     <!-- Our desktop defaults and artwork (the Noctalia unit, wlroots and greeter settings, wallpapers, fastfetch) -->
     <package name="stackific-desktop"/>
     <package name="stackific-artwork"/>
+    <!-- The creative apps' one-click install from upstream (task 025): the launcher and script, never the apps -->
+    <package name="stackific-apps"/>
     <!-- The installer and Limine's boot files, named so that removing the installer from an installed system keeps them
          (and limine and efibootmgr, which they require) -->
     <package name="stackific-installer"/>

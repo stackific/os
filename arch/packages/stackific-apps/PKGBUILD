@@ -1,0 +1,30 @@
+# Stackific OS apps offered outside the image, for Arch: the "Install creative apps" launcher and its script, which
+# downloads the creative apps from upstream's signed GitHub releases on the user's machine (task 025; we never
+# redistribute them). The sources are base-neutral files from apps/, which `just arch packages` stages next to this
+# file by name.
+# shellcheck disable=SC2034,SC2154
+
+pkgname=stackific-apps
+pkgver=0.1.0
+pkgrel=1
+pkgdesc='Stackific OS: one-click install of the creative apps from their upstream releases'
+arch=('any')
+url='https://os.stackific.com'
+license=('Apache-2.0')
+depends=('bash' 'coreutils' 'curl' 'foot' 'gnupg' 'grep' 'pacman' 'systemd')
+options=('!debug' '!strip')
+source=('install-creative-apps'
+        'creative-apps.sha256'
+        'creative-apps-key.pgp'
+        'stackific-creative-apps.desktop')
+sha256sums=('5a4ee10bf5474191a8400e82a9250c82a75fbf6a1befea5645dde81fdf45943e'
+            '4fb7b82660710f174086d8a29f89713c73d48dd2d12a15f1922637d6674ee76f'
+            '8e6925a173d6a7134118da099948de4d9eeec7c1c0770998aec33c9d3f484740'
+            '4cde002f1dedf620bb7d1e096f1b47aeb49eda4a6f8f9751b99fcf2efa40949b')
+
+# The script (not on PATH: the launcher runs it), its pins and upstream's key, and the launcher
+package() {
+  install -Dm755 install-creative-apps "$pkgdir/usr/lib/stackific/install-creative-apps"
+  install -Dm644 -t "$pkgdir/usr/share/stackific" creative-apps.sha256 creative-apps-key.pgp
+  install -Dm644 -t "$pkgdir/usr/share/applications" stackific-creative-apps.desktop
+}
