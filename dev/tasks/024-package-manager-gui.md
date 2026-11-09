@@ -30,7 +30,7 @@ Upstream facts:
 ## Inputs
 From the operator's plan, row 024 ("Shelly in our Arch repo (PKGBUILD from the AUR, Zig), GNOME Software on Fedora"), and the operator's design notes: decision 15 makes GNOME Software Shelly's counterpart on Fedora (Fedora Workstation's own store for RPMs, Flatpaks and firmware updates, with no extra toolkit), and question 4 asks whether Shelly builds on Arch Linux ARM. Operator decision (2026-11-08): if it cannot, Arch aarch64 goes without Shelly, the docs saying so. No files copied.
 
-Open decisions (operator to confirm; the recommended answer is built):
+Decisions (operator 2026-11-09, the recommendations as built):
 1. dnf5daemon's passwordless rule is overridden by `stackific-desktop`'s `/etc/polkit-1/rules.d/10-stackific-dnf5daemon.rules`, which sorts before `org.rpm.dnf.v0.rules` and returns the package's own defaults for its two actions (`execute_trusted_transaction`: `AUTH_ADMIN_KEEP` in an active session, else `AUTH_ADMIN`; `Repo.confirm_key`: `AUTH_ADMIN`), so GNOME Software asks for the password, following `AGENTS.md`'s polkit rule; the alternative is keeping it, as was done for bolt.
 2. Shelly's `check()` runs in our build as in the AUR's.
 
