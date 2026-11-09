@@ -1,6 +1,6 @@
 # 020: NVIDIA on Fedora x86_64: open modules built into the image, the driver picked at every boot, nouveau for older cards
 
-- [ ] Done
+- [x] Done
 
 Base: fedora
 

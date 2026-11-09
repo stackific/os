@@ -1,6 +1,6 @@
 # 022: NVIDIA and regular hardware on both aarch64 images
 
-- [ ] Done
+- [x] Done
 
 Base: both
 

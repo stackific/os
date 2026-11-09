@@ -1,6 +1,6 @@
 # 021: Regular hardware on both x86_64 images: matched firmware, Thunderbolt, fingerprint readers and MIPI webcams
 
-- [ ] Done
+- [x] Done
 
 Base: both
 
