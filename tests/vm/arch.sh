@@ -62,6 +62,10 @@ vm_until "grep -cx -e 'Name=Install Stackific OS' -e 'Exec=foot --app-id=stackif
 vm_until 'test -x /usr/bin/gnome-disks -a -f /usr/share/applications/org.gnome.DiskUtility.desktop -a -x /usr/bin/ntfsresize && echo ok' \
   '^ok$' 0
 vm_until 'test -d /usr/share/themes/Breeze/gtk-3.0 && pacman -Q kde-gtk-config >/dev/null && echo ok' '^ok$' 0
+# The apps (task 023): kitty, btop, Thunar with File Roller in its menu, and Bazaar with Flathub, which flatpak's own
+# remotes.d file adds to the system installation on first use
+vm_until 'pacman -Q kitty btop thunar thunar-archive-plugin gvfs file-roller flatpak bazaar | wc -l' '^8$' 0
+vm_until 'flatpak remotes --system --columns=name' '^flathub$' 0
 
 # The live user's desktop shortcut to the installer, which Plasma shows on its desktop (a link into the system's
 # applications, so Plasma trusts it); the install removes it with /home/live

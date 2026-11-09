@@ -28,6 +28,14 @@ greetd
 noctalia-greeter
 foot
 rofi
+kitty
+btop
+thunar
+thunar-archive-plugin
+gvfs
+file-roller
+flatpak
+bazaar
 plasma-desktop
 plasma-nm
 plasma-pa
