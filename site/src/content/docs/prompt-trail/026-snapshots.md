@@ -4,6 +4,7 @@ description: A flat @snapshots subvolume, snapper's root config and a "Fresh ins
 sidebar:
   order: 26
   label: 026 Snapshots and zram
+pr: https://github.com/stackific/os/pull/26
 task: dev/tasks/026-snapshots.md
 ---
 
