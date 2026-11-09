@@ -63,11 +63,9 @@ if [ "$like" = fedora ]; then
   vm_until "lsinitrd /boot/initramfs-$version.img | grep -c dmsquash" '^0$' 0
   vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx btrfs" '^1$' 0
   # No NVIDIA or nouveau module in the initramfs (RPM Fusion's dracut drop-in and stackific-hardware's, task 020), and
-  # on x86_64 NVIDIA's open modules for the running kernel, with no RPM Fusion repo file
-  if [ "$efi" = BOOTX64.EFI ]; then
-    vm_until 'rpm -q "kmod-nvidia-$(uname -r)" >/dev/null && ls /etc/yum.repos.d/ /usr/share/dnf5/repos.d/ 2>/dev/null | grep -ci rpmfusion' \
-      '^0$' 0
-  fi
+  # NVIDIA's open modules for the running kernel, with no RPM Fusion repo file
+  vm_until 'rpm -q "kmod-nvidia-$(uname -r)" >/dev/null && ls /etc/yum.repos.d/ /usr/share/dnf5/repos.d/ 2>/dev/null | grep -ci rpmfusion' \
+    '^0$' 0
   vm_until "lsinitrd /boot/initramfs-$version.img | grep -cE '/(nvidia|nouveau)[^/]*\\.ko'" '^0$' 0
   # The unlock (dracut's systemd-cryptsetup) and stackific-boot's plain screen after a failed start
   vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx -e systemd-cryptsetup -e stackific-boot-failure" '^2$' 0
@@ -84,15 +82,17 @@ else
   # The unlock (sd-encrypt) and stackific-boot's plain screen after a failed start
   vm_until "lsinitcpio /boot/initramfs-linux.img | grep -cE 'usr/lib/systemd/systemd-cryptsetup\$|etc/systemd/system/emergency.service.d/stackific-boot-failure.conf\$'" \
     '^2$' 0
+  # No NVIDIA or nouveau module in any initramfs (no kms hook, tasks 019 and 022: the driver loads from the root file
+  # system), and NVIDIA's open module for the running kernel (aarch64: built by DKMS, task 022)
+  vm_until 'for i in /boot/initramfs-linux*.img; do lsinitcpio "$i"; done | grep -cE "/(nvidia|nouveau)[^/]*\.ko"' '^0$' 0
+  # shellcheck disable=SC2016 # $(…) belongs to the guest shell
+  vm_until '[ "$(modinfo -F vermagic nvidia | cut -d" " -f1)" = "$(uname -r)" ] && echo ok' '^ok$' 0
   if [ "$efi" = BOOTX64.EFI ]; then
-    # The fallback kernel (task 019): linux-lts beside linux, from its own Limine entry after the default, and no
-    # NVIDIA or nouveau module in either initramfs (the driver loads from the root file system)
+    # The fallback kernel (task 019): linux-lts beside linux, from its own Limine entry after the default
     vm_until 'cd /boot && ls -d vmlinuz-linux-lts initramfs-linux-lts.img | wc -l' '^2$' 0
     vm_until "grep -E '^/' /boot/limine.conf | head -2 | paste -sd '|'" "^/$name\\|/$name \\(LTS kernel\\)\$" 0
     vm_until "grep -cx -e '    path: boot():/vmlinuz-linux-lts' -e '    module_path: boot():/initramfs-linux-lts.img' /boot/limine.conf" \
       '^2$' 0
-    vm_until 'for i in /boot/initramfs-linux.img /boot/initramfs-linux-lts.img; do lsinitcpio "$i"; done | grep -cE "/(nvidia|nouveau)[^/]*\.ko"' \
-      '^0$' 0
   fi
 fi
 

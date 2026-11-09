@@ -1,6 +1,11 @@
 base
 linux-aarch64
+linux-aarch64-headers
 linux-firmware
+linux-firmware-marvell
+sof-firmware
+alsa-firmware
+wireless-regdb
 archlinuxarm-keyring
 mkinitcpio
 mkinitcpio-archiso
@@ -12,6 +17,9 @@ stackific-release
 stackific-artwork
 stackific-installer
 stackific-boot
+stackific-hardware
+nvidia-open-dkms
+nvidia-utils
 mangowm
 noctalia
 greetd
@@ -30,6 +38,12 @@ xdg-desktop-portal-wlr
 pipewire
 pipewire-pulse
 wireplumber
+pipewire-libcamera
+pipewire-v4l2
+libcamera
+libcamera-ipa
+bolt
+fprintd
 gnome-disk-utility
 ntfs-3g
 ntfsprogs
