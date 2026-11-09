@@ -60,7 +60,11 @@ create version sha: gh::install
   notes=$(<"{{ justfile_directory() }}/release/notes.md")
   if [[ $1 =~ ^0\.0\.0-pr\.([0-9]+)$ ]]; then
     pr=${BASH_REMATCH[1]}
-    if "{{ gh }}" release view "$tag" >/dev/null 2>&1; then "{{ gh }}" release delete "$tag" --cleanup-tag --yes; fi
+    # A draft (its run cancelled) has no tag, which --cleanup-tag fails on; a leftover tag would pin the old commit
+    if "{{ gh }}" release view "$tag" >/dev/null 2>&1; then "{{ gh }}" release delete "$tag" --yes; fi
+    if "{{ gh }}" api "repos/{owner}/{repo}/git/ref/tags/$tag" >/dev/null 2>&1; then
+      "{{ gh }}" api -X DELETE "repos/{owner}/{repo}/git/refs/tags/$tag" >/dev/null
+    fi
     flags=(--prerelease --title "Test build for #$pr"
       --notes "Test build of the images after pull request #$pr merged: built and boot-tested, unsigned. Not a release."$'\n\n'"$notes")
   else
