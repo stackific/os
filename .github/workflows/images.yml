@@ -78,7 +78,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
 
   fedora-x86_64:
     needs: test-release
@@ -104,7 +104,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
 
   arch-aarch64:
     needs: test-release
@@ -130,7 +130,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
 
   fedora-aarch64:
     needs: test-release
@@ -156,7 +156,7 @@ jobs:
           GH_TOKEN: ${{ github.token }}
           R2_ACCESS_KEY_ID: ${{ secrets.R2_ACCESS_KEY_ID }}
           R2_SECRET_ACCESS_KEY: ${{ secrets.R2_SECRET_ACCESS_KEY }}
-          R2_ENDPOINT: ${{ secrets.R2_ENDPOINT }}
+          R2_ENDPOINT: ${{ vars.R2_ENDPOINT }}
 
   publish:
     needs: [test-release, arch-x86_64, fedora-x86_64, arch-aarch64, fedora-aarch64]
