@@ -16,3 +16,13 @@ Tests after the fixes: `just apps test` prints three `ok:` lines and leaves no g
 ## Round 2
 Reviewed: the round 1 fix and the whole change again.
 Verdict: Looks good. Ship. (Checked: no package is installed unless every signature and every pinned hash passed; run0 passes no environment, so the test's URL and share overrides cannot redirect a real run; signatures never lie next to a package pacman reads; the pins file keeps upstream's lines byte for byte, 13 per base and architecture.)
+
+## Round 3
+Reviewed: CI, `images` run 42549967351 (arch-aarch64 `just arch packages`).
+Verdict: fix 1 first.
+
+| # | Group | Finding | Where | Status | Resolution |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Must fix | makepkg takes every `.asc` in `source=()` for a detached signature, so upstream's key `creative-apps-key.asc` made it look for `creative-apps-key` to verify: `SOURCE FILE NOT FOUND`, `One or more PGP signatures could not be verified!` | `arch/packages/stackific-apps/PKGBUILD` | fixed | The key is `apps/creative-apps-key.pgp` everywhere (PKGBUILD, spec, script, test, docs); new sha256sums for the two changed files |
+
+Tests after the fix: `just apps test` passes its 3 cases; `makepkg --verifysource` and `makepkg --nodeps` in the Arch builder pass; the four images rerun in the next `images` run.

@@ -1,6 +1,6 @@
 # Pins for install-creative-apps (task 025): the Linux package lines of each app's SHA256SUMS.txt, unchanged, from its
 # GitHub release at github.com/storytold/<app> (all 2026-11-06), each SHA256SUMS.txt verified against
-# creative-apps-key.asc on 2026-11-08. To update, see docs/apps.md. The script reads only the lines of the form
+# creative-apps-key.pgp on 2026-11-08. To update, see docs/apps.md. The script reads only the lines of the form
 # '<sha256>  <app>-<version>-linux-<arch>.<ext>'.
 898c3893ca84503941d72d6d0ab97b5beb4c705bce382f0f3e650956084af0a2  cadcraft-0.18.0-linux-aarch64.pkg.tar.zst
 a7a21e0ab61bda5bbebab5e8d7a91c0243cc5c2bc3abce00412dc9b219bd5a90  cadcraft-0.18.0-linux-aarch64.rpm

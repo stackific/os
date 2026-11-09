@@ -11,7 +11,7 @@ URL: https://os.stackific.com
 BuildArch: noarch
 Source0: install-creative-apps
 Source1: creative-apps.sha256
-Source2: creative-apps-key.asc
+Source2: creative-apps-key.pgp
 Source3: stackific-creative-apps.desktop
 Requires: bash
 Requires: coreutils
@@ -34,5 +34,5 @@ install -Dm644 -t %{buildroot}%{_datadir}/applications %{SOURCE3}
 %files
 %{_prefix}/lib/stackific/install-creative-apps
 %{_datadir}/stackific/creative-apps.sha256
-%{_datadir}/stackific/creative-apps-key.asc
+%{_datadir}/stackific/creative-apps-key.pgp
 %{_datadir}/applications/stackific-creative-apps.desktop

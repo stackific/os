@@ -14,7 +14,7 @@ test:
   mkdir -m 700 "$GNUPGHOME"
   mkdir -p "$tmp/share" "$tmp/bin"
   gpg --batch --quiet --passphrase '' --quick-gen-key 'Test <test@example.invalid>' ed25519 sign never 2>/dev/null
-  gpg --armor --export >"$tmp/share/creative-apps-key.asc"
+  gpg --armor --export >"$tmp/share/creative-apps-key.pgp"
   echo '# comment, and a line for the other base' >"$tmp/share/creative-apps.sha256"
   for a in alphacraft:1.0.0 betacraft:2.1.0; do
     app=${a%:*} ver=${a#*:}

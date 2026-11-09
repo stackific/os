@@ -28,10 +28,10 @@ Upstream facts (GitHub releases of github.com/storytold/<app>, read 2026-11-08 w
 - Asset names use `uname -m`'s words (`x86_64`, `aarch64`), so the script picks `linux-$(uname -m)`.
 
 ## Inputs
-From the operator's plan, row 025 and SPEC.md ("The ArtCraft suite", question 12), restated: the 13 apps above, from upstream's own release packages, checked against upstream's checksums and pinned by version. Operator decisions (2026-11-08) that replace the plan's "in both repos, installed on every image": not in the ISOs and not in our repos, but a one-click install from upstream on the user's machine, so we never redistribute them and question 12 (may we redistribute) no longer applies; the launcher never names or shows ArtCraft. Files copied: `apps/creative-apps-key.asc` (upstream's `release-signing-key.asc`, unchanged) and `apps/creative-apps.sha256` (the 52 Linux package lines of the 13 signed `SHA256SUMS.txt`, unchanged, under a comment header).
+From the operator's plan, row 025 and SPEC.md ("The ArtCraft suite", question 12), restated: the 13 apps above, from upstream's own release packages, checked against upstream's checksums and pinned by version. Operator decisions (2026-11-08) that replace the plan's "in both repos, installed on every image": not in the ISOs and not in our repos, but a one-click install from upstream on the user's machine, so we never redistribute them and question 12 (may we redistribute) no longer applies; the launcher never names or shows ArtCraft. Files copied: `apps/creative-apps-key.pgp` (upstream's `release-signing-key.asc`, unchanged) and `apps/creative-apps.sha256` (the 52 Linux package lines of the 13 signed `SHA256SUMS.txt`, unchanged, under a comment header).
 
 ## Changes
-- `apps/install-creative-apps`: the script (bash, `set -euo pipefail`); `apps/creative-apps.sha256`: the pins; `apps/creative-apps-key.asc`: upstream's key; `apps/stackific-creative-apps.desktop`: the launcher.
+- `apps/install-creative-apps`: the script (bash, `set -euo pipefail`); `apps/creative-apps.sha256`: the pins; `apps/creative-apps-key.pgp`: upstream's key; `apps/stackific-creative-apps.desktop`: the launcher.
 - `apps/justfile`: `test`, the script against a fake release served from files (`file://`), with a throwaway key: good packages install, a tampered package and a re-signed package with another hash both stop before installing.
 - `arch/packages/stackific-apps/PKGBUILD`, `fedora/packages/stackific-apps/stackific-apps.spec`: the new package `stackific-apps`.
 - `arch/justfile`, `fedora/justfile` `packages`: stage sources from `apps/` too.
@@ -45,7 +45,7 @@ From the operator's plan, row 025 and SPEC.md ("The ArtCraft suite", question 12
 Must:
 - `just apps test` prints `ok:` for the good, tampered and re-signed cases; the fake pacman is called once, only in the good case, with both packages and no `.sig` next to them.
 - `just arch test` and `just fedora test` (all four images) find `/usr/lib/stackific/install-creative-apps` executable and `/usr/share/applications/stackific-creative-apps.desktop` with `Name=Install creative apps`; `installed.sh` finds both on installed systems.
-- No creative app is on any image: the boot test finds no `ai.storyteller.*` launcher in `/usr/share/applications` (upstream's app ID, the same in both formats), and no file of ours outside `apps/creative-apps.sha256`, `apps/creative-apps-key.asc`, docs and the task names ArtCraft in a user-visible name or icon.
+- No creative app is on any image: the boot test finds no `ai.storyteller.*` launcher in `/usr/share/applications` (upstream's app ID, the same in both formats), and no file of ours outside `apps/creative-apps.sha256`, `apps/creative-apps-key.pgp`, docs and the task names ArtCraft in a user-visible name or icon.
 - Each image task reports its ISO size (the package adds a few KiB).
 - `just lefthook all` passes.
 

@@ -1,7 +1,7 @@
 #!/usr/bin/env bash
 # Installs the creative apps (PhotoCraft and twelve more from github.com/storytold, task 025) at the versions pinned in
 # creative-apps.sha256: downloads each app's package for this base and architecture from upstream's GitHub release, on
-# this machine, checks its signature against upstream's key (creative-apps-key.asc) and its SHA-256 against the pin,
+# this machine, checks its signature against upstream's key (creative-apps-key.pgp) and its SHA-256 against the pin,
 # and installs them all with pacman or dnf only when every check passed. Glue, because no packaged tool installs
 # pinned, signed release assets, and we never redistribute these packages. The launcher runs it as root through run0.
 # STACKIFIC_APPS_SHARE and STACKIFIC_APPS_URL point it at a fake release for `just apps test`.
@@ -20,7 +20,7 @@ grep -E "^[0-9a-f]{64}  [a-z]+-[0-9.]+-linux-$(uname -m)\.$ext\$" "$share/creati
   || { echo "No creative apps for $(uname -m)." >&2; exit 1; }
 export GNUPGHOME="$work/gnupg"
 mkdir -m 700 "$GNUPGHOME" sig
-gpg --dearmor <"$share/creative-apps-key.asc" >key.gpg
+gpg --dearmor <"$share/creative-apps-key.pgp" >key.gpg
 # Signatures stay out of the package folder: pacman -U checks a <file>.sig next to the file against its own keyring
 while read -r _ file; do
   app=${file%%-*}

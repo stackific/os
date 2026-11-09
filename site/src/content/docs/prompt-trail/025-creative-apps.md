@@ -22,7 +22,7 @@ Must:
 
 - `just apps test` prints `ok:` for the good, tampered and re-signed cases; the fake pacman is called once, only in the good case, with both packages and no `.sig` next to them.
 - `just arch test` and `just fedora test` (all four images) find `/usr/lib/stackific/install-creative-apps` executable and `/usr/share/applications/stackific-creative-apps.desktop` with `Name=Install creative apps`; `installed.sh` finds both on installed systems.
-- No creative app is on any image: the boot test finds no `ai.storyteller.*` launcher in `/usr/share/applications` (upstream's app ID, the same in both formats), and no file of ours outside `apps/creative-apps.sha256`, `apps/creative-apps-key.asc`, docs and the task names ArtCraft in a user-visible name or icon.
+- No creative app is on any image: the boot test finds no `ai.storyteller.*` launcher in `/usr/share/applications` (upstream's app ID, the same in both formats), and no file of ours outside `apps/creative-apps.sha256`, `apps/creative-apps-key.pgp`, docs and the task names ArtCraft in a user-visible name or icon.
 - Each image task reports its ISO size (the package adds a few KiB).
 - `just lefthook all` passes.
 
@@ -41,7 +41,7 @@ Offer the 13 creative apps from github.com/storytold (PhotoCraft, VectorCraft, F
 ## Outcome
 
 - **The package.** `stackific-apps`, built from `apps/` on both bases (`arch/packages/stackific-apps/PKGBUILD`, `fedora/packages/stackific-apps/stackific-apps.spec`), is on all four images. It holds the launcher, the script in `/usr/lib/stackific/` (not on `PATH`), the pins and upstream's key. `just arch packages` and `just fedora packages` now stage sources from `apps/` too.
-- **The pins.** `apps/creative-apps.sha256` holds the 52 Linux package lines of the 13 apps' `SHA256SUMS.txt` unchanged (13 apps, x86_64 and aarch64, `.pkg.tar.zst` and `.rpm`), each file verified against upstream's key on 2026-11-08. One upstream signing key signs all 13 releases; it is committed as `apps/creative-apps-key.asc`, and `docs/apps.md` gives its fingerprint.
+- **The pins.** `apps/creative-apps.sha256` holds the 52 Linux package lines of the 13 apps' `SHA256SUMS.txt` unchanged (13 apps, x86_64 and aarch64, `.pkg.tar.zst` and `.rpm`), each file verified against upstream's key on 2026-11-08. One upstream signing key signs all 13 releases; it is committed as `apps/creative-apps-key.pgp`, and `docs/apps.md` gives its fingerprint.
 - **The script.** It runs as root through run0 from the launcher, keeps the pins for its base and `uname -m`, downloads each package and its signature into a fresh folder in `/var/tmp`, checks every signature with `gpgv` and every hash with `sha256sum --check --strict`, then installs all 13 at once. It stops with a message when less than 5 GiB is free, as in the live session. The signatures live in a subfolder, because `pacman -U` would check a `.sig` lying next to a package against pacman's own keyring.
 - **Brand terms.** The launcher is "Install creative apps" with the generic `system-software-install` icon; the user page names the apps in plain text.
 - **Tests.** `just apps test` runs the script against a fake release of two apps served as `file://` URLs, signed with a throwaway key, with a fake pacman, and joins pre-commit for `apps/**`. The boot and install tests check the launcher and script on every image and install, and that no app is on the image.
