@@ -1,4 +1,4 @@
-# 023: First apps on all four images: kitty, btop, Thunar, File Roller and Bazaar with Flathub
+# 023: First apps on all four images: kitty, btop, Thunar, File Roller and Flathub, with Bazaar on Arch
 
 - [ ] Done
 
@@ -7,11 +7,11 @@ Base: both
 ## Ask
 
 ```text title="Prompt" wrap
-Give all four images their first everyday apps, live and installed: kitty as a second terminal next to foot (and Ptyxis on Fedora, GNOME's own), btop as the system monitor, Thunar as the file manager for MangoWM with its archive plugin, File Roller for archives, and Bazaar as the app store, with Flathub set up as the system's Flatpak remote. GNOME Disks and a polkit agent are already there (GNOME Disks since the installer tasks, Noctalia's polkit agent on in our defaults), so they stay as they are. On Arch and Arch Linux ARM every app is a native package from the base's repos, Bazaar included. Fedora has no Bazaar package, so Fedora's images install Bazaar from Flathub while the image is built, so it works offline in the live session and on installs. MangoWM's config stays stock: foot stays on Alt+Return, and kitty, Thunar, btop, File Roller and Bazaar start from the launcher. Every image's boot test checks the apps, the Flathub remote and Bazaar.
+Give all four images their first everyday apps, live and installed: kitty as a second terminal next to foot (and Ptyxis on Fedora, GNOME's own), btop as the system monitor, Thunar as the file manager for MangoWM with its archive plugin, tumbler for thumbnails and gvfs for Trash and removable drives (no thunar-volman), File Roller for archives, and Flathub set up as the system's Flatpak remote. GNOME Disks and a polkit agent are already there (GNOME Disks since the installer tasks, Noctalia's polkit agent on in our defaults), so they stay as they are. On Arch and Arch Linux ARM every app is a native package from the base's repos, with Bazaar, Arch's own package, as the app store. Fedora gets no Bazaar: GNOME Software (task 024) is its store and already browses and installs Flathub's apps, Bazaar among them, and a second store installed from Flathub would cost about 1 GiB of ISO and of the live session's RAM. This deviates from the SPEC table, which had Bazaar preinstalled on Fedora. Fedora keeps flatpak and Flathub's remote. MangoWM's config stays stock: foot stays on Alt+Return, and the other apps start from the launcher. Every image's boot test checks the apps and the Flathub remote, and the install tests check the apps on the installed system.
 ```
 
 ## Goal
-kitty, btop, Thunar (with `thunar-archive-plugin` and gvfs), File Roller, Flatpak with the Flathub remote, and Bazaar are on all four images and their installs, checked by the boot and install tests.
+kitty, btop, Thunar (with `thunar-archive-plugin`, `tumbler` and gvfs), File Roller and Flatpak with the Flathub remote are on all four images and their installs, with Bazaar on the two Arch images, checked by the boot and install tests.
 
 ## Context
 What exists (branch `task/021-hardware-parity-main`, 2026-11-08):
@@ -31,39 +31,36 @@ Upstream facts (2026-11-08):
 ## Inputs
 From the operator's plan, row 023: "First software picks: kitty, foot (Arch), Ptyxis (Fedora), btop, Thunar, File Roller, GNOME Disks, a polkit agent for MangoWM if Noctalia has none, Flathub with Bazaar; four images in one task; the Mac lane builds and tests the aarch64 pair." Restated against `AGENTS.md`: foot is already on all four images (the installer's launcher runs in it) and Ptyxis on Fedora; GNOME Disks is already the partition editor; Noctalia's polkit agent is on in our defaults; so this task adds only kitty, btop, Thunar, File Roller and Bazaar with Flathub. `AGENTS.md` says "Bazaar from Flathub" for Fedora; Arch takes its native package. No files copied.
 
-### Open decisions (operator to confirm)
-These were taken with the recommended answer, because the operator could not be asked while the task was written:
-1. Bazaar on Fedora: installed from Flathub while the image is built (recommended: works offline live and installed, like Arch's native package; costs `org.gnome.Platform//51`, about 1 GiB installed, so the Fedora ISOs go over 2 GiB and to R2). Other answers: only the Flathub remote, Bazaar installed by the user online; or a native RPM from a third-party repo (`AGENTS.md` names Flathub).
-2. Thunar's extras: `thunar-archive-plugin` (File Roller from Thunar's menu) and `gvfs` (Trash, removable drives) on Arch; no `tumbler` or `thunar-volman` (Fedora's Thunar pulls `tumbler` itself).
+### Decisions (operator 2026-11-09)
+1. No Bazaar on Fedora. GNOME Software (task 024) is the store on Fedora and already browses and installs Flathub's apps; a second store preinstalled from Flathub would cost about 1 GiB of ISO and of the live session's RAM (its runtime, `org.gnome.Platform//51`), and Bazaar stays one click away in GNOME Software. This deviates from the SPEC table, which had Bazaar preinstalled on Fedora. Fedora keeps `flatpak` and Flathub's remote. Arch keeps its native `bazaar` package.
+2. Thunar gets `thunar-archive-plugin` (File Roller from its menu), `tumbler` (thumbnails) and `gvfs` (Trash, removable drives) on both bases; no `thunar-volman`.
 3. No key binding for kitty: MangoWM's config stays stock, so `Alt+Return` stays foot.
 
 ## Changes
-- `arch/iso/packages.x86_64`, `arch/iso/packages.aarch64`: add `kitty`, `btop`, `thunar`, `thunar-archive-plugin`, `gvfs`, `file-roller`, `flatpak`, `bazaar`.
-- `fedora/iso/config.kiwi`: add `kitty`, `btop`, `Thunar`, `thunar-archive-plugin`, `file-roller`, `flatpak`.
+- `arch/iso/packages.x86_64`, `arch/iso/packages.aarch64`: add `kitty`, `btop`, `thunar`, `thunar-archive-plugin`, `tumbler`, `gvfs`, `file-roller`, `flatpak`, `bazaar`.
+- `fedora/iso/config.kiwi`: add `kitty`, `btop`, `Thunar`, `thunar-archive-plugin`, `tumbler`, `file-roller`, `flatpak`.
 - `fedora/packages/stackific-desktop/stackific-desktop.spec`: require `fedora-flathub-remote` and link its Flathub file (`/usr/lib/fedora-third-party/conf.d/fedora-flathub.flatpakrepo`, the same Flathub key as Arch's file, sha256 of the key `f4d6c33e44d9627ad3d2e32a5c8de25769b52f6454157e2db233e7d35d358a9a` in both, 2026-11-08) to `/usr/share/flatpak/remotes.d/flathub.flatpakrepo`, the path Arch's `flatpak` uses; Release bumped. (Built first as a committed copy of Flathub's file; gitleaks' `generic-api-key` rule flags its `GPGKey=` line, so the package's own file is used instead.)
-- `fedora/iso/config.sh`: `flatpak install --system --noninteractive flathub io.github.kolunmi.Bazaar`.
-- `fedora/justfile` `iso`: append the image's Flatpaks (ref and commit) to its package manifest.
-- `tests/vm/arch.sh`, `tests/vm/fedora.sh`: the apps, the Flathub remote, Bazaar.
-- `tests/vm/installed.sh`: the apps and Bazaar on installs.
-- `docs/arch-iso.md`, `docs/fedora-iso.md`: the apps and Bazaar's source.
-- `site/src/content/docs/user/apps.md` (new): the apps on every image and Bazaar with Flathub; sidebar entry if needed.
-- `AGENTS.md`: one line for the apps.
+- `tests/vm/arch.sh`, `tests/vm/fedora.sh`: the apps and the Flathub remote.
+- `tests/vm/installed.sh`: the apps on installs.
+- `docs/arch-iso.md`, `docs/fedora-iso.md`: the apps, Flathub's remote, why Fedora has no Bazaar.
+- `site/src/content/docs/user/apps.md` (new): the apps on every image, and Flathub through Bazaar (Arch) or GNOME Software (Fedora).
+- `AGENTS.md`: the apps line, and Fedora's sources line without Bazaar.
 - `site/src/content/docs/prompt-trail/023-first-apps.md`, `dev/reviews/023-first-apps.md`.
 
 ## Acceptance criteria
 
 Must:
-- `just arch test` (both architectures) passes with `pacman -Q kitty btop thunar thunar-archive-plugin gvfs file-roller flatpak bazaar` listing 8 packages and `flatpak remotes --system --columns=name` printing `flathub`.
-- `just fedora test` (both architectures) passes with the six RPMs installed, `flatpak remotes --system --columns=name` printing `flathub`, and `flatpak info --system io.github.kolunmi.Bazaar` succeeding.
-- `just arch test-install` and `just fedora test-install` pass with the apps and Bazaar on the installed system.
-- Each Fedora manifest lists `io.github.kolunmi.Bazaar` and its runtime; each image task reports its ISO size.
-- `just lefthook all` passes.
+- `just arch test` (both architectures) passes with `pacman -Q kitty btop thunar thunar-archive-plugin tumbler gvfs file-roller flatpak bazaar` listing 9 packages and `flatpak remotes --system --columns=name` printing `flathub`.
+- `just fedora test` (both architectures) passes with the seven RPMs (`kitty btop Thunar thunar-archive-plugin tumbler file-roller flatpak`) installed and `flatpak remotes --system --columns=name` printing `flathub`.
+- `just arch test-install` and `just fedora test-install` pass with the apps on the installed system (Bazaar too on Arch).
+- Each image task reports its ISO size; `just lefthook all` passes.
 
 Must not:
 - Change MangoWM's stock config or bind a key.
 - Add a repo file for a third-party RPM repository.
 - Add GNOME Disks, a polkit agent or foot again.
+- Install Bazaar or any Flatpak into a Fedora image, or add `thunar-volman`.
 
 ## Tests
 - Boot and install tests above, x86_64 on the PC and aarch64 on the Mac (`images` workflow, `workflow_dispatch` builds all four).
-- Operator, once on a live image with network: open Bazaar from the launcher, search for an app, install it, and start it from the launcher.
+- Operator, once on an Arch live image with network: open Bazaar from the launcher, search for an app, install it, and start it from the launcher.

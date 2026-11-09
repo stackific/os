@@ -160,12 +160,13 @@
     <package name="foot"/>
     <package name="rofi"/>
     <!-- Apps on every image (task 023), the same as on Arch: a second terminal, a system monitor, Thunar with File
-         Roller in its menu, and Flatpak, whose Flathub remote stackific-desktop ships; Bazaar, the app store, comes from
-         Flathub (config.sh), because Fedora has no package of it -->
+         Roller in its menu and thumbnails, and Flatpak, whose Flathub remote stackific-desktop links; the app store is
+         GNOME Software (task 024), so no Bazaar here (operator 2026-11-09) -->
     <package name="kitty"/>
     <package name="btop"/>
     <package name="Thunar"/>
     <package name="thunar-archive-plugin"/>
+    <package name="tumbler"/>
     <package name="file-roller"/>
     <package name="flatpak"/>
     <!-- The display manager and its login screen -->

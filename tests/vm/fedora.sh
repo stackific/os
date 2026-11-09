@@ -104,12 +104,10 @@ vm_until "test -x /usr/lib/kernel/install.d/90-stackific-limine.install -a -f /u
 vm_until "rpm -q --qf '%{vendor}\n' limine" '^Terra$' 0
 vm_until 'test -x /usr/bin/gnome-disks -a -f /usr/share/applications/org.gnome.DiskUtility.desktop -a -x /usr/sbin/ntfsresize && echo ok' \
   '^ok$' 0
-# The apps (task 023), as on Arch: kitty, btop, Thunar with File Roller in its menu, Flathub (stackific-desktop's
-# remotes.d file), and Bazaar, installed from Flathub while the image was built, with its launcher entry
-vm_until 'rpm -q kitty btop Thunar thunar-archive-plugin file-roller flatpak | grep -vc "not installed"' '^6$' 0
+# The apps (task 023), as on Arch: kitty, btop, Thunar with File Roller in its menu and thumbnails, and Flathub
+# (stackific-desktop's link to fedora-flathub-remote's file); no Bazaar on Fedora (operator 2026-11-09)
+vm_until 'rpm -q kitty btop Thunar thunar-archive-plugin tumbler file-roller flatpak | grep -vc "not installed"' '^7$' 0
 vm_until 'flatpak remotes --system --columns=name' '^flathub$' 0
-vm_until 'flatpak info --system io.github.kolunmi.Bazaar >/dev/null && test -f /var/lib/flatpak/exports/share/applications/io.github.kolunmi.Bazaar.desktop && echo ok' \
-  '^ok$' 0
 
 # GNOME with our wallpaper and the installer in its dash, logged in through the greeter left up above: `live`,
 # with GNOME first in the session list, and any character as the password. Not through greetd's [initial_session], as

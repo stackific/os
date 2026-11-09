@@ -31,3 +31,19 @@ Tests after the fixes: `just lefthook all` passes; gitleaks passes on the staged
 ## Round 4
 Reviewed: the spec's link and the docs after round 3.
 Verdict: Looks good. Ship. (Checked: the link target is in `fedora-flathub-remote`, which the spec requires, so it always resolves; the remote's name comes from the link's name, `flathub`, which the tests expect; the file's `Filter=` names `/usr/share/flatpak/fedora-flathub.filter` from the same package, which holds only `# Unfiltered`.)
+
+## Round 5
+Reviewed: the operator's decisions on the task's open decisions (2026-11-09), as findings on the change.
+Verdict: change requested by the operator.
+
+| # | Group | Finding | Where | Status | Resolution |
+| --- | --- | --- | --- | --- | --- |
+| 1 | Must fix | No Bazaar on Fedora: GNOME Software (task 024) is Fedora's store and installs Flathub's apps; a second store cost about 1 GiB of ISO and of the live session's RAM (against the SPEC table, which had Bazaar preinstalled) | `fedora/iso/config.sh`, `fedora/justfile`, `tests/vm/fedora.sh`, `tests/vm/installed.sh` | fixed | The Flatpak install, the manifest's Flatpak lines and their guard (the recipe is main's again) and Bazaar's checks are gone; Flathub's remote and `flatpak` stay; docs, the user page, `AGENTS.md` (the apps line and Fedora's sources line) and the task say so |
+| 2 | Must fix | `tumbler` (thumbnails) on both bases, still no `thunar-volman` | `arch/iso/packages.*`, `fedora/iso/config.kiwi` | fixed | Added to both Arch lists and `config.kiwi`, and to the boot checks (`pacman -Q` 9 packages, `rpm -q` 7) |
+| 3 | Nice to have | kitty without a key binding | — | fixed | Confirmed as built; the task's decisions record it |
+
+Tests after the fixes: `just lefthook all` and shellcheck, below.
+
+## Round 6
+Reviewed: the whole change after round 5.
+Verdict: Looks good. Ship. (Checked: `fedora/justfile` is main's again; on the Fedora live image the first `flatpak remotes --system` as root creates the system repo and adds Flathub from `remotes.d`, as on Arch (tested in the Arch builder, 2026-11-08); no check or doc still expects a Fedora Flatpak; `tumbler` exists in the Arch archive 2026-11-01 (4.20.2-2), Arch Linux ARM and Fedora 45.)
