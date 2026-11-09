@@ -13,7 +13,8 @@ get url sha256 dest member="":
   tmp=$(mktemp -d)
   trap 'rm -rf "$tmp"' EXIT
   file="$tmp/$(basename "{{ url }}")"
-  curl -fsSLo "$file" "{{ url }}"
+  # Retries: a release host answers 502, 503 or 504 now and then (rclone: HTTP 504 in an images run, 2026-11-09)
+  curl -fsSL --retry 5 --retry-delay 10 -o "$file" "{{ url }}"
   echo "{{ sha256 }}  $file" | {{ sha256_check }}
   mkdir "$tmp/x"
   case "$file" in
