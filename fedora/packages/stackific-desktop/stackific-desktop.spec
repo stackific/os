@@ -7,10 +7,13 @@
 # spec because it is Fedora-only (Plasma's counterpart is in the Arch package). mangowm comes from Terra at install
 # time; nothing here needs it to build. The Secret Service in every session (task 017): oo7-daemon starts with each
 # user's systemd manager, and greetd's own PAM file already calls pam_oo7, which unlocks its keyring at login.
+# Flathub (task 023): Fedora's flatpak ships no remote, and fedora-flathub-remote keeps Flathub's file where only
+# fedora-third-party reads it, so this spec links that file where Arch's flatpak ships the same one; flatpak adds it to
+# the system installation on first use.
 
 Name: stackific-desktop
 Version: 0.2.0
-Release: 4%{?dist}
+Release: 5%{?dist}
 Summary: Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter shows our look
 License: Apache-2.0
 URL: https://os.stackific.com
@@ -27,6 +30,7 @@ Source8: 20_stackific.gschema.override
 BuildRequires: gettext-envsubst
 # The tmpfiles directory macro (rpm expands macros even in comments, so it is not named here)
 BuildRequires: systemd-rpm-macros
+Requires: fedora-flathub-remote
 Requires: mangowm
 Requires: noctalia
 Requires: noctalia-greeter
@@ -40,7 +44,7 @@ Requires: stackific-release
 Starts Noctalia in MangoWM sessions through a user unit wanted by mango-session.target, lets wlroots compositors start
 on software rendering, and ships Noctalia's Stackific OS defaults with the per-user file that includes them, and
 noctalia-greeter's defaults (our logo, palette and wallpaper), GNOME's wallpaper and dash, and starts oo7, the Secret
-Service, for every user.
+Service, for every user, and adds Flathub as the system's Flatpak remote.
 
 %build
 # Render the greeter's defaults with the accent from branding.env
@@ -70,6 +74,9 @@ install -Dm644 -t %{buildroot}%{_datadir}/glib-2.0/schemas %{SOURCE8}
 # The Secret Service: oo7-daemon wanted by every user's manager (Fedora's own preset is not in our images)
 install -d %{buildroot}%{_prefix}/lib/systemd/user/default.target.wants
 ln -s ../oo7-daemon.service %{buildroot}%{_prefix}/lib/systemd/user/default.target.wants/oo7-daemon.service
+# Flathub, added to the system installation on first use
+install -d %{buildroot}%{_datadir}/flatpak/remotes.d
+ln -s %{_prefix}/lib/fedora-third-party/conf.d/fedora-flathub.flatpakrepo %{buildroot}%{_datadir}/flatpak/remotes.d/flathub.flatpakrepo
 
 %files
 %{_prefix}/lib/systemd/user/stackific-noctalia.service
@@ -89,3 +96,4 @@ ln -s ../oo7-daemon.service %{buildroot}%{_prefix}/lib/systemd/user/default.targ
 %config(noreplace) %{_sysconfdir}/skel/.config/noctalia/00-stackific.toml
 %{_datadir}/glib-2.0/schemas/20_stackific.gschema.override
 %{_prefix}/lib/systemd/user/default.target.wants/oo7-daemon.service
+%{_datadir}/flatpak/remotes.d/flathub.flatpakrepo

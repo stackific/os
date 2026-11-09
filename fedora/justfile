@@ -76,7 +76,8 @@ packages: builder
       createrepo_c --quiet /repo'
 
 # Build .build/fedora/<arch>/stackific-<version>-fedora-<arch>.iso and its package manifest, then print the ISO size.
-# Our RPMs come from the local repo `packages` fills, mounted read-only at /repo.
+# Our RPMs come from the local repo `packages` fills, mounted read-only at /repo. The manifest ends with the image's
+# Flatpaks (config.sh), one `flatpak|<kind>/<id>/<arch>/<branch>|<commit>` line each, read from kiwi's image root.
 [positional-arguments]
 iso version="0.0.0-dev": packages
   #!/usr/bin/env bash
@@ -96,7 +97,10 @@ iso version="0.0.0-dev": packages
     {{ builder }} bash -c 'mkdir -p /work && mount -t tmpfs -o size=75% tmpfs /work && mkdir /work/tmp \
       && kiwi-ng --temp-dir /work/tmp --type iso system build --description /desc --target-dir /work \
       && install -m644 /work/*.iso "/out/$NAME.iso" \
-      && install -m644 /work/*.packages "/out/$NAME.packages.txt"'
+      && install -m644 /work/*.packages "/out/$NAME.packages.txt" \
+      && for d in /work/build/image-root/var/lib/flatpak/{app,runtime}/*/*/*; do \
+           echo "flatpak|${d#*/var/lib/flatpak/}|$(readlink "$d/active")"; done >>"/out/$NAME.packages.txt" \
+      && grep -q "^flatpak|app/io.github.kolunmi.Bazaar/" "/out/$NAME.packages.txt"'
   mib=$(( $(stat -c %s "{{ out }}/$name.iso") / 1048576 ))
   [ "$mib" -le 2048 ] || echo "warning: ISO is over the 2 GiB target (GitHub's per-file release cap)"
   echo "ISO: {{ out }}/$name.iso, $mib MiB (target 2048 MiB)"
