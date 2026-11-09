@@ -24,3 +24,5 @@ out := justfile_directory() / ".build" / "arch" / arch()
 
 # Local repo of our packages (`just arch packages`), read by the ISO build as [stackific]
 repo := justfile_directory() / ".build" / "arch" / "repo"
+# pacman's package cache for the ISO builds, kept between builds so a build downloads only what changed
+pkgcache := out / "pkgcache"
