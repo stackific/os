@@ -4,7 +4,7 @@ description: Matched firmware, Thunderbolt, fingerprint readers and MIPI webcams
 sidebar:
   order: 21
   label: 021 Regular hardware on both x86_64 images
-pr: https://github.com/stackific/os/pull/21
+pr: https://github.com/stackific/os/pull/22
 task: dev/tasks/021-hardware-parity.md
 ---
 

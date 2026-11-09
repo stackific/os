@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Stackific OS picks the graphics driver every time it starts, live and installed, so there is nothing to choose or install. Today this covers the two x86_64 images; the aarch64 images follow.
+Stackific OS picks the graphics driver every time it starts, live and installed, so there is nothing to choose or install. This covers all four images, x86_64 and aarch64.
 
 | Graphics card                                                         | Driver                                                                                                                         |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
@@ -26,12 +26,14 @@ animation_duration_close=800
 
 If you move your disk to a computer with a different graphics card, Stackific OS picks the right driver at the next start.
 
-## After a kernel update on the Fedora Remix image
+## After a kernel update
 
 On the Fedora Remix image, NVIDIA's driver is built for the kernel the image ships. Until Stackific OS's own package repositories are online, a kernel update brings no matching NVIDIA module: the new kernel then starts with nouveau, which runs GTX 16, RTX 20 and newer cards at full clock speed but slower in 3D. To use NVIDIA's driver, pick the previous kernel, "Stackific OS (<version>)", in the boot menu.
+
+On the Arch Linux ARM image, the NVIDIA driver is rebuilt for each new kernel while the update installs, which takes a few minutes longer than other updates. Nothing else is needed.
 
 ## The LTS kernel
 
 On the Arch Linux image, installed systems carry two kernels: the current Linux kernel, which starts by default, and the long-term support (LTS) kernel, which changes less often. If the system stops starting after an update, pick "Stackific OS (LTS kernel)" in the boot menu, which shows for three seconds at power-on. Both kernels have the NVIDIA driver. The LTS kernel is older, so very new hardware may work only with the default kernel.
 
-On the Arch Linux image, and with NVIDIA graphics on the Fedora Remix image, the screen that asks for the disk's password uses the firmware's display mode; the graphics driver starts after the disk is unlocked.
+On the Arch Linux and Arch Linux ARM images, and with NVIDIA graphics on the Fedora Remix images, the screen that asks for the disk's password uses the firmware's display mode; the graphics driver starts after the disk is unlocked.
