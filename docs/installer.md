@@ -175,6 +175,7 @@ Tests: `just <base> test-install` boots the installed system with systemd's `cry
 
 ## Later
 
+- A live-session helper that writes btrfs-assistant's `[Subvol-Mapping]` line for a Stackific OS disk it finds, so a restore from the live ISO needs no command (task 026; today the user page gives the one command).
 - Typing the password in the chosen layout on the You screen (today the live session's `us`; the help warns when the layouts differ).
 - A separate disk password ("use a different disk password"), and changing the disk passphrase with the login password: today `passwd` leaves the disk's as it was.
 - Plymouth for the passphrase prompt; TPM2 plus PIN or FIDO2 once Secure Boot works with Limine.

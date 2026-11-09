@@ -37,7 +37,7 @@ From the operator's plan (row 026) and earlier decisions, restated:
 - zram: `zram-size = ram`, `swap-priority = 100`, the kernel's default compression (the earlier decision named zstd, but `linux-aarch64` 7.3.3-1 builds zram with LZO only, `CONFIG_ZRAM_BACKEND_FORCE_LZO=y` in `linux-aarch64-headers`' `.config`, read 2026-11-08); zswap off by a boot-time write; `vm.swappiness=150`, `vm.page-cluster=0`. Hibernation (a swap file in `@swap`) stays out.
 - Operator decision 2026-11-08: a flat `@snapshots` at `/.snapshots`.
 
-Open decisions (operator to confirm; the recommended answer is built):
+Decisions (operator 2026-11-09, the recommendations as built; the helper in 1 is logged under Later in `docs/installer.md`):
 1. The restore from the live ISO needs one mapping line in the live session's `/etc/btrfs-assistant.conf` (the flat layout's cost); the user docs give it as one command. Alternative: a small live-session helper that writes it, which is glue we would own.
 2. The snapshot is taken inside step 7, "Install the boot loader", so the Installing screen keeps its eight steps.
 3. Our files ship as a new package `stackific-storage` (sources in `storage/`), not inside `stackific-desktop`, because snapshots and swap are not desktop defaults.
