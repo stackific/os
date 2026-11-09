@@ -380,6 +380,10 @@ fn steps(
         exec(run, log, &cmd)?;
     }
     exec(run, log, &snapper::fresh_install(target))?;
+    // snapper labels what it makes by its live path under /run (var_run_t), which snapperd may not write to later
+    for cmd in plan.base.relabel(target, Path::new(".snapshots")) {
+        exec(run, log, &cmd)?;
+    }
     // The firmware entry last, so a failure before it leaves none behind
     let listing = exec(run, log, &boot::entries())?;
     let present = exec(run, log, &boot::partuuids())?;
@@ -696,23 +700,24 @@ pub mod tests {
             .iter()
             .filter(|c| c.starts_with("setfiles "))
             .collect();
-        assert_eq!(relabels.len(), 2, "{relabels:?}");
+        assert_eq!(relabels.len(), 3, "{relabels:?}");
         assert!(relabels[0].ends_with(&format!("{t}/etc")));
         assert!(
             pos(&format!("chroot {t} useradd")) < pos("setfiles ")
                 && pos("setfiles ") < pos("chpasswd")
         );
+        let all = pos(relabels[1]);
+        assert!(pos(&format!("chroot {t} /usr/bin/bash")) < all);
+        // The "Fresh install" snapshot after the full relabel, so it keeps the labels, then /.snapshots relabelled
+        // over snapper's; snapper's files before it
+        let snap = pos(&snapper::fresh_install(Path::new(t)).line());
         let last = s
             .calls
             .iter()
             .rposition(|c| c.starts_with("setfiles "))
             .unwrap();
-        assert!(
-            pos(&format!("chroot {t} /usr/bin/bash")) < last && last < pos("efibootmgr --create")
-        );
-        // The "Fresh install" snapshot after the last relabel, so it keeps the labels; snapper's files before it
-        let snap = pos(&snapper::fresh_install(Path::new(t)).line());
-        assert!(last < snap && snap < pos("efibootmgr --create"));
+        assert!(all < snap && snap < last && last < pos("efibootmgr --create"));
+        assert!(relabels[2].ends_with(&format!("file_contexts {t}/.snapshots")));
         assert_eq!(
             s.files[&PathBuf::from(format!("{t}/etc/sysconfig/snapper"))],
             snapper::CONFIGS
