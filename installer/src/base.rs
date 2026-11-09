@@ -32,23 +32,15 @@ pub trait Base: Send + Sync {
 
 /// mkinitcpio's drop-in in the target, read after /etc/mkinitcpio.conf.
 const ARCH_HOOKS: &str = "etc/mkinitcpio.conf.d/stackific.conf";
-/// Its text: mkinitcpio 42's default HOOKS with `sd-encrypt` after `block` and `stackific-boot-failure` last; on x86_64
-/// (without `aarch64`) without `kms` (task 019): `autodetect` resolves an NVIDIA card's modalias to nouveau whatever
-/// modprobe.d blacklists, so `kms` would put nouveau and its firmware into the initramfs of every NVIDIA machine. The
-/// GPU driver loads from the root file system instead, and the passphrase prompt draws on the firmware's framebuffer.
-fn arch_hooks_conf(aarch64: bool) -> String {
-    let (kms, note) = if aarch64 {
-        (" kms", "")
-    } else {
-        ("", ", without kms, so no GPU driver is in the initramfs")
-    };
-    format!(
-        "# Written by stackific-installer: Arch's default hooks{note}, plus sd-encrypt, which unlocks the encrypted \
-         root, and stackific-boot-failure, which shows a plain screen when the start fails\n\
-         HOOKS=(base systemd autodetect microcode modconf{kms} keyboard sd-vconsole block sd-encrypt filesystems fsck \
-         stackific-boot-failure)\n"
-    )
-}
+/// Its text: mkinitcpio 42's default HOOKS with `sd-encrypt` after `block` and `stackific-boot-failure` last, without
+/// `kms` (tasks 019 and 022): `autodetect` resolves an NVIDIA card's modalias to nouveau whatever modprobe.d blacklists,
+/// so `kms` would put nouveau and its firmware into the initramfs of every NVIDIA machine. The GPU driver loads from the
+/// root file system instead, and the passphrase prompt draws on the firmware's framebuffer.
+const ARCH_HOOKS_CONF: &str = "# Written by stackific-installer: Arch's default hooks, without kms, so no GPU driver is in \
+     the initramfs, plus sd-encrypt, which unlocks the encrypted root, and stackific-boot-failure, which shows a plain \
+     screen when the start fails\n\
+     HOOKS=(base systemd autodetect microcode modconf keyboard sd-vconsole block sd-encrypt filesystems fsck \
+     stackific-boot-failure)\n";
 
 /// Whether the installer runs on aarch64, where each base boots its kernel differently (see `Arch` and Fedora's
 /// stackific-boot plugin).
@@ -143,12 +135,12 @@ impl Base for Arch {
 
     /// The kernel on the ESP and its initramfs from the preset (Arch's default: no fallback image), in `arch-chroot`,
     /// which gives mkinitcpio /dev, /proc and /sys for the autodetect hook (`arch_kernel`).
-    /// First the hooks (BT-04): Arch's defaults (without `kms` on x86_64) plus `sd-encrypt`, which unlocks the root,
+    /// First the hooks (BT-04): Arch's defaults without `kms`, plus `sd-encrypt`, which unlocks the root,
     /// and stackific-boot's `stackific-boot-failure`, the plain screen after a failed start. The installer writes the
     /// drop-in, not a package: a package's would sort after archiso's and change the live image's initramfs.
     /// `limine.conf` carries the command line.
     fn initramfs(&self, target: &Path, _cmdline: &str) -> (Vec<(PathBuf, String)>, Vec<Cmd>) {
-        let files = vec![(target.join(ARCH_HOOKS), arch_hooks_conf(AARCH64))];
+        let files = vec![(target.join(ARCH_HOOKS), ARCH_HOOKS_CONF.to_string())];
         (files, arch_kernel(target, self.live_medium(), AARCH64))
     }
 
@@ -292,12 +284,7 @@ mod tests {
             files[0].0,
             PathBuf::from("/t/etc/mkinitcpio.conf.d/stackific.conf")
         );
-        assert_eq!(files[0].1, arch_hooks_conf(AARCH64));
-        assert!(arch_hooks_conf(true).ends_with(
-            "\nHOOKS=(base systemd autodetect microcode modconf kms keyboard sd-vconsole block sd-encrypt filesystems fsck \
-             stackific-boot-failure)\n"
-        ));
-        assert!(arch_hooks_conf(false).ends_with(
+        assert!(files[0].1.ends_with(
             "\nHOOKS=(base systemd autodetect microcode modconf keyboard sd-vconsole block sd-encrypt filesystems fsck \
              stackific-boot-failure)\n"
         ));

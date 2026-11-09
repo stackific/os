@@ -22,9 +22,10 @@ packages: builder
   # Each spec's Source files are found by name next to the spec (Fedora-only files) and in desktop/, branding/,
   # hardware/ and installer/ (base-neutral files), as `just arch packages` does. The installer's crate goes in as one
   # tar, and its build alone has mock's network, for `cargo fetch` in %prep; every other build stays offline.
-  # x86_64 also builds NVIDIA's open kernel modules (task 020) for the newest Fedora kernel, the one kiwi installs:
-  # RPM Fusion publishes no prebuilt kmod-nvidia, so mock rebuilds the source RPM inside RPM Fusion's akmod-nvidia with
-  # the open variant forced, and the image gets kmod-nvidia-<kernel> from our repo, with no compiler or kernel headers.
+  # x86_64 also builds NVIDIA's open kernel modules (task 020) for the newest Fedora kernel, the one kiwi
+  # installs (not aarch64: RPM Fusion's aarch64 driver cannot be installed, task 022): RPM Fusion publishes no prebuilt kmod-nvidia, so mock rebuilds the source RPM inside RPM Fusion's
+  # akmod-nvidia with the open variant forced, and the image gets kmod-nvidia-<kernel> from our repo, with no compiler
+  # or kernel headers.
   # akmod-nvidia and xorg-x11-drv-nvidia-kmodsrc are checked against RPM Fusion's key (fedora/iso/), then served to mock
   # as a local repo; kernel-devel comes from Fedora inside mock.
   podman run --rm --privileged \
@@ -64,7 +65,7 @@ packages: builder
         mkdir -p "$n/repo" "$n/src"
         dnf5 -q download --destdir "$n/repo" akmod-nvidia xorg-x11-drv-nvidia-kmodsrc
         rpmkeys --import /rpmfusion.asc
-        # dnf5 download checks no signature; rpm 6's rpmkeys -K fails an unsigned package as well as a wrong key
+        # dnf5 download checks no signature; rpmkeys -K (rpm 6) fails an unsigned package as well as a wrong key
         rpmkeys -K "$n"/repo/*.rpm
         (cd "$n/src" && rpm2cpio "$n"/repo/akmod-nvidia-*.rpm | cpio -idm --quiet)
         createrepo_c --quiet "$n/repo"
@@ -92,7 +93,7 @@ iso version="0.0.0-dev": packages
   podman run --rm --privileged \
     --volume "{{ justfile_directory() }}/fedora/iso:/desc:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
     --env NAME="$name" \
-    {{ builder }} bash -c 'mkdir -p /work && mount -t tmpfs tmpfs /work && mkdir /work/tmp \
+    {{ builder }} bash -c 'mkdir -p /work && mount -t tmpfs -o size=75% tmpfs /work && mkdir /work/tmp \
       && kiwi-ng --temp-dir /work/tmp --type iso system build --description /desc --target-dir /work \
       && install -m644 /work/*.iso "/out/$NAME.iso" \
       && install -m644 /work/*.packages "/out/$NAME.packages.txt"'

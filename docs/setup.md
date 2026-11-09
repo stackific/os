@@ -27,6 +27,7 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
 - `just arch packages` builds our Arch packages into `.build/arch/repo/` (`just arch iso` runs it first).
 - `just installer test`, `just installer lint` and `just installer demo` test, lint and show the installer on any machine, with the Rust toolchain `just setup` puts in `.tools/rust/`; `just arch test-install` installs it in a VM. See [installer.md](installer.md).
 - `just lefthook all` runs every pre-commit check on every tracked file.
+- `just setup` also installs the pinned rclone (`.tools/rclone/`, `just rclone install`; `just doctor` prints its `rclone:` line), which `just release upload` uses for an ISO over 2 GiB ([releases.md](releases.md)).
 - Distro work runs through `/s-task <ask>`, then `/s-build <task>`. See [AGENTS.md](../AGENTS.md).
 
 ## Self-hosted runners
@@ -58,7 +59,7 @@ The runner runs in an arm64 Linux VM, because image builds need Linux. The VM's 
 
 1. Finish the setup above, Lima included.
 2. Run `just runner setup` in this repo on the Mac.
-   - Like `just setup`, it creates or starts the Fedora 45 VM `stackific-runner` (6 CPUs, 16 GiB memory, 100 GiB disk). A VM made with less memory grows with `limactl stop stackific-runner`, `limactl edit --memory 16 stackific-runner`, then `just runner vm`. The VM mounts nothing from the Mac. The recipe installs what the runner needs in it (git, just, podman, libicu) and clones the repo to `~/os` in it. The VM's Fedora release must be the Fedora images' release, because the Fedora image build can set only the SELinux labels the VM's own policy knows.
+   - Like `just setup`, it creates or starts the Fedora 45 VM `stackific-runner` (6 CPUs, 16 GiB memory, 100 GiB disk). On a VM made with other memory, `just runner vm` stops it, sets 16 GiB (`runner_vm_memory` in `just/runner/vars.just`) and starts it again; a job the runner is running then fails. The VM mounts nothing from the Mac. The recipe installs what the runner needs in it (git, just, podman, libicu) and clones the repo to `~/os` in it. The VM's Fedora release must be the Fedora images' release, because the Fedora image build can set only the SELinux labels the VM's own policy knows.
    - It then runs `just runner setup` inside the VM. gh asks you to log in as a repo admin, and the VM registers with the labels `self-hosted`, `Linux` and `ARM64` and runs the runner as a service.
 3. Check that it is online: `just runner status` prints `<hostname> online busy=false self-hosted,Linux,ARM64`.
 

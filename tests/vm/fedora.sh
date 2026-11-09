@@ -32,6 +32,24 @@ vm_until 'runuser -u live -- env XDG_RUNTIME_DIR=/run/user/1000 systemctl --user
 vm_until "runuser -u live -- env DBUS_SESSION_BUS_ADDRESS=unix:path=/run/user/1000/bus busctl --user status org.freedesktop.secrets | grep -E '^Comm='" \
   '^Comm=oo7-daemon$' 60
 vm_until 'pgrep -u live -x mango' '^[0-9]+$' 0
+# Regular hardware (task 021): the firmware families Arch's image carries too, Thunderbolt, fingerprint readers and
+# MIPI webcams, with no PAM change (no fprintd-pam)
+vm_until 'rpm -q alsa-firmware dvb-firmware bolt fprintd libcamera libcamera-ipa pipewire-plugin-libcamera pipewire-v4l2 fprintd-pam | grep -c "not installed"' \
+  '^1$' 0
+# Sentinel files of each firmware family (any compression suffix), Marvell's Prestera switch firmware left out, and the
+# services answering; no PAM file uses the fingerprint reader
+# shellcheck disable=SC2016 # $f belongs to the guest shell
+vm_until 'for f in regulatory.db mrvl/pcie8897_uapsta.bin ctefx.bin dvb-usb-dib0700-1.20.fw yamaha/yss225_registers.bin ea/3g_asic.fw; do ls /usr/lib/firmware/"$f"* >/dev/null 2>&1 && echo "$f"; done | wc -l' \
+  '^6$' 0
+vm_until 'ls -d /usr/lib/firmware/mrvl/prestera 2>/dev/null | wc -l' '^0$' 0
+vm_until 'ls -d /usr/lib/firmware/intel/sof* | wc -l' '^[1-9]' 0
+vm_until 'boltctl list >/dev/null && echo ok' '^ok$' 0
+vm_until 'busctl --system introspect net.reactivated.Fprint /net/reactivated/Fprint/Manager >/dev/null && echo ok' '^ok$' 0
+vm_until 'ls /usr/lib*/spa-0.2/libcamera/libspa-libcamera.so | wc -l' '^[1-9]' 0 # /usr/lib64 is a link to /usr/lib on Arch
+# (the desktops' own fingerprint services excepted: Plasma's lock screen, kscreenlocker's kde-fingerprint, and GDM's
+# gdm-fingerprint, which nothing here starts)
+vm_until 'grep -rl pam_fprintd /etc/pam.d /usr/lib/pam.d 2>/dev/null | grep -vcE "/(kde|gdm)-fingerprint$"' '^0$' 0
+
 # live's MangoWM config (fedora/iso/config.sh): the stock config, stackific-hardware's lighter effects where present,
 # and Super+Space for the shell's launcher, as on the Arch image
 f=/home/live/.config/mango/config.conf

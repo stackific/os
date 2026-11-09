@@ -12,6 +12,8 @@ runner_dir := justfile_directory() / ".tools" / "actions-runner"
 
 # The Lima VM that hosts the runner on a Mac
 runner_vm := "stackific-runner"
+# Its memory in GiB: a Fedora ISO build peaks at about 6.6 GiB in its tmpfs, capped at half the RAM (docs/fedora-iso.md)
+runner_vm_memory := "16"
 
 # Its OS: Fedora Cloud for aarch64, pinned by the SHA-256 from Fedora's signed CHECKSUM file. The VM's Fedora release
 # must be the Fedora images' release: kiwi labels the image as rootless container root, which may set only SELinux

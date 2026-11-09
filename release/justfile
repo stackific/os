@@ -1,11 +1,16 @@
 # Release module: GitHub Releases for the images, called by the release and images workflows. `create` opens a draft
 # release, each image job `upload`s its ISO, manifest and checksum, and `publish` adds SHA256SUMS and publishes it.
-# gh reads GH_TOKEN and GH_REPO from the environment.
+# gh reads GH_TOKEN and GH_REPO from the environment. An ISO over 2 GiB, GitHub's limit for a release file, goes to
+# Cloudflare R2 with rclone (`upload`), keyed by R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_ENDPOINT from the
+# environment, and is served at https://cdn.stackific.com/os/releases/.
 
 import '../just/gh/vars.just'
+import '../just/rclone/vars.just'
 
 [private]
 mod gh '../just/gh/mod.just'
+[private]
+mod rclone '../just/rclone/mod.just'
 
 # Print the test-build version of a commit on main: 0.0.0-pr.<n> for the pull request that merged it, or nothing
 [positional-arguments]
@@ -55,7 +60,11 @@ create version sha: gh::install
   notes=$(<"{{ justfile_directory() }}/release/notes.md")
   if [[ $1 =~ ^0\.0\.0-pr\.([0-9]+)$ ]]; then
     pr=${BASH_REMATCH[1]}
-    if "{{ gh }}" release view "$tag" >/dev/null 2>&1; then "{{ gh }}" release delete "$tag" --cleanup-tag --yes; fi
+    # A draft (its run cancelled) has no tag, which --cleanup-tag fails on; a leftover tag would pin the old commit
+    if "{{ gh }}" release view "$tag" >/dev/null 2>&1; then "{{ gh }}" release delete "$tag" --yes; fi
+    if "{{ gh }}" api "repos/{owner}/{repo}/git/ref/tags/$tag" >/dev/null 2>&1; then
+      "{{ gh }}" api -X DELETE "repos/{owner}/{repo}/git/refs/tags/$tag" >/dev/null
+    fi
     flags=(--prerelease --title "Test build for #$pr"
       --notes "Test build of the images after pull request #$pr merged: built and boot-tested, unsigned. Not a release."$'\n\n'"$notes")
   else
@@ -72,15 +81,34 @@ create version sha: gh::install
   fi
   "{{ gh }}" release create "$tag" --draft --target "$2" "${flags[@]}"
 
-# Upload one image's ISO, package manifest and SHA-256 from .build/<base>/<arch>/ to the draft release v<version>
+# Upload one image's ISO, package manifest and SHA-256 from .build/<base>/<arch>/ to the draft release v<version>.
+# An ISO over 2 GiB goes to R2 as os/releases/v<version>/<name>.iso instead, and the release gets <name>.iso.url, its
+# public URL; SHA256SUMS still lists it. R2_ENDPOINT is the bucket's S3 API URL as Cloudflare shows it,
+# https://<account>.r2.cloudflarestorage.com/<bucket>: rclone takes the host as its endpoint and the path as the bucket.
+# The keys reach rclone only through its environment, never its command line. A rerun overwrites the object.
 [positional-arguments]
-upload version base arch: gh::install
+upload version base arch: gh::install rclone::install
   #!/usr/bin/env bash
   set -euo pipefail
   cd "{{ justfile_directory() }}/.build/$2/$3"
   name="stackific-$1-$2-$3"
   sha256sum "$name.iso" >"$name.iso.sha256"
-  "{{ gh }}" release upload "v$1" "$name.iso" "$name.packages.txt" "$name.iso.sha256" --clobber
+  files=("$name.packages.txt" "$name.iso.sha256")
+  if [ "$(stat -c %s "$name.iso")" -le 2147483648 ]; then
+    files+=("$name.iso")
+  else
+    : "${R2_ACCESS_KEY_ID:?the ISO is over 2 GiB: set R2_ACCESS_KEY_ID, R2_SECRET_ACCESS_KEY and R2_ENDPOINT}"
+    : "${R2_SECRET_ACCESS_KEY:?set R2_SECRET_ACCESS_KEY}"
+    [[ ${R2_ENDPOINT:-} =~ ^(https://[^/]+)/([^/]+)/?$ ]] \
+      || { echo "R2_ENDPOINT must be https://<account>.r2.cloudflarestorage.com/<bucket>" >&2; exit 1; }
+    key="os/releases/v$1/$name.iso"
+    RCLONE_S3_PROVIDER=Cloudflare RCLONE_S3_ENDPOINT="${BASH_REMATCH[1]}" RCLONE_S3_ACCESS_KEY_ID="$R2_ACCESS_KEY_ID" \
+      RCLONE_S3_SECRET_ACCESS_KEY="$R2_SECRET_ACCESS_KEY" RCLONE_S3_NO_CHECK_BUCKET=true \
+      "{{ rclone }}" copyto "$name.iso" ":s3:${BASH_REMATCH[2]}/$key"
+    echo "https://cdn.stackific.com/$key" >"$name.iso.url"
+    files+=("$name.iso.url")
+  fi
+  "{{ gh }}" release upload "v$1" "${files[@]}" --clobber
 
 # Attach SHA256SUMS over every uploaded ISO to the draft release v<version>, then publish it
 [positional-arguments]
