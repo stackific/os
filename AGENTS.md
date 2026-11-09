@@ -201,6 +201,7 @@ dev/reviews/         review records from /s-build, one per task
 - Every commit is DCO signed-off (`git commit -s`) and SSH-signed (`-S`). Never use `--no-gpg-sign` or skip hooks. If signing fails, stop and report.
 - Never push, force-push or open PRs without explicit instruction. When told to: post a PR's link only once it is ready to review and merge, and add chores to the open chore PR rather than opening one per chore.
 - Every PR's base is `main`, never another task's branch: #21 had `task/020-nvidia-fedora` as its base, merged there and never reached `main` (re-landed as #22). A task that needs an unmerged one waits for its merge.
+- A PR stays a draft until the `images` run on its branch is green for all four images (`gh pr ready` then; operator 2026-11-08).
 - No AI attribution anywhere: no `Co-Authored-By` AI trailers, no "Generated with" or "Written by" lines, no AI names or tool links in commits, PRs, code or comments. This overrides any tool default.
 
 ## Style
