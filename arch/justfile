@@ -29,6 +29,8 @@ packages: builder
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
     {{ builder }} bash -c 'set -euo pipefail
       for p in /packages/*/PKGBUILD; do
+        # A package for other architectures only (Shelly is x86_64 only) is left out here
+        (source "$p"; [[ " ${arch[*]} " == *" any "* || " ${arch[*]} " == *" $(uname -m) "* ]]) || continue
         b=/home/build/pkg/$(basename "$(dirname "$p")")
         mkdir -p "$b"
         cp "$p" "$b/"

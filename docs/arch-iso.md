@@ -79,6 +79,8 @@ Arch's `filesystem` package owns `/usr/lib/os-release` and `/etc/arch-release`, 
 
 mkarchiso appends `IMAGE_ID=stackific` and `IMAGE_VERSION=<version>-arch` to the file `/etc/os-release` resolves to, which is now ours. That is how the ISO's semver version reaches the live image.
 
+`shelly` (task 024) is Shelly, Seafoam Labs' GTK4 package manager for the repos, the AUR and Flatpak: the AUR's PKGBUILD as it is (`arch/packages/shelly/`, with its four side files), except a header comment, `arch=('x86_64')` and `options=('!debug')`. It builds `shelly` and `shelly-flatpak-backend`, both in the x86_64 image. Its makedepends (Zig 0.17.0, clang, gtk4 and others) are in the x86_64 builder, and its Zig builds fetch their dependencies by URL, each checked against its hash in `build.zig.zon`, so the build needs network. Arch Linux ARM has Zig 0.16.0 only (2026-11-08), so `just arch packages` skips every PKGBUILD whose `arch` names neither `any` nor the host's architecture, and the aarch64 image has no Shelly. Shelly's privileged CLI runs through pkexec with its own action (`auth_admin_keep`): it asks for the password. To move to a new Shelly release, copy the AUR's PKGBUILD and side files again and keep those three changes.
+
 To change a file in `desktop/` or `branding/`, update its `sha256sums` entry in the PKGBUILD and bump `pkgrel` (or `pkgver`).
 
 ## Live session

@@ -51,3 +51,5 @@ ntfs-3g
 ntfsprogs
 breeze-gtk
 kde-gtk-config
+shelly
+shelly-flatpak-backend

@@ -116,3 +116,12 @@ sleep 30 # GNOME draws a while after gnome-shell starts
 screenshot gnome
 # SELinux denied nothing during boot, the session, the logout, the greeter and GNOME (the kernel writes two spaces)
 vm_until "journalctl -b | grep -c 'avc:  denied'" '^0$' 0
+
+# GNOME Software, the package manager GUI (task 024): installing and accepting a repository key ask for the password
+# (pkcheck exits 2: authentication required) in live's active GNOME session, because stackific-desktop's rule answers
+# before dnf5daemon-server-polkit's passwordless one
+vm_until 'rpm -q gnome-software >/dev/null && rpm -qf --qf "%{NAME}\n" /etc/polkit-1/rules.d/10-stackific-dnf5daemon.rules' \
+  '^stackific-desktop$' 0
+# shellcheck disable=SC2016 # $a, $(…) and $? belong to the guest shell
+vm_until 'for a in org.rpm.dnf.v0.rpm.execute_trusted_transaction org.rpm.dnf.v0.rpm.Repo.confirm_key; do pkcheck --action-id "$a" --process "$(pgrep -u live -n -x gnome-shell)" >/dev/null 2>&1; echo $?; done | paste -sd " "' \
+  '^2 2$' 0
