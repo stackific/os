@@ -1,6 +1,6 @@
 # 018: The installer on both aarch64 images, with Limine's BOOTAA64.EFI and each base's aarch64 kernel
 
-- [ ] Done
+- [x] Done
 
 Base: both
 
