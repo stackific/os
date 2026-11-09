@@ -142,12 +142,13 @@
          (and limine and efibootmgr, which they require) -->
     <package name="stackific-installer"/>
     <package name="stackific-boot"/>
-    <!-- NVIDIA (task 020): stackific-hardware picks NVIDIA's open modules or nouveau at every boot; the driver from RPM
-         Fusion and its open kernel modules from our repo (nvidia-kmod, provided by kmod-nvidia-<kernel>) -->
-    <package name="stackific-hardware" arch="x86_64"/>
-    <package name="xorg-x11-drv-nvidia" arch="x86_64"/>
-    <package name="xorg-x11-drv-nvidia-libs" arch="x86_64"/>
-    <package name="nvidia-kmod" arch="x86_64"/>
+    <!-- NVIDIA (task 020, aarch64 task 022): stackific-hardware picks NVIDIA's open modules or nouveau at every boot;
+         the driver from RPM Fusion and its open kernel modules from our repo (nvidia-kmod, provided by
+         kmod-nvidia-<kernel>) -->
+    <package name="stackific-hardware"/>
+    <package name="xorg-x11-drv-nvidia"/>
+    <package name="xorg-x11-drv-nvidia-libs"/>
+    <package name="nvidia-kmod"/>
     <!-- Disks, the partition editor, with NTFS mounting and resizing (ntfsresize) for shrinking Windows' partition -->
     <package name="gnome-disk-utility"/>
     <package name="ntfs-3g"/>
