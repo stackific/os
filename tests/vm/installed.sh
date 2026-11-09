@@ -108,9 +108,13 @@ if [ "$like" = fedora ]; then
   vm_until 'ls -Zd /home/tester' ':user_home_dir_t:' 0
   # (noctalia-greeter's state folder holds files the greeter writes at runtime, labelled by its own domain)
   vm_until 'restorecon -nRv -e /var/lib/noctalia-greeter /etc /home /var/lib | wc -l' '^0$' 0
+  # The apps, copied with the live root (task 023)
+  vm_until 'rpm -q kitty btop Thunar file-roller | grep -vc "not installed"' '^4$' 0
 else
   vm_until 'pacman -Q stackific-boot limine efibootmgr | wc -l' '^3$' 0
   vm_until 'pacman -Q stackific-installer arch-install-scripts 2>/dev/null | wc -l' '^0$' 0
+  # The apps, copied with the live root (task 023)
+  vm_until 'pacman -Q kitty btop thunar file-roller bazaar | wc -l' '^5$' 0
 fi
 
 # The system the installer set up, and its login screen
