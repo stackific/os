@@ -13,6 +13,7 @@ mod drives;
 mod install;
 mod os_release;
 mod run;
+mod snapper;
 mod system;
 mod ui;
 mod windows;

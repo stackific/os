@@ -23,6 +23,8 @@ pub trait Base: Send + Sync {
     /// the system's name, then the kernel's and the initramfs' file names at the ESP's root; `None` when the base's own
     /// kernel tools wrote `limine.conf` in `initramfs`.
     fn kernel_files(&self) -> Option<&'static [boot::Kernel]>;
+    /// snapper's list of configs under the target (`SNAPPER_CONFIGS`), where the base's snapper reads it.
+    fn snapper_configs(&self) -> &'static str;
     /// Commands that give `path` under the target (all of it when empty) its policy's labels (Fedora: SELinux), after
     /// the account files change and after every write, before the firmware entry.
     fn relabel(&self, _target: &Path, _path: &Path) -> Vec<Cmd> {
@@ -115,13 +117,16 @@ impl Base for Arch {
 
     /// archiso's mkinitcpio drop-in, the live image's kernel-copy and linux-lts hooks, and the installer package
     /// with the dependencies only it needed (`-Rns`), so the installed system has no installer and no launcher.
+    /// `SNAP_PAC_SKIP=y`: snap-pac's hook would take pre and post snapshots before "Fresh install", and it stops on
+    /// `--sysroot`, which mounts no /proc (`FileNotFoundError: '/proc/1/root/.'`, task 026).
     fn live_state(&self, target: &Path) -> (Vec<PathBuf>, Vec<Cmd>) {
         let files = vec![
             target.join("etc/mkinitcpio.conf.d/archiso.conf"),
             target.join(ARCH_LIVE_HOOK),
             target.join(ARCH_LIVE_LTS_HOOK),
         ];
-        let pacman = Cmd::new("pacman")
+        let pacman = Cmd::new("env")
+            .args(["SNAP_PAC_SKIP=y", "pacman"])
             .args([format!("--sysroot={}", target.display())])
             .args([
                 "--remove",
@@ -146,6 +151,10 @@ impl Base for Arch {
 
     fn kernel_files(&self) -> Option<&'static [boot::Kernel]> {
         Some(arch_kernel_files(AARCH64))
+    }
+
+    fn snapper_configs(&self) -> &'static str {
+        "etc/conf.d/snapper"
     }
 }
 
@@ -226,6 +235,10 @@ impl Base for Fedora {
         None
     }
 
+    fn snapper_configs(&self) -> &'static str {
+        "etc/sysconfig/snapper"
+    }
+
     /// The policy's labels for what the installer wrote under `path` (the user's home among them), from the target's
     /// own file contexts (setfiles also reads their `.homedirs` and `.local` files). setfiles does not cross into other
     /// mounts, so all of the target means `/` and every subvolume's mount point. The ESP holds no labels, and the
@@ -277,7 +290,7 @@ mod tests {
         );
         assert_eq!(
             cmds[0].line(),
-            "pacman --sysroot=/t --remove --nosave --recursive --noconfirm stackific-installer"
+            "env SNAP_PAC_SKIP=y pacman --sysroot=/t --remove --nosave --recursive --noconfirm stackific-installer"
         );
         let (files, cmds) = base.initramfs(Path::new("/t"), "root=UUID=x");
         assert_eq!(
@@ -385,7 +398,7 @@ mod tests {
             base.relabel(Path::new("/t"), Path::new(""))[0].line(),
             "setfiles -r /t -e /t/boot -e /t/proc -e /t/sys -e /t/dev -e /t/run /t/etc/selinux/targeted/contexts/files/file_contexts \
              /t /t/home /t/root /t/srv /t/var/cache /t/var/tmp /t/var/log /t/swap /t/var/lib/flatpak /t/var/lib/libvirt/images \
-             /t/var/lib/containers /t/var/lib/docker"
+             /t/var/lib/containers /t/var/lib/docker /t/.snapshots"
         );
         assert!(
             base.relabel(Path::new("/t"), Path::new("etc"))[0]

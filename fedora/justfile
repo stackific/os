@@ -20,7 +20,7 @@ packages: builder
   # mock runs as container root in a fresh container, so every build starts clean. --isolation=simple: the container
   # has no systemd-nspawn; --no-bootstrap-image: pulling mock's bootstrap image would need podman inside the container.
   # Each spec's Source files are found by name next to the spec (Fedora-only files) and in desktop/, branding/,
-  # hardware/ and installer/ (base-neutral files), as `just arch packages` does. The installer's crate goes in as one
+  # hardware/, storage/ and installer/ (base-neutral files), as `just arch packages` does. The installer's crate goes in as one
   # tar, and its build alone has mock's network, for `cargo fetch` in %prep; every other build stays offline.
   # x86_64 also builds NVIDIA's open kernel modules (task 020) for the newest Fedora kernel, the one kiwi
   # installs (not aarch64: RPM Fusion's aarch64 driver cannot be installed, task 022): RPM Fusion publishes no prebuilt kmod-nvidia, so mock rebuilds the source RPM inside RPM Fusion's
@@ -32,6 +32,7 @@ packages: builder
     --volume "{{ justfile_directory() }}/fedora/packages:/packages:ro" \
     --volume "{{ justfile_directory() }}/desktop:/desktop:ro" --volume "{{ justfile_directory() }}/branding:/branding:ro" \
     --volume "{{ justfile_directory() }}/hardware:/hardware:ro" \
+    --volume "{{ justfile_directory() }}/storage:/storage:ro" \
     --volume "{{ justfile_directory() }}/fedora/iso/rpmfusion-nonfree-45.asc:/rpmfusion.asc:ro" \
     --volume "{{ justfile_directory() }}/installer:/installer:ro" --volume "{{ repo }}:/repo" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
@@ -42,7 +43,7 @@ packages: builder
         b=/build/$name
         mkdir -p "$b/sources"
         for f in $(sed -n "s/^Source[0-9]*:[[:space:]]*//p" "$s"); do
-          find "$(dirname "$s")" /desktop /branding /hardware /installer -path /installer/target -prune -o -type f -name "$f" \
+          find "$(dirname "$s")" /desktop /branding /hardware /storage /installer -path /installer/target -prune -o -type f -name "$f" \
             -exec cp -t "$b/sources" {} +
         done
         net=()

@@ -4,8 +4,8 @@
 # tests/vm/install.sh's free-space install, which is the one on the disk. The firmware started our entry; Limine started
 # the kernel from our ESP with root on @; the boot files, the firmware entries and stackific-boot's hooks (the recipe put
 # the image's limine package, and on Fedora its kernel-core package, at the ESP's root); the system the installer set
-# up; the keyboard layout in MangoWM and in the second desktop (Plasma, GNOME); on Arch x86_64 the LTS kernel's entry,
-# one restart; and, last, the fake Windows install.sh
+# up; its snapshots and zram (task 026); the keyboard layout in MangoWM and in the second desktop (Plasma, GNOME); on
+# Arch x86_64 the LTS kernel's entry, one restart; and, last, the fake Windows install.sh
 # left on partition 1 started through both of Limine's Windows entries, one restart each. Leaves limine.png (boot.sh),
 # installed.png (the login screen) and efibootmgr.txt.
 # shellcheck disable=SC2154 # out, vm, vm_until, fail and screenshot come from boot.sh, which sources this file
@@ -172,6 +172,21 @@ $win" ] || fail "limine.conf with a second kernel: $(vm 'cat /boot/limine.conf')
   [ "$(vm efibootmgr)" = "$entries" ] || fail "kernel-install changed the firmware entries"
   echo "ok: kernel-install keeps Limine's menu current"
 fi
+
+# Snapshots and swap (task 026): @snapshots at /.snapshots, closed to users; snapper's root config and none for /home;
+# the installer's "Fresh install" snapshot (1, important); pre and post snapshots around the package reinstalls above
+# (Arch: snap-pac on pacman -U limine; Fedora: dnf5's snapper actions on dnf5 reinstall kernel-core); btrfs-assistant
+# sees the snapshots of @; the cleanup timer; zram as the only swap
+vm_until 'findmnt -no FSROOT /.snapshots' '^/@snapshots$' 0
+vm_until 'stat -c %a /.snapshots' '^750$' 0
+vm_until "snapper --csvout list-configs --columns config | paste -sd ' '" '^config root$' 0
+vm_until 'snapper --csvout -c root list --columns number,description,userdata' '^1,Fresh install,important=yes$' 0
+vm_until 'snapper --csvout -c root list --columns type | grep -cx -e pre -e post' '^[2-9]' 0
+# (btrfs-assistant 3.0 on Arch: its own command line; 2.2 on Fedora: btrfs-assistant-bin, behind a pkexec launcher)
+vm_until "\$(command -v btrfs-assistant-bin || echo btrfs-assistant) --list | cut -f2,3,6 | tr '\\t' ' '" \
+  '^@ 1 @snapshots/1/snapshot$' 0
+vm_until 'systemctl is-active snapper-cleanup.timer' '^active$' 0
+vm_until "swapon --show=NAME,PRIO --noheadings | tr -s ' '" '^/dev/zram0 100$' 60
 
 # The keyboard layout the installer set, in each desktop: greetd logs `tester` in through an initial session, as the
 # live test does (the image ships none), and into GNOME through the greeter. MangoWM reads the user's config.conf, which sources the stock one and sets the

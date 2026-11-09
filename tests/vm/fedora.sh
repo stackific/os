@@ -116,3 +116,15 @@ sleep 30 # GNOME draws a while after gnome-shell starts
 screenshot gnome
 # SELinux denied nothing during boot, the session, the logout, the greeter and GNOME (the kernel writes two spaces)
 vm_until "journalctl -b | grep -c 'avc:  denied'" '^0$' 0
+
+# Snapshots and swap (task 026): snapper and btrfs-assistant from stackific-storage, dnf5's actions plugin with the
+# snapper actions, snapper's cleanup timer running, and zram as the only swap at priority 100 with zswap off (in place
+# of Fedora's zram-generator-defaults); snapper has no config on the live image
+vm_until 'rpm -q stackific-storage snapper btrfs-assistant zram-generator libdnf5-plugin-actions | grep -vc "not installed"' \
+  '^5$' 0
+vm_until 'rpm -q zram-generator-defaults | grep -c "not installed"' '^1$' 0
+vm_until "grep -cF 'snapper\\ create' /etc/dnf/libdnf5-plugins/actions.d/snapper.actions" '^2$' 0
+vm_until 'systemctl is-active snapper-cleanup.timer' '^active$' 0
+vm_until "swapon --show=NAME,PRIO --noheadings | tr -s ' '" '^/dev/zram0 100$' 60
+vm_until 'cat /sys/module/zswap/parameters/enabled' '^N$' 0
+vm_until 'sysctl -n vm.swappiness vm.page-cluster | paste -sd " "' '^150 0$' 0
