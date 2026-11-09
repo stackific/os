@@ -58,6 +58,8 @@ For Plasma, Arch's second desktop, `stackific-desktop` also holds our wallpaper 
 
 `stackific-hardware` (sources in `hardware/`) holds the NVIDIA driver pick: a systemd generator, NVIDIA's legacy device list and MangoWM's low-effects include. The x86_64 image installs it with `linux-lts`, `nvidia-open`, `nvidia-open-lts` and `nvidia-utils` (task 019); the aarch64 image does not yet. How it works: [hardware.md](hardware.md).
 
+The x86_64 image also carries the regular-hardware set of task 021 ([hardware.md](hardware.md)): `linux-firmware-marvell` (without Marvell's Prestera switch firmware, kept out by `NoExtract` in `arch/iso/pacman.conf`), `sof-firmware`, `alsa-firmware`, `wireless-regdb`, `bolt`, `fprintd`, and libcamera with PipeWire's libcamera and V4L2 plugins.
+
 `stackific-artwork` holds the wallpapers and fastfetch's logo, and depends on `fastfetch`, so installing our branding installs fastfetch:
 
 - `/usr/share/backgrounds/stackific/*.jpg`: the ten public-domain paintings in `branding/wallpapers/`, credited in `branding/wallpapers.toml`, which the package installs as its licence file (`/usr/share/licenses/stackific-artwork/wallpapers.toml`);

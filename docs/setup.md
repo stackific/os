@@ -27,6 +27,7 @@ Works on Linux (x86_64 or aarch64) and on macOS with Apple silicon. Building and
 - `just arch packages` builds our Arch packages into `.build/arch/repo/` (`just arch iso` runs it first).
 - `just installer test`, `just installer lint` and `just installer demo` test, lint and show the installer on any machine, with the Rust toolchain `just setup` puts in `.tools/rust/`; `just arch test-install` installs it in a VM. See [installer.md](installer.md).
 - `just lefthook all` runs every pre-commit check on every tracked file.
+- `just setup` also installs the pinned rclone (`.tools/rclone/`, `just rclone install`; `just doctor` prints its `rclone:` line), which `just release upload` uses for an ISO over 2 GiB ([releases.md](releases.md)).
 - Distro work runs through `/s-task <ask>`, then `/s-build <task>`. See [AGENTS.md](../AGENTS.md).
 
 ## Self-hosted runners
