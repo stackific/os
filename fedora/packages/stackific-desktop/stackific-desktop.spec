@@ -7,10 +7,12 @@
 # spec because it is Fedora-only (Plasma's counterpart is in the Arch package). mangowm comes from Terra at install
 # time; nothing here needs it to build. The Secret Service in every session (task 017): oo7-daemon starts with each
 # user's systemd manager, and greetd's own PAM file already calls pam_oo7, which unlocks its keyring at login.
+# GNOME Software (task 024) asks for the password: a polkit rule that runs first answers with dnf5daemon-server's own
+# defaults, before dnf5daemon-server-polkit's rule, which would install signed packages without one, can.
 
 Name: stackific-desktop
 Version: 0.2.0
-Release: 4%{?dist}
+Release: 5%{?dist}
 Summary: Stackific OS desktop defaults: Noctalia starts in MangoWM sessions with our defaults, the greeter shows our look
 License: Apache-2.0
 URL: https://os.stackific.com
@@ -24,6 +26,7 @@ Source5: stackific-greeter.toml.in
 Source6: stackific-greeter.conf
 Source7: stackific-greeter.sh
 Source8: 20_stackific.gschema.override
+Source10: stackific-dnf5daemon.rules
 BuildRequires: gettext-envsubst
 # The tmpfiles directory macro (rpm expands macros even in comments, so it is not named here)
 BuildRequires: systemd-rpm-macros
@@ -70,6 +73,8 @@ install -Dm644 -t %{buildroot}%{_datadir}/glib-2.0/schemas %{SOURCE8}
 # The Secret Service: oo7-daemon wanted by every user's manager (Fedora's own preset is not in our images)
 install -d %{buildroot}%{_prefix}/lib/systemd/user/default.target.wants
 ln -s ../oo7-daemon.service %{buildroot}%{_prefix}/lib/systemd/user/default.target.wants/oo7-daemon.service
+# No passwordless installs: polkit runs rules by file name, so this answers before org.rpm.dnf.v0.rules
+install -Dm644 %{SOURCE10} %{buildroot}%{_sysconfdir}/polkit-1/rules.d/10-stackific-dnf5daemon.rules
 
 %files
 %{_prefix}/lib/systemd/user/stackific-noctalia.service
@@ -89,3 +94,4 @@ ln -s ../oo7-daemon.service %{buildroot}%{_prefix}/lib/systemd/user/default.targ
 %config(noreplace) %{_sysconfdir}/skel/.config/noctalia/00-stackific.toml
 %{_datadir}/glib-2.0/schemas/20_stackific.gschema.override
 %{_prefix}/lib/systemd/user/default.target.wants/oo7-daemon.service
+%config(noreplace) %{_sysconfdir}/polkit-1/rules.d/10-stackific-dnf5daemon.rules

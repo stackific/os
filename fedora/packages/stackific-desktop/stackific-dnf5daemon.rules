@@ -1,0 +1,12 @@
+// Stackific OS (task 024): no installs without a password. dnf5daemon-server-polkit's org.rpm.dnf.v0.rules lets
+// active local wheel users install signed packages and accept repository keys with no password; polkit runs every
+// rules file in basename order and the first result wins, so this file, sorting before it, answers first with
+// dnf5daemon-server's own defaults (org.rpm.dnf.v0.policy).
+polkit.addRule(function (action, subject) {
+  if (action.id == "org.rpm.dnf.v0.rpm.execute_trusted_transaction") {
+    return subject.active ? polkit.Result.AUTH_ADMIN_KEEP : polkit.Result.AUTH_ADMIN;
+  }
+  if (action.id == "org.rpm.dnf.v0.rpm.Repo.confirm_key") {
+    return polkit.Result.AUTH_ADMIN;
+  }
+});

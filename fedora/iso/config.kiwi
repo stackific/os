@@ -167,6 +167,9 @@
     <package name="gnome-session-wayland-session"/>
     <package name="ptyxis"/>
     <package name="nautilus"/>
+    <!-- GNOME Software, the package manager GUI (task 024; Shelly's counterpart on Arch). stackific-desktop's polkit
+         rule answers before dnf5daemon-server-polkit's, which would install without a password -->
+    <package name="gnome-software"/>
     <!-- Portals: GNOME's for GNOME, GTK's and wlr's for MangoWM (mango-portals.conf) -->
     <package name="xdg-desktop-portal-gnome"/>
     <package name="xdg-desktop-portal-gtk"/>
