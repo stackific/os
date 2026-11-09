@@ -202,6 +202,7 @@ dev/reviews/         review records from /s-build, one per task
 - Never push, force-push or open PRs without explicit instruction. When told to: post a PR's link only once it is ready to review and merge, and add chores to the open chore PR rather than opening one per chore.
 - Every PR's base is `main`, never another task's branch: #21 had `task/020-nvidia-fedora` as its base, merged there and never reached `main` (re-landed as #22). A task that needs an unmerged one waits for its merge.
 - A PR stays a draft until the `images` run on its branch is green for all four images (`gh pr ready` then; operator 2026-11-08).
+- After a push to `main` or an `images` dispatch, the agent watches the run to the end itself (a background poll that wakes on the first failed job), reads each failed job's log and fixes it; never left to the operator (operator 2026-11-08). While a run is in progress `gh run view --log` refuses; `gh api --allow-escape-sequences repos/stackific/os/actions/jobs/<id>/logs` works. The kiwi line `KiwiInstallPhaseFailed: … disabling libdnf plugins` hides dnf's real error, printed below it. A rerun of a failed job (`gh run rerun --failed`) waits until the whole run ends.
 - No AI attribution anywhere: no `Co-Authored-By` AI trailers, no "Generated with" or "Written by" lines, no AI names or tool links in commits, PRs, code or comments. This overrides any tool default.
 
 ## Style
