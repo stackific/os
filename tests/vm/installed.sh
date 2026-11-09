@@ -183,7 +183,7 @@ vm_until "snapper --csvout list-configs --columns config | paste -sd ' '" '^conf
 vm_until 'snapper --csvout -c root list --columns number,description,userdata' '^1,Fresh install,important=yes$' 0
 # shortcut: diagnostics for Fedora's dnf5 snapper actions, which made no snapshots on Fedora aarch64 (images run
 # 42559637348); drop them once the check below passes there
-[ "$like" != fedora ] || vm "grep -i -E 'action|snapper' /var/log/dnf5.log | tail -n 30; journalctl -b --no-pager -u snapperd | tail -n 20; ls -l /etc/dnf/libdnf5-plugins/ /etc/dnf/libdnf5-plugins/actions.d/" || true
+[ "$like" != fedora ] || vm "ls -Zd /.snapshots /.snapshots/*; journalctl -b --no-pager | grep -E 'avc: +denied' | tail -n 20; snapper -c root create -t single -p -d diagnostics; echo \"create exit \$?\"; journalctl -b --no-pager -u snapperd | tail -n 20" || true
 vm_until 'snapper --csvout -c root list --columns type | grep -cx -e pre -e post' '^[2-9]' 0
 # (btrfs-assistant 3.0 on Arch: its own command line; 2.2 on Fedora: btrfs-assistant-bin, behind a pkexec launcher)
 vm_until "\$(command -v btrfs-assistant-bin || echo btrfs-assistant) --list | cut -f2,3,6 | tr '\\t' ' '" \
