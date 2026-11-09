@@ -1,6 +1,6 @@
 # Arch builder: archiso to build the live ISO, fakeroot and rust for makepkg (our packages; makepkg runs with
-# --nodeps, so the builder carries their makedepends), and QEMU with UEFI firmware, socat and qemu-img (the install
-# test's disk image) to boot-test the ISO.
+# --nodeps, so the builder carries their makedepends; on x86_64 also Shelly's, task 024), and QEMU with UEFI
+# firmware, socat and qemu-img (the install test's disk image) to boot-test the ISO.
 # It builds natively for the host's architecture; `just arch builder` passes both pins from arch/vars.just.
 # - x86_64: every package comes from one Arch Linux Archive date.
 # - aarch64 (Arch Linux ARM): packages come from its live repos, except archiso and edk2-aarch64 (AAVMF), which Arch
@@ -16,7 +16,8 @@ ARG ALA_DATE
 RUN case "$(uname -m)" in \
     x86_64) \
       echo "Server = https://archive.archlinux.org/repos/${ALA_DATE}/\$repo/os/\$arch" > /etc/pacman.d/mirrorlist \
-      && pacman -Syu --noconfirm archiso edk2-ovmf fakeroot qemu-img qemu-system-x86 rust socat ;; \
+      && pacman -Syu --noconfirm archiso edk2-ovmf fakeroot qemu-img qemu-system-x86 rust socat \
+        binutils clang flatpak gettext git go-md2man gtk4 libarchive pkgconf ripgrep sqlite zig ;; \
     aarch64) \
       pacman-key --init && pacman-key --populate archlinuxarm archlinux \
       && pacman -Syu --noconfirm --disable-sandbox fakeroot qemu-system-aarch64 qemu-hw-display-virtio-gpu \

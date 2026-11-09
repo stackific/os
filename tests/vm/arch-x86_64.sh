@@ -13,3 +13,11 @@ vm_until 'for v in $(ls /usr/lib/modules); do [ "$(modinfo -k "$v" -F vermagic n
   '^2$' 0
 # The live medium boots linux only: no linux-lts files on it (the live image's stackific-live-lts.hook)
 vm_until 'ls /run/archiso/bootmnt/arch/boot/x86_64 | grep -c lts' '^0$' 0
+
+# Shelly, the package manager GUI (task 024, x86_64 only): from our repo with its Flatpak backend, and its privileged
+# CLI asks for the password (pkcheck exits 2: authentication required) in live's active Plasma session
+vm_until 'pacman -Q shelly shelly-flatpak-backend | wc -l' '^2$' 0
+vm_until 'test -x /usr/bin/shelly-ui -a -f /usr/share/applications/com.shellyorg.shelly.desktop && echo ok' '^ok$' 0
+# shellcheck disable=SC2016 # $(…) and $? belong to the guest shell
+vm_until 'pkcheck --action-id com.shellyorg.shelly.pkexec.cli --process "$(pgrep -u live -n -x plasmashell)" >/dev/null 2>&1; echo $?' \
+  '^2$' 0
