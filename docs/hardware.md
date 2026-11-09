@@ -1,6 +1,6 @@
 # Hardware
 
-`hardware/` holds what picks drivers by hardware: the NVIDIA driver on all four images (Arch x86_64: task 019; Fedora x86_64: task 020; both aarch64 images: task 022), packaged as `stackific-hardware` (`arch/packages/stackific-hardware/PKGBUILD`, `fedora/packages/stackific-hardware/stackific-hardware.spec`). The user page is `site/src/content/docs/user/graphics.md`.
+`hardware/` holds what picks drivers by hardware: the NVIDIA driver on three images (Arch x86_64: task 019; Fedora x86_64: task 020; Arch Linux ARM: task 022), packaged as `stackific-hardware` (`arch/packages/stackific-hardware/PKGBUILD`, `fedora/packages/stackific-hardware/stackific-hardware.spec`). The user page is `site/src/content/docs/user/graphics.md`.
 
 ## Test
 
@@ -28,9 +28,9 @@ SPEC open decision 6 (operator's design notes: prebuilt kmods in the image, or a
 
 ## NVIDIA on aarch64
 
-Task 022 brings the driver and the same pick to both aarch64 images (NVIDIA cards in aarch64 workstations and servers with PCIe slots, such as Ampere Altra machines). Best effort: QEMU shows no NVIDIA device, so the VM tests prove the packages and modules are in place and that nothing loads on QEMU's display.
+Task 022 brings the driver and the same pick to Arch Linux ARM (NVIDIA cards in aarch64 workstations and servers with PCIe slots, such as Ampere Altra machines). Best effort: QEMU shows no NVIDIA device, so the VM tests prove the packages and modules are in place and that nothing loads on QEMU's display.
 
-- **Fedora aarch64** is the same as x86_64: RPM Fusion has the same packages for aarch64 (615.78.08, 2026-11-08), and `just fedora packages` builds `kmod-nvidia-<kernel>` natively in the Mac's runner VM.
+- **Fedora aarch64** has no NVIDIA driver yet: RPM Fusion's aarch64 `xorg-x11-drv-nvidia-libs` 615.78.08 requires `libnvidia-rmapi-tegra.so.615.78.08`, which no package in RPM Fusion ships (checked 2026-11-08), so the driver cannot be installed there. The image keeps the four NVIDIA packages and the `kmod-nvidia` build to x86_64 (`arch="x86_64"` in `config.kiwi`, the x86_64 guard in `just fedora packages`); NVIDIA cards there run on nouveau.
 - **Arch Linux ARM** has `nvidia-open-dkms` and `nvidia-utils` (615.78.08) but no prebuilt module package, so the image carries `nvidia-open-dkms` with `dkms` and `linux-aarch64-headers` (operator 2026-11-08). DKMS builds the module while the image is built, so the live image compiles nothing; an installed system rebuilds it when `linux-aarch64` updates, so its kernel updates never fall back to nouveau. The price is `gcc`, `make` and the headers in this one image.
 - **Initramfs.** Installed Arch systems on aarch64 drop `kms` as x86_64 did, for the same reason. `linux-aarch64` has `CONFIG_FB_EFI=y`, so the passphrase prompt draws on the firmware's framebuffer.
 
@@ -71,4 +71,5 @@ and update the count in `just hardware test`.
 - Qualcomm SoC firmware (Arch's `linux-firmware-qcom`, Fedora's `qcom-firmware`, about 175 MiB compressed) on the aarch64 images, once they boot Snapdragon machines: those need device trees, which our UEFI-only Limine boot does not load (operator 2026-11-08, task 022).
 - `kmod-nvidia` for each new Fedora kernel from our repos (task 028); until then later kernels start on nouveau.
 - Real NVIDIA hardware on aarch64 (an Ampere workstation with a Turing card).
+- NVIDIA on Fedora aarch64, once RPM Fusion's aarch64 `xorg-x11-drv-nvidia-libs` stops requiring the unshipped `libnvidia-rmapi-tegra.so` (task 022): drop `arch="x86_64"` from the four NVIDIA lines and the x86_64 guard in `just fedora packages`, and move `tests/vm/fedora-x86_64.sh` into `fedora.sh`.
 - Real NVIDIA hardware: a Turing desktop, a Pascal desktop, a Pascal Optimus laptop, and an RTX to Pascal swap on one disk (task 030).

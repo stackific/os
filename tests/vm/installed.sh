@@ -63,9 +63,11 @@ if [ "$like" = fedora ]; then
   vm_until "lsinitrd /boot/initramfs-$version.img | grep -c dmsquash" '^0$' 0
   vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx btrfs" '^1$' 0
   # No NVIDIA or nouveau module in the initramfs (RPM Fusion's dracut drop-in and stackific-hardware's, task 020), and
-  # NVIDIA's open modules for the running kernel, with no RPM Fusion repo file
-  vm_until 'rpm -q "kmod-nvidia-$(uname -r)" >/dev/null && ls /etc/yum.repos.d/ /usr/share/dnf5/repos.d/ 2>/dev/null | grep -ci rpmfusion' \
-    '^0$' 0
+  # on x86_64 NVIDIA's open modules for the running kernel, with no RPM Fusion repo file (aarch64: task 022)
+  if [ "$efi" = BOOTX64.EFI ]; then
+    vm_until 'rpm -q "kmod-nvidia-$(uname -r)" >/dev/null && ls /etc/yum.repos.d/ /usr/share/dnf5/repos.d/ 2>/dev/null | grep -ci rpmfusion' \
+      '^0$' 0
+  fi
   vm_until "lsinitrd /boot/initramfs-$version.img | grep -cE '/(nvidia|nouveau)[^/]*\\.ko'" '^0$' 0
   # The unlock (dracut's systemd-cryptsetup) and stackific-boot's plain screen after a failed start
   vm_until "lsinitrd -m /boot/initramfs-$version.img | grep -cx -e systemd-cryptsetup -e stackific-boot-failure" '^2$' 0

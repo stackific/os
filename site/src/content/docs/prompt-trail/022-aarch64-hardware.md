@@ -1,6 +1,6 @@
 ---
 title: NVIDIA and regular hardware on both aarch64 images
-description: NVIDIA's open modules or nouveau, picked at every boot, on the Arch Linux ARM and Fedora aarch64 images, with the regular-hardware set of the x86_64 images on Arch Linux ARM.
+description: NVIDIA's open modules or nouveau, picked at every boot, on the Arch Linux ARM image, with the regular-hardware set of the x86_64 images on Arch Linux ARM.
 sidebar:
   order: 22
   label: 022 NVIDIA and regular hardware on aarch64
@@ -42,10 +42,10 @@ Bring both aarch64 images to the hardware support the x86_64 images have, live a
 
 ## Outcome
 
-- **Arch Linux ARM.** `packages.aarch64` gains `linux-aarch64-headers`, `stackific-hardware`, `nvidia-open-dkms`, `nvidia-utils` and task 021's ten packages, so it differs from `packages.x86_64` only in its kernel, headers, keyring and module package. DKMS's pacman hook builds `nvidia.ko` for `linux-aarch64` while mkarchiso installs the packages, so the live image compiles nothing and an installed system rebuilds the module when its kernel updates. `NoExtract` in the shared `pacman.conf` keeps Marvell's Prestera firmware out, as on x86_64.
-- **Fedora aarch64.** The four NVIDIA lines in `config.kiwi` lose `arch="x86_64"`, and `just fedora packages` builds `kmod-nvidia-<kernel>` on both architectures, natively in the Mac's runner VM.
+- **Arch Linux ARM.** `just arch iso` adds ALARM's `[alarm]` repo on aarch64, where `libpisp` (which `libcamera` needs) lives. `packages.aarch64` gains `linux-aarch64-headers`, `stackific-hardware`, `nvidia-open-dkms`, `nvidia-utils` and task 021's ten packages, so it differs from `packages.x86_64` only in its kernel, headers, keyring and module package. DKMS's pacman hook builds `nvidia.ko` for `linux-aarch64` while mkarchiso installs the packages, so the live image compiles nothing and an installed system rebuilds the module when its kernel updates. `NoExtract` in the shared `pacman.conf` keeps Marvell's Prestera firmware out, as on x86_64.
+- **Fedora aarch64.** No NVIDIA yet: RPM Fusion's aarch64 `xorg-x11-drv-nvidia-libs` 615.78.08 requires `libnvidia-rmapi-tegra.so.615.78.08`, which no package in RPM Fusion's release or updates repos ships (CI run 42546467105 and `dnf5 repoquery --forcearch=aarch64 --whatprovides`, 2026-11-08). The four NVIDIA lines stay `arch="x86_64"` and the `kmod-nvidia` build stays x86_64; `docs/hardware.md` lists the two-line change under Later. kiwi's tmpfs takes up to 75% of the RAM.
 - **Installer.** Installed Arch systems drop the `kms` hook on aarch64 too, so no GPU module goes into any initramfs; `linux-aarch64` has `CONFIG_FB_EFI=y`, so the passphrase prompt draws on the firmware's framebuffer.
-- **Tests.** The generator and task 021 checks move from `arch-x86_64.sh` to `arch.sh`, and Fedora's NVIDIA checks from `fedora-x86_64.sh` (deleted) to `fedora.sh`, so all four images run them. The new `arch-aarch64.sh` checks the DKMS module (`dkms status`, vermagic, licence). `installed.sh` checks the module for the running kernel and an initramfs without NVIDIA or nouveau on every install.
+- **Tests.** The generator and task 021 checks move from `arch-x86_64.sh` to `arch.sh`, so both Arch images run them; Fedora's NVIDIA checks stay in `fedora-x86_64.sh`. The new `arch-aarch64.sh` checks the DKMS module (`dkms status`, vermagic, licence). `installed.sh` checks the module for the running kernel and an initramfs without NVIDIA or nouveau on every install.
 - **Runner VM.** `runner_vm_memory` (16 GiB) sizes the Mac's VM, and `just runner vm` resizes a VM made with other memory.
 - Qualcomm SoC firmware stays out of both aarch64 images.
 
@@ -57,6 +57,7 @@ No UI.
 
 - Round 1 found three things, all fixed. kiwi's tmpfs was capped at half the RAM, 8 GiB in the Mac's VM, and NVIDIA would have pushed the Fedora aarch64 build past it; it is now `size=75%`. The hardware notes still said `kms` was dropped only on x86_64. Two moved test comments were too long, and one named x86_64's display.
 - Round 2 found nothing.
+- Round 3, from the first `images` run with 022 (run 42546467105): both aarch64 builds failed. Arch Linux ARM could not resolve `libpisp`, which lives in ALARM's `[alarm]` repo, now added on aarch64. Fedora aarch64 could not install RPM Fusion's driver, which requires a Tegra library no package ships, so Fedora aarch64 keeps NVIDIA to x86_64 for now.
 
 ## Manual changes
 
@@ -69,6 +70,8 @@ None.
 - Docs: `docs/hardware.md` (NVIDIA on aarch64, Qualcomm firmware under Later), `docs/arch-iso.md`, `docs/fedora-iso.md`, `docs/installer.md`, `docs/setup.md` (the VM's memory), and the user page `user/graphics.md`, which now covers all four images and the rebuild after a kernel update on Arch Linux ARM.
 
 ## Deviations
+
+- Fedora aarch64 gets no NVIDIA driver, against the ask: RPM Fusion's aarch64 package cannot be installed (Review, round 3). The task file was updated.
 
 - Fedora aarch64 uses task 020's prebuilt `kmod-nvidia`, not akmods on the machine as the operator's plan said: task 020 settled prebuilt modules for Fedora (no compiler in the image). The task says so.
 - `just release changed` keeps naming `tests/vm/fedora-x86_64.sh`, as it names `fedora-aarch64.sh`, which does not exist either; the task file was updated.

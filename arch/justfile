@@ -58,11 +58,14 @@ iso version="0.0.0-dev": packages
   rm -f "{{ out }}/$name.iso" "{{ out }}/$name.packages.txt"
   # mkarchiso runs as `build` with its work dir inside the container, so --rm discards it and every build starts fresh.
   # Container root (the host user) then moves the outputs to /out, so the host user owns them.
+  # Arch Linux ARM keeps some packages (libpisp, which libcamera needs) in its own [alarm] repo, which Arch's archive
+  # lacks, so only aarch64 builds add it to the profile's pacman.conf.
   podman run --rm --privileged \
     --volume "{{ justfile_directory() }}/arch/iso:/profile:ro" --volume "{{ repo }}:/repo:ro" --volume "{{ out }}:/out" \
     --env STACKIFIC_VERSION="$1" --env NAME="$name" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
     {{ builder }} bash -c 'cp -r /profile /home/build/profile \
+      && if [ "{{ arch() }}" = aarch64 ]; then printf "\n[alarm]\nInclude = /etc/pacman.d/mirrorlist\n" >>/home/build/profile/pacman.conf; fi \
       && runuser -u build -- mkarchiso -v -w /home/build/work -o /home/build/out /home/build/profile \
       && install -m644 "/home/build/out/$NAME.iso" /out/ \
       && install -m644 /home/build/work/iso/arch/pkglist.{{ arch() }}.txt "/out/$NAME.packages.txt"'

@@ -5,7 +5,7 @@ sidebar:
   order: 4
 ---
 
-Stackific OS picks the graphics driver every time it starts, live and installed, so there is nothing to choose or install. This covers all four images, x86_64 and aarch64.
+Stackific OS picks the graphics driver every time it starts, live and installed, so there is nothing to choose or install. This covers the two x86_64 images and the Arch Linux ARM image; on the Fedora Remix aarch64 image, NVIDIA cards run on nouveau for now.
 
 | Graphics card                                                         | Driver                                                                                                                         |
 | --------------------------------------------------------------------- | ------------------------------------------------------------------------------------------------------------------------------ |
