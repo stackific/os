@@ -4,7 +4,7 @@ description: A launcher on all four images that downloads 13 creative apps from 
 sidebar:
   order: 25
   label: 025 Creative apps, one-click from upstream
-pr: https://github.com/stackific/os/pull/22
+pr: https://github.com/stackific/os/pull/25
 task: dev/tasks/025-creative-apps.md
 ---
 
