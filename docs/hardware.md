@@ -26,6 +26,23 @@ The same generator and the same picks, with RPM Fusion's driver (`xorg-x11-drv-n
 
 SPEC open decision 6 (operator's design notes: prebuilt kmods in the image, or akmods on first boot) is settled as prebuilt: akmods on the live ISO would compile for minutes on every boot, and keeping `akmod-nvidia` for later kernels would put gcc, kernel headers and 90 MiB of module sources into every image.
 
+## Regular hardware on both x86_64 images
+
+Task 021 gives both x86_64 images the same regular hardware, installed on every image and install, with no detection step and no chwd:
+
+| | Arch (`arch/iso/packages.x86_64`) | Fedora (`fedora/iso/config.kiwi`, both architectures) |
+| --- | --- | --- |
+| Firmware | `linux-firmware` meta, plus `linux-firmware-marvell`, `sof-firmware`, `alsa-firmware`, `wireless-regdb` | its firmware subpackages, plus `alsa-firmware` and `dvb-firmware` |
+| Thunderbolt and USB4 | `bolt` | `bolt` |
+| Fingerprint readers | `fprintd` (its `pam_fprintd` is in no PAM stack) | `fprintd`, no `fprintd-pam` |
+| MIPI webcams (Intel IPU6) | `libcamera`, `libcamera-ipa`, `pipewire-libcamera`, `pipewire-v4l2` | `libcamera`, `libcamera-ipa`, `pipewire-plugin-libcamera`, `pipewire-v4l2` |
+
+- **Parity rule.** Compared by top-level entry under `/usr/lib/firmware` (package file lists, compression suffixes ignored, 2026-11-08), Arch's set had and Fedora's lacked only TV-tuner (DVB, analog) and old sound-card firmware, which Fedora's `alsa-firmware` and `dvb-firmware` carry; Fedora's set had and Arch's lacked only server parts (QLogic, Brocade and others), which both leave out. The boot tests check one sentinel file per family on both images.
+- **Prestera.** 71 of `linux-firmware-marvell`'s 78 MiB are Marvell's Prestera Ethernet-switch firmware (`mrvl/prestera/`), a datacenter part. `arch/iso/pacman.conf` keeps it out of the image with `NoExtract`. Installed systems use Arch's own `/etc/pacman.conf`, so a later `linux-firmware-marvell` update writes those files there (disk only, never loaded). Fedora ships Prestera as its own package, `mrvlprestera-firmware`, which the image leaves out.
+- **bolt** ships upstream's polkit rule, which lets an active local `wheel` user authorise Thunderbolt devices without a password, as Fedora Workstation does; we keep it unchanged (operator 2026-11-08).
+- **fprintd** is D-Bus activated; `fprintd-enroll` and `fprintd-verify` work, but login, `sudo` and polkit still ask only for the password, because none of their PAM stacks calls `pam_fprintd`. The desktops' own fingerprint services stay as packaged: Plasma's lock screen (kscreenlocker's `kde-fingerprint`) offers an enrolled finger next to the password, and GDM's `gdm-fingerprint` is unused (GDM does not run).
+- **Broadcom STA** (`wl`, BCM4311 to BCM4360, laptops from about 2008 to 2015): Arch has only `broadcom-wl-dkms` and RPM Fusion only `akmod-wl`, both of which compile on the machine, so the images carry neither; the user page gives the online steps (operator 2026-11-08).
+
 ## The legacy list
 
 `hardware/nvidia-legacy.ids` lists the PCI device IDs (vendor `10de`) of NVIDIA's legacy-branch tables (580.xx and older) in `supportedchips.html`, which `nvidia-utils` ships as `/usr/share/doc/nvidia/html/supportedchips.html`: 879 IDs in 615.78.08. MX150 (`1d10`) is in it; MX450 (`1f97`) and GTX 1650 Mobile (`1f99`), Turing chips, are not. The pre-Turing set is closed, so driver updates do not change it. Regenerate it only if NVIDIA moves Turing to a legacy branch: take the four-digit first column of every table row after the "legacy GPUs" heading, lowercased and sorted, for example
@@ -41,8 +58,9 @@ and update the count in `just hardware test`.
 
 - The installer's warning before installing on a pre-Turing NVIDIA card (slow 3D), and the same note once in the live session.
 - A free-space guard on the ESP as kernels add up.
-- The Arch x86_64 ISO is 2041 MiB with NVIDIA and `linux-lts`, 7 MiB under the 2 GiB target: the next additions (task 021's firmware) need room, or the R2 path in `AGENTS.md` (CI and releases).
-- Broadcom STA and fingerprint readers on detection (task 021); whether chwd joins for them.
+- Fingerprint login: wire `pam_fprintd` after the user enrols a finger, with an enrolment page.
+- Broadcom STA offline, if a prebuilt `wl` module per kernel becomes worth building (as `kmod-nvidia` on Fedora).
+- Arch aarch64's firmware set and Qualcomm firmware (task 022).
 - `kmod-nvidia` for each new Fedora kernel from our repos (task 028); until then later kernels start on nouveau.
 - NVIDIA on aarch64 (task 022).
 - Real NVIDIA hardware: a Turing desktop, a Pascal desktop, a Pascal Optimus laptop, and an RTX to Pascal swap on one disk (task 030).

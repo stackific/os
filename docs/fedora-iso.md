@@ -114,6 +114,7 @@ They hold the same files as on Arch (`docs/arch-iso.md`, "Our packages"): the No
 ## What is in the image
 
 - The kernel, `linux-firmware` and the default firmware of Fedora's `hardware-support` group, plus AMD and Intel microcode. The server and datacenter firmware in that group is optional there, so it stays out.
+- Regular hardware as on Arch (task 021, [hardware.md](hardware.md)): `alsa-firmware` and `dvb-firmware` for firmware parity, `bolt`, `fprintd` without `fprintd-pam`, and libcamera with PipeWire's libcamera and V4L2 plugins. On x86_64, NVIDIA (task 020).
 - NetworkManager with Wi-Fi, btrfs and FAT tools, SELinux enforcing with the targeted policy, and dnf5, so installed systems can update.
 - The installer (`stackific-installer`) and `stackific-boot` with Limine from Terra, and Disks (`gnome-disk-utility`) with `ntfs-3g` and `ntfsprogs` (`ntfsresize`), the partition editor.
 - The desktop: MangoWM and noctalia-greeter from Terra, Noctalia, greetd, foot and rofi from Fedora, and GNOME (`gnome-shell`, its Wayland session, Ptyxis and Nautilus), with the GNOME, GTK and wlr portals and PipeWire. Our three RPMs carry the defaults (the live session, below).
