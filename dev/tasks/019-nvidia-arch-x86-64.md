@@ -1,6 +1,6 @@
 # 019: NVIDIA on Arch x86_64: open modules for linux and linux-lts, the driver picked at every boot, nouveau for older cards
 
-- [ ] Done
+- [x] Done
 
 Base: arch
 

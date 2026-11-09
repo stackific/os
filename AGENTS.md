@@ -147,6 +147,7 @@ dev/reviews/         review records from /s-build, one per task
 - GitHub-hosted Linux runners run checks and container tests.
 - The operator's Linux PC runs the self-hosted runner for x86_64 images and their VM tests (labels `self-hosted`, `Linux`, `X64`); `just runner setup` makes a machine a runner, never `just setup`.
 - The operator's Mac runs the self-hosted runner for aarch64 images in an arm64 Linux VM (labels `self-hosted`, `Linux`, `ARM64`); `just runner setup` on the Mac creates the VM (`just runner vm`) and runs itself inside it. The VM runs the Fedora images' release (Fedora 45, its Cloud image pinned in `just/runner/vars.just`), because the VM enforces SELinux and a rootless image build can set only the SELinux contexts the VM's own policy knows.
+- The VM is Lima (`vz`, nested virtualization), not OrbStack: OrbStack has no nested KVM or vhost-vsock on Apple Silicon (its docs and release notes through v2.2.5, checked 2026-11-08), which the aarch64 boot and install tests need (operator 2026-11-08).
 - `images` runs on every push to `main` (a merged PR) on both the PC and the Mac, and by hand (`workflow_dispatch`) (operator 2026-11-08). On a push it builds only the images whose files changed (`just release changed`; keep its path lists current when an image gains sources); by hand it builds all four. It publishes the images of a merged pull request's commit as the test release `v0.0.0-pr.<n>` (a prerelease, replaced on a rerun; not a release).
 - Self-hosted runners take only `push` to `main` and `workflow_dispatch`, never `pull_request`; `just runner register` makes every outside contributor's run wait for approval.
 - `release` runs only by hand (`workflow_dispatch`, input `version`):
@@ -201,6 +202,8 @@ dev/reviews/         review records from /s-build, one per task
 - Every commit is DCO signed-off (`git commit -s`) and SSH-signed (`-S`). Never use `--no-gpg-sign` or skip hooks. If signing fails, stop and report.
 - Never push, force-push or open PRs without explicit instruction. When told to: post a PR's link only once it is ready to review and merge, and add chores to the open chore PR rather than opening one per chore.
 - Every PR's base is `main`, never another task's branch: #21 had `task/020-nvidia-fedora` as its base, merged there and never reached `main` (re-landed as #22). A task that needs an unmerged one waits for its merge.
+- A PR stays a draft until the `images` run on its branch is green for all four images (`gh pr ready` then; operator 2026-11-08).
+- After a push to `main` or an `images` dispatch, the agent watches the run to the end itself (a background poll that wakes on the first failed job), reads each failed job's log and fixes it; never left to the operator (operator 2026-11-08). While a run is in progress `gh run view --log` refuses; `gh api --allow-escape-sequences repos/stackific/os/actions/jobs/<id>/logs` works. The kiwi line `KiwiInstallPhaseFailed: … disabling libdnf plugins` hides dnf's real error, printed below it. A rerun of a failed job (`gh run rerun --failed`) waits until the whole run ends.
 - No AI attribution anywhere: no `Co-Authored-By` AI trailers, no "Generated with" or "Written by" lines, no AI names or tool links in commits, PRs, code or comments. This overrides any tool default.
 
 ## Style
