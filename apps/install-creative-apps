@@ -1,0 +1,36 @@
+#!/usr/bin/env bash
+# Installs the creative apps (PhotoCraft and twelve more from github.com/storytold, task 025) at the versions pinned in
+# creative-apps.sha256: downloads each app's package for this base and architecture from upstream's GitHub release, on
+# this machine, checks its signature against upstream's key (creative-apps-key.asc) and its SHA-256 against the pin,
+# and installs them all with pacman or dnf only when every check passed. Glue, because no packaged tool installs
+# pinned, signed release assets, and we never redistribute these packages. The launcher runs it as root through run0.
+# STACKIFIC_APPS_SHARE and STACKIFIC_APPS_URL point it at a fake release for `just apps test`.
+set -euo pipefail
+share=${STACKIFIC_APPS_SHARE:-/usr/share/stackific}
+url=${STACKIFIC_APPS_URL:-https://github.com/storytold}
+if command -v pacman >/dev/null; then ext=pkg.tar.zst sig=sig; else ext=rpm sig=asc; fi
+
+work=$(mktemp -d /var/tmp/stackific-apps.XXXXXX)
+trap 'rm -rf "$work"' EXIT
+# About 1.3 GiB of downloads and 3 GiB installed; the live session's overlay holds far less
+[ "$(df --output=avail -BG "$work" | tail -1 | tr -dc 0-9)" -ge 5 ] \
+  || { echo "The creative apps need 5 GiB of free space. In the live session, install Stackific OS first." >&2; exit 1; }
+cd "$work"
+grep -E "^[0-9a-f]{64}  [a-z]+-[0-9.]+-linux-$(uname -m)\.$ext\$" "$share/creative-apps.sha256" >pins \
+  || { echo "No creative apps for $(uname -m)." >&2; exit 1; }
+export GNUPGHOME="$work/gnupg"
+mkdir -m 700 "$GNUPGHOME" sig
+gpg --dearmor <"$share/creative-apps-key.asc" >key.gpg
+# Signatures stay out of the package folder: pacman -U checks a <file>.sig next to the file against its own keyring
+while read -r _ file; do
+  app=${file%%-*}
+  ver=${file#"$app"-}
+  ver=${ver%%-linux-*}
+  echo "Downloading $file"
+  curl -fL --retry 3 -o "$file" "$url/$app/releases/download/v$ver/$file"
+  curl -fsSL --retry 3 -o "sig/$file.$sig" "$url/$app/releases/download/v$ver/$file.$sig"
+  gpgv --keyring "$work/key.gpg" "sig/$file.$sig" "$file"
+done <pins
+sha256sum --check --strict pins
+if [ "$ext" = rpm ]; then dnf install -y ./*.rpm; else pacman -U --needed --noconfirm ./*.pkg.tar.zst; fi
+echo "Done: the creative apps are in the app launcher."

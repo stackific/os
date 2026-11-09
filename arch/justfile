@@ -12,7 +12,7 @@ builder:
 
 # Build our packages (arch/packages/*/PKGBUILD) with makepkg in a fresh builder container into the local repo
 # .build/arch/repo/ (unsigned until release signing). Local sources come from the package's own folder (an Arch-only
-# file), desktop/, branding/, hardware/ and installer/ (never its target/), staged by file name; the installer's crate
+# file), desktop/, branding/, hardware/, apps/ and installer/ (never its target/), staged by file name; the installer's crate
 # is packed into stackific-installer-crate.tar.
 # SELinux (Fedora, as in the Mac's runner VM) hides bind mounts from containers unless labelling is off; without
 # SELinux it is a no-op. The --privileged ISO build has labelling off already.
@@ -24,7 +24,7 @@ packages: builder
   podman run --rm --security-opt label=disable \
     --volume "{{ justfile_directory() }}/arch/packages:/packages:ro" \
     --volume "{{ justfile_directory() }}/desktop:/desktop:ro" --volume "{{ justfile_directory() }}/branding:/branding:ro" \
-    --volume "{{ justfile_directory() }}/hardware:/hardware:ro" \
+    --volume "{{ justfile_directory() }}/hardware:/hardware:ro" --volume "{{ justfile_directory() }}/apps:/apps:ro" \
     --volume "{{ justfile_directory() }}/installer:/installer:ro" --volume "{{ repo }}:/repo" \
     --env SOURCE_DATE_EPOCH="$(git -C "{{ justfile_directory() }}" log -1 --format=%ct)" \
     {{ builder }} bash -c 'set -euo pipefail
@@ -33,7 +33,7 @@ packages: builder
         mkdir -p "$b"
         cp "$p" "$b/"
         for f in $(source "$p"; echo "${source[@]}"); do
-          find "$(dirname "$p")" /desktop /branding /hardware /installer -path /installer/target -prune -o -type f -name "$f" \
+          find "$(dirname "$p")" /desktop /branding /hardware /apps /installer -path /installer/target -prune -o -type f -name "$f" \
             -exec cp -t "$b" {} +
         done
         if [ "$(basename "$b")" = stackific-installer ]; then

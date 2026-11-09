@@ -36,6 +36,9 @@ mod installer
 # Hardware: the GPU driver pick and its data (recipes in hardware/justfile)
 mod hardware
 
+# Apps: the one-click install of the creative apps from upstream (recipes in apps/justfile)
+mod apps
+
 # Fedora base: live ISO build and boot test in the pinned builder container (recipes in fedora/justfile)
 mod fedora
 

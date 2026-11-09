@@ -1,0 +1,47 @@
+# Apps module: the one-click install of the creative apps from upstream's signed releases (install-creative-apps),
+# packaged as stackific-apps.
+
+# Run install-creative-apps against a fake release of two apps served from files, signed with a throwaway key, with a
+# fake pacman: good packages install; a tampered package and a re-signed one with another hash stop before pacman
+test:
+  #!/usr/bin/env bash
+  set -euo pipefail
+  cd "{{ justfile_directory() }}/apps"
+  tmp=$(mktemp -d)
+  # The throwaway key's gpg-agent would outlive its deleted folder
+  trap 'gpgconf --kill gpg-agent; rm -rf "$tmp"' EXIT
+  export GNUPGHOME="$tmp/gnupg"
+  mkdir -m 700 "$GNUPGHOME"
+  mkdir -p "$tmp/share" "$tmp/bin"
+  gpg --batch --quiet --passphrase '' --quick-gen-key 'Test <test@example.invalid>' ed25519 sign never 2>/dev/null
+  gpg --armor --export >"$tmp/share/creative-apps-key.asc"
+  echo '# comment, and a line for the other base' >"$tmp/share/creative-apps.sha256"
+  for a in alphacraft:1.0.0 betacraft:2.1.0; do
+    app=${a%:*} ver=${a#*:}
+    f="$app-$ver-linux-$(uname -m).pkg.tar.zst"
+    d="$tmp/release/$app/releases/download/v$ver"
+    mkdir -p "$d"
+    echo "$app $ver" >"$d/$f"
+    gpg --batch --quiet --detach-sign -o "$d/$f.sig" "$d/$f"
+    (cd "$d" && sha256sum "$f") >>"$tmp/share/creative-apps.sha256"
+    echo "$(printf '0%.0s' {1..64})  $app-$ver-linux-$(uname -m).rpm" >>"$tmp/share/creative-apps.sha256"
+  done
+  # The fake pacman logs its arguments and how many signatures lie next to the packages
+  printf '#!/bin/sh\necho "$* sigs=$(ls ./*.sig 2>/dev/null | wc -l)" >>%s/pacman.log\n' "$tmp" >"$tmp/bin/pacman"
+  chmod +x "$tmp/bin/pacman"
+  run() { PATH="$tmp/bin:$PATH" STACKIFIC_APPS_SHARE="$tmp/share" STACKIFIC_APPS_URL="file://$tmp/release" \
+    ./install-creative-apps >"$tmp/out" 2>&1; }
+  rc=0
+  b="$tmp/release/betacraft/releases/download/v2.1.0/betacraft-2.1.0-linux-$(uname -m).pkg.tar.zst"
+  want="-U --needed --noconfirm ./alphacraft-1.0.0-linux-$(uname -m).pkg.tar.zst ./betacraft-2.1.0-linux-$(uname -m).pkg.tar.zst sigs=0"
+  if run && [ "$(cat "$tmp/pacman.log")" = "$want" ]; then echo "ok: good packages install"
+  else echo "FAIL: good packages: $(cat "$tmp/out" "$tmp/pacman.log" 2>/dev/null)" >&2; rc=1; fi
+  cp "$b" "$tmp/b.orig"
+  echo tampered >>"$b"
+  if ! run && grep -q 'BAD signature' "$tmp/out" && [ "$(wc -l <"$tmp/pacman.log")" = 1 ]; then echo "ok: a tampered package stops"
+  else echo "FAIL: tampered: $(cat "$tmp/out")" >&2; rc=1; fi
+  echo "betacraft 2.1.1" >"$b"
+  gpg --batch --quiet --yes --detach-sign -o "$b.sig" "$b"
+  if ! run && grep -q 'FAILED' "$tmp/out" && [ "$(wc -l <"$tmp/pacman.log")" = 1 ]; then echo "ok: a re-signed package with another hash stops"
+  else echo "FAIL: re-signed: $(cat "$tmp/out")" >&2; rc=1; fi
+  exit "$rc"

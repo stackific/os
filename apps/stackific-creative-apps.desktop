@@ -1,0 +1,9 @@
+[Desktop Entry]
+Type=Application
+Name=Install creative apps
+Comment=Download and install apps for images, video, audio, documents and design
+Icon=system-software-install
+Categories=System;
+Keywords=install;apps;photo;video;audio;office;design;
+Terminal=false
+Exec=foot --hold --app-id=stackific-creative-apps --window-size-chars=100x30 run0 /usr/lib/stackific/install-creative-apps

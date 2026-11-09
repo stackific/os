@@ -164,6 +164,11 @@ got=$(printf 'bad\nid\n' | socat -t 10 - "VSOCK-CONNECT:$cid:$shell_port" 2>/dev
 [ -z "$got" ] || fail "wrong token got a shell: '$got'"
 echo "ok: wrong token rejected"
 
+# The creative apps' one-click install (task 025): the launcher and its script, and none of the apps in the image
+vm_until 'test -x /usr/lib/stackific/install-creative-apps && grep -x "Name=Install creative apps" /usr/share/applications/stackific-creative-apps.desktop' \
+  '^Name=Install creative apps$' 0
+vm_until 'ls /usr/share/applications | grep -c storyteller' '^0$' 0
+
 # The image's own checks
 # shellcheck source=/dev/null
 source "$checks"
