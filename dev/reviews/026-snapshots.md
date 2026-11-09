@@ -1,7 +1,7 @@
 # 026: Snapshots with snapper and btrfs-assistant, a "Fresh install" snapshot, and zram: review
 
 Task: dev/tasks/026-snapshots.md
-Status: open
+Status: commit ready
 
 ## Round 1
 Reviewed: the task's uncommitted change (installer, `stackific-storage` on both bases, package lists and recipes, boot and install checks, docs and entry).

@@ -53,6 +53,7 @@ No UI.
 - Round 1 found three things, all fixed: Arch's btrfs-assistant 3.0 has no `btrfs-assistant-bin` (its own `btrfs-assistant --list` is the command line), so the install check now uses whichever exists; `SPACE_LIMIT`, inert without quotas, left the config; the install test's header now names the new checks.
 - Round 2 found that the task's Changes list missed `main.rs` and `demo.rs`; the task now names them.
 - Round 3 found nothing.
+- CI rounds (the `images` workflow): the install test expected twelve subvolumes, not thirteen; removing the installer with `pacman --sysroot` ran snap-pac's hook, which needs /proc, so the removal sets `SNAP_PAC_SKIP=y`; and on Fedora, `snapper --no-dbus --root <target>` labelled `/.snapshots` by its live path under `/run` (`var_run_t`), so snapperd could make no pre and post snapshots, so the installer relabels `/.snapshots` after the "Fresh install" snapshot. All fixed.
 
 ## Manual changes
 
@@ -61,7 +62,7 @@ None.
 ## Result
 
 - `just installer test` passes 67 tests, `just lefthook all` passes, and shellcheck passes on the changed test scripts.
-- The images' boot and install tests run in the `images` workflow on both architectures; this step built no image.
+- `images` run 42580305127 built, boot-tested and install-tested all four images, pre and post snapshots included.
 - Docs: the new user page `user/snapshots.md` (what is kept, undoing an update, restoring from the USB stick on an encrypted disk, swap), `docs/installer.md` (the subvolume, snapper's files and the "Fresh install" snapshot in step 8) and `AGENTS.md`.
 
 ## Deviations
