@@ -12,7 +12,7 @@ use crate::answers::{Answers, Mode};
 use crate::base::Base;
 use crate::os_release::OsRelease;
 use crate::run::{Cmd, Output, Runner};
-use crate::{boot, copy, disk, system};
+use crate::{boot, copy, disk, snapper, system};
 
 /// The steps, as the Installing screen names them.
 pub const STEPS: [&str; 8] = [
@@ -361,9 +361,25 @@ fn steps(
         let conf = boot::limine_conf(&plan.os.name, kernels, &luks_uuid) + &plan.windows;
         write(run, log, &target.join(boot::CONF), &conf, None)?;
     }
+    // snapper's root config before the labels; the "Fresh install" snapshot after them, so it keeps them (task 026)
+    write(
+        run,
+        log,
+        &target.join(snapper::ROOT),
+        snapper::ROOT_CONFIG,
+        None,
+    )?;
+    write(
+        run,
+        log,
+        &target.join(plan.base.snapper_configs()),
+        snapper::CONFIGS,
+        None,
+    )?;
     for cmd in plan.base.relabel(target, Path::new("")) {
         exec(run, log, &cmd)?;
     }
+    exec(run, log, &snapper::fresh_install(target))?;
     // The firmware entry last, so a failure before it leaves none behind
     let listing = exec(run, log, &boot::entries())?;
     let present = exec(run, log, &boot::partuuids())?;
@@ -435,6 +451,8 @@ pub mod tests {
             "mount -o",
             "btrfs subvolume",
             "chattr +C",
+            "chmod 750 ",
+            "snapper --no-dbus --root ",
         ] {
             f.on(p, Output::ok(""));
         }
@@ -622,6 +640,17 @@ pub mod tests {
             boot::limine_conf("Stackific OS", Arch.kernel_files().unwrap(), "2222-luks")
         );
         assert!(pos("efibootmgr --bootnum 0009 --delete-bootnum") < pos("efibootmgr --create"));
+        // snapper's root config and Arch's list of configs, then the "Fresh install" snapshot after the boot setup
+        assert_eq!(
+            s.files[&PathBuf::from(format!("{t}/{}", snapper::ROOT))],
+            snapper::ROOT_CONFIG
+        );
+        assert_eq!(
+            s.files[&PathBuf::from(format!("{t}/etc/conf.d/snapper"))],
+            snapper::CONFIGS
+        );
+        let snap = snapper::fresh_install(Path::new(t)).line();
+        assert!(pos("arch-chroot") < pos(&snap) && pos(&snap) < pos("efibootmgr --create"));
         assert_eq!(
             s.calls[s.calls.len() - 5],
             format!(
@@ -680,6 +709,17 @@ pub mod tests {
             .unwrap();
         assert!(
             pos(&format!("chroot {t} /usr/bin/bash")) < last && last < pos("efibootmgr --create")
+        );
+        // The "Fresh install" snapshot after the last relabel, so it keeps the labels; snapper's files before it
+        let snap = pos(&snapper::fresh_install(Path::new(t)).line());
+        assert!(last < snap && snap < pos("efibootmgr --create"));
+        assert_eq!(
+            s.files[&PathBuf::from(format!("{t}/etc/sysconfig/snapper"))],
+            snapper::CONFIGS
+        );
+        assert!(
+            s.files
+                .contains_key(&PathBuf::from(format!("{t}/{}", snapper::ROOT)))
         );
         assert!(relabels[1].contains(&format!("file_contexts {t} {t}/home ")));
         assert_eq!(

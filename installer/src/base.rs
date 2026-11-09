@@ -23,6 +23,8 @@ pub trait Base: Send + Sync {
     /// the system's name, then the kernel's and the initramfs' file names at the ESP's root; `None` when the base's own
     /// kernel tools wrote `limine.conf` in `initramfs`.
     fn kernel_files(&self) -> Option<&'static [boot::Kernel]>;
+    /// snapper's list of configs under the target (`SNAPPER_CONFIGS`), where the base's snapper reads it.
+    fn snapper_configs(&self) -> &'static str;
     /// Commands that give `path` under the target (all of it when empty) its policy's labels (Fedora: SELinux), after
     /// the account files change and after every write, before the firmware entry.
     fn relabel(&self, _target: &Path, _path: &Path) -> Vec<Cmd> {
@@ -147,6 +149,10 @@ impl Base for Arch {
     fn kernel_files(&self) -> Option<&'static [boot::Kernel]> {
         Some(arch_kernel_files(AARCH64))
     }
+
+    fn snapper_configs(&self) -> &'static str {
+        "etc/conf.d/snapper"
+    }
 }
 
 /// Fedora: a kiwi live image booted by dracut's dmsquash-live, with kernel-install and dracut for the kernel.
@@ -224,6 +230,10 @@ impl Base for Fedora {
 
     fn kernel_files(&self) -> Option<&'static [boot::Kernel]> {
         None
+    }
+
+    fn snapper_configs(&self) -> &'static str {
+        "etc/sysconfig/snapper"
     }
 
     /// The policy's labels for what the installer wrote under `path` (the user's home among them), from the target's
@@ -385,7 +395,7 @@ mod tests {
             base.relabel(Path::new("/t"), Path::new(""))[0].line(),
             "setfiles -r /t -e /t/boot -e /t/proc -e /t/sys -e /t/dev -e /t/run /t/etc/selinux/targeted/contexts/files/file_contexts \
              /t /t/home /t/root /t/srv /t/var/cache /t/var/tmp /t/var/log /t/swap /t/var/lib/flatpak /t/var/lib/libvirt/images \
-             /t/var/lib/containers /t/var/lib/docker"
+             /t/var/lib/containers /t/var/lib/docker /t/.snapshots"
         );
         assert!(
             base.relabel(Path::new("/t"), Path::new("etc"))[0]

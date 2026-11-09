@@ -117,6 +117,8 @@ pub fn fake(delay: Duration) -> Fake {
         "mount -o",
         "btrfs subvolume",
         "chattr +C",
+        "chmod 750 ",
+        "snapper --no-dbus --root ",
         "umount ",
         "systemd-firstboot ",
         "userdel ",

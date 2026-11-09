@@ -17,8 +17,9 @@ pub const TARGET: &str = "/run/stackific-installer/target";
 /// Every subvolume is mounted with these (SN-01).
 pub const MOUNT_OPTIONS: &str = "noatime,compress=zstd:1";
 
-/// The flat subvolume layout (SN-01): every one a top-level sibling of `@`, and its mount point.
-pub const SUBVOLUMES: [(&str, &str); 12] = [
+/// The flat subvolume layout (SN-01): every one a top-level sibling of `@`, and its mount point. `@snapshots` holds
+/// snapper's snapshots of `@` (task 026), so restoring `@` keeps them.
+pub const SUBVOLUMES: [(&str, &str); 13] = [
     ("@", "/"),
     ("@home", "/home"),
     ("@root", "/root"),
@@ -31,6 +32,7 @@ pub const SUBVOLUMES: [(&str, &str); 12] = [
     ("@libvirt", "/var/lib/libvirt/images"),
     ("@containers", "/var/lib/containers"),
     ("@docker", "/var/lib/docker"),
+    ("@snapshots", "/.snapshots"),
 ];
 /// NOCOW subvolumes (`chattr +C` on their empty roots): VM images and the future swap file, which btrfs then never
 /// compresses or copies on write.
@@ -196,8 +198,8 @@ pub fn under(target: &Path, mount_point: &str) -> PathBuf {
     target.join(mount_point.trim_start_matches('/'))
 }
 
-/// Creates the subvolumes on the system partition's top level (mounted at the target for the moment) and marks the
-/// NOCOW ones, then mounts `@`, every other subvolume and the ESP, in that order, under the target.
+/// Creates the subvolumes on the system partition's top level (mounted at the target for the moment), marks the
+/// NOCOW ones and keeps users out of the snapshots (snapper's own mode for `.snapshots`), then mounts `@`, every other subvolume and the ESP, in that order, under the target.
 pub fn prepare(esp: &str, system: &str, target: &Path) -> Vec<Cmd> {
     let t = target.to_string_lossy().to_string();
     let top = |v: &str| format!("{t}/{v}");
@@ -210,6 +212,7 @@ pub fn prepare(esp: &str, system: &str, target: &Path) -> Vec<Cmd> {
         Cmd::new("chattr")
             .args(["+C"])
             .args(NOCOW.iter().map(|v| top(v))),
+        Cmd::new("chmod").args(["750", &top("@snapshots")]),
         Cmd::new("umount").args([&t]),
         Cmd::new("mount").args(["-o", &format!("subvol=/@,{MOUNT_OPTIONS}"), system, &t]),
     ];
@@ -326,7 +329,8 @@ mod tests {
                 "@flatpak",
                 "@libvirt",
                 "@containers",
-                "@docker"
+                "@docker",
+                "@snapshots"
             ]
         );
         let cmds: Vec<String> = prepare("/dev/vda1", "/dev/vda2", Path::new(TARGET))
@@ -343,9 +347,14 @@ mod tests {
             "chattr +C /run/stackific-installer/target/@libvirt /run/stackific-installer/target/@swap"
         );
         assert_eq!(
-            cmds[5],
+            cmds[4],
+            "chmod 750 /run/stackific-installer/target/@snapshots"
+        );
+        assert_eq!(
+            cmds[6],
             "mount -o subvol=/@,noatime,compress=zstd:1 /dev/vda2 /run/stackific-installer/target"
         );
+        assert!(cmds.contains(&"mount -o subvol=/@snapshots,noatime,compress=zstd:1 /dev/vda2 /run/stackific-installer/target/.snapshots".into()));
         assert!(cmds.contains(&"mount -o subvol=/@libvirt,noatime,compress=zstd:1 /dev/vda2 /run/stackific-installer/target/var/lib/libvirt/images".into()));
         assert_eq!(
             cmds.last().unwrap(),
@@ -354,7 +363,10 @@ mod tests {
         let f = fstab("S", "E");
         assert_eq!(
             f.lines().filter(|l| l.contains(" btrfs subvol=/@")).count(),
-            12
+            13
+        );
+        assert!(
+            f.contains("UUID=S /.snapshots btrfs subvol=/@snapshots,noatime,compress=zstd:1 0 0\n")
         );
         assert!(f.contains("UUID=S / btrfs subvol=/@,noatime,compress=zstd:1 0 0\n"));
         assert!(f.contains(
